@@ -1,0 +1,146 @@
+/* ===========================================================
+   Tokens de design da Biblioteca ADMP Brasil
+   Tema "Slate" — azul petroleo + acento verde-azulado, visual
+   clean e profissional. Mexa aqui para mudar as cores do site inteiro.
+   =========================================================== */
+
+/* PALETA AZUL */
+/* :root {
+ 
+  --paper: #f5f6f8; 
+  --surface: #ffffff; 
+  --surface-sunk: #edf0f4;
+  --ink: #1c2430; 
+  --ink-soft: #5b6572;
+  --ink-faint: #d7dde3; 
+  --line: #dee3e9; 
+
+  
+  --clay: #2e5c87;
+  --clay-strong: #234769; 
+  --clay-wash: #e7eef5; 
+  --clay-line: #cfe0ee; 
+
+
+  --gold: #b8863f; 
+  --gold-wash: #f3ebdc;
+  --gold-strong: #8a5f24; 
+
+
+  --danger: #a8332b;
+  --danger-wash: #f8e8e6;
+  --danger-line: #e4b7b1;
+
+  --success: #2f7d55;
+  --success-wash: #e3f1e8;
+
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow-card: 0 1px 2px rgba(28, 36, 48, 0.06);
+  --shadow-float: 0 18px 40px -22px rgba(28, 36, 48, 0.45);
+
+  --header-h: 60px;
+  --tabbar-h: 64px;
+  --max-w: 940px;
+} */
+
+/* PALETA LARANJA  */
+/* :root {
+  --paper: #fbf8f2;
+  --surface: #ffffff;
+  --surface-sunk: #f4efe5;
+  --ink: #221f1b;
+  --ink-soft: #6d665b;
+  --ink-faint: #cfc4b1;
+  --line: #e6dfd1;
+
+  --clay: #c05f3c;
+  --clay-strong: #a44d2f;
+  --clay-wash: #f6e8e0;
+  --clay-line: #ebd4c7;
+
+  --gold: #d79a2b;
+  --gold-wash: #fbf0d8;
+  --gold-strong: #8a6212;
+
+  --danger: #a8332b;
+  --danger-wash: #fdf6f4;
+  --danger-line: #e2b6ae;
+
+  --success: #3f7550;
+  --success-wash: #e4efe6;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow-card: 0 1px 2px rgba(34, 31, 27, 0.05);
+  --shadow-float: 0 18px 40px -22px rgba(34, 31, 27, 0.45);
+
+  --header-h: 60px;
+  --tabbar-h: 64px;
+  --max-w: 940px;
+} */
+
+/* PALETA AMARELO/MARROM */
+
+/* ===========================================================
+   Tokens de design da Biblioteca ADMP Brasil
+   Paleta "Dourado ADMP" — amarelo da logo + marrom complementar.
+   Mexa aqui para mudar as cores do site inteiro.
+   =========================================================== */
+:root {
+  /* Cores base */
+  --paper: #fbf7ee; /* fundo geral, papel quente */
+  --surface: #ffffff; /* cartoes e modais */
+  --surface-sunk: #f5efdd; /* campos e areas rebaixadas */
+  --ink: #2b2013; /* texto principal (marrom bem escuro) */
+  --ink-soft: #6f6152; /* texto secundario */
+  --ink-faint: #d9c9a4; /* decorativo bem sutil (icones de fundo) */
+  --line: #e8dcc0; /* bordas finas */
+
+  /* Cor de acao principal (marrom) */
+  --clay: #6b4226;
+  --clay-strong: #52301b; /* hover do botao principal */
+  --clay-wash: #efe2ce; /* fundo suave da cor principal */
+  --clay-line: #d9c39e; /* borda suave pareada com clay-wash */
+
+  /* Acento secundario (amarelo da logo) */
+  --gold: #e3a520;
+  --gold-wash: #fbeec9;
+  --gold-strong: #8a6212; /* texto legivel sobre gold-wash */
+
+  /* Estados */
+  --danger: #a8332b;
+  --danger-wash: #f8e8e6;
+  --danger-line: #e2b6ae;
+
+  --success: #3f7550;
+  --success-wash: #e4efe6;
+
+  /* Tipografia */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Espacamento e formas */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow-card: 0 1px 2px rgba(43, 32, 19, 0.06);
+  --shadow-float: 0 18px 40px -22px rgba(43, 32, 19, 0.45);
+
+  --header-h: 60px;
+  --tabbar-h: 64px;
+  --max-w: 940px;
+}
