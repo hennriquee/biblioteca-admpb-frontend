@@ -789,64 +789,6 @@ select {
   flex-direction: column;
   gap: 14px;
 }
-.coversearch__bar {
-  display: flex;
-  gap: 8px;
-}
-.coversearch__bar input {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  transition: border-color 0.15s ease;
-}
-.coversearch__bar input:focus {
-  border-color: var(--clay);
-  outline: none;
-}
-.coversearch__bar .btn {
-  flex-shrink: 0;
-}
-
-/* "auto-fill" com minmax deixa a grade se ajustar sozinha: mais colunas
-   em telas grandes, menos em telas pequenas, sem precisar de media query. */
-.coversearch__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-  gap: 8px;
-}
-.coversearch__item {
-  aspect-ratio: 2 / 3;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--surface-sunk);
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-.coversearch__item:hover {
-  border-color: var(--clay);
-  transform: translateY(-2px);
-}
-.coversearch__item img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.coversearch__fallback {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
 
 /* ---------- Combobox ---------- */
 .combo {

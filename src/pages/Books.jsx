@@ -450,7 +450,7 @@ export default function Books() {
                 setLookupState("manual");
               }}
             >
-              Nao tenho o ISBN, quero preencher na mão
+              Não tenho o ISBN, quero preencher na mão
             </button>
           </form>
         ) : (
@@ -549,7 +549,6 @@ export default function Books() {
           .filter(Boolean)
           .join(" ")
           .trim()}
-        onSelect={(url) => setForm((prev) => ({ ...prev, cover: url }))}
       />
 
       <Confirm
