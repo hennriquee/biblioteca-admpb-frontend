@@ -288,6 +288,41 @@ select {
   color: var(--clay);
 }
 
+/* ---------- Tela de abertura (capa) do app ---------- */
+.app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.app-splash--fade {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-splash__logo {
+  width: min(58vw, 260px);
+  height: auto;
+  animation: app-splash-in 0.6s ease both;
+}
+
+@keyframes app-splash-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .boot {
   height: 100%;
   display: flex;
