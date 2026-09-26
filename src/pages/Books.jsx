@@ -4,6 +4,7 @@ import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
+import CoverSearchModal from "../components/CoverSearchModal.jsx";
 import {
   IconPlus,
   IconSearch,
@@ -61,6 +62,7 @@ export default function Books() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [coverSearchOpen, setCoverSearchOpen] = useState(false);
 
   const loadPage = useCallback(
     async (pageToLoad, term) => {
@@ -519,6 +521,14 @@ export default function Books() {
                 onChange={(e) => setForm({ ...form, cover: e.target.value })}
               />
             </label>
+            <button
+              type="button"
+              className="btn btn--ghost btn--block"
+              onClick={() => setCoverSearchOpen(true)}
+            >
+              <IconSearch width={16} height={16} />
+              Buscar foto na internet
+            </button>
 
             <label className="field">
               <span>Sinopse</span>
@@ -531,6 +541,16 @@ export default function Books() {
           </form>
         )}
       </Modal>
+
+      <CoverSearchModal
+        open={coverSearchOpen}
+        onClose={() => setCoverSearchOpen(false)}
+        initialQuery={[form.title, form.authors.split(",")[0]]
+          .filter(Boolean)
+          .join(" ")
+          .trim()}
+        onSelect={(url) => setForm((prev) => ({ ...prev, cover: url }))}
+      />
 
       <Confirm
         open={Boolean(confirmDelete)}
