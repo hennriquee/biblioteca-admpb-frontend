@@ -5,7 +5,7 @@ import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import CoverSearchModal from "../components/CoverSearchModal.jsx";
-import { extractDirectImageUrl } from "../api/imageSearch.js";
+import { parseCoverInput } from "../api/imageSearch.js";
 import {
   IconPlus,
   IconSearch,
@@ -64,6 +64,7 @@ export default function Books() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [coverSearchOpen, setCoverSearchOpen] = useState(false);
+  const [coverSearchQuery, setCoverSearchQuery] = useState(null);
 
   const loadPage = useCallback(
     async (pageToLoad, term) => {
@@ -119,6 +120,24 @@ export default function Books() {
     setLookupState("idle");
     setEditingId(null);
     setCreating(true);
+  }
+
+  // Le o que a pessoa colou/digitou no campo "Link da capa". Se for um link
+  // de foto de verdade (direto ou de dentro de um link de resultado do
+  // Google), usa como capa. Se for um link de PAGINA DE BUSCA do Google sem
+  // nenhuma foto embutida nele (comum no celular, formato .../search?q=...),
+  // nao da pra usar como imagem - entao abrimos a busca por texto dentro do
+  // proprio app com essa mesma pesquisa, pra pessoa escolher a foto certa
+  // numa grade em vez de precisar copiar link nenhum.
+  function handleCoverInputChange(rawValue) {
+    const parsed = parseCoverInput(rawValue);
+    if (parsed.type === "query") {
+      setForm((f) => ({ ...f, cover: "" }));
+      setCoverSearchQuery(parsed.value);
+      setCoverSearchOpen(true);
+      return;
+    }
+    setForm((f) => ({ ...f, cover: parsed.value }));
   }
 
   async function handleLookup(event) {
@@ -519,18 +538,16 @@ export default function Books() {
               <span>Link da capa</span>
               <input
                 value={form.cover}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    cover: extractDirectImageUrl(e.target.value),
-                  })
-                }
+                onChange={(e) => handleCoverInputChange(e.target.value)}
               />
             </label>
             <button
               type="button"
               className="btn btn--ghost btn--block"
-              onClick={() => setCoverSearchOpen(true)}
+              onClick={() => {
+                setCoverSearchQuery(null);
+                setCoverSearchOpen(true);
+              }}
             >
               <IconSearch width={16} height={16} />
               Buscar foto na internet
@@ -551,10 +568,14 @@ export default function Books() {
       <CoverSearchModal
         open={coverSearchOpen}
         onClose={() => setCoverSearchOpen(false)}
-        initialQuery={[form.title, form.authors.split(",")[0]]
-          .filter(Boolean)
-          .join(" ")
-          .trim()}
+        onSelect={(url) => setForm((f) => ({ ...f, cover: url }))}
+        initialQuery={
+          coverSearchQuery ??
+          [form.title, form.authors.split(",")[0]]
+            .filter(Boolean)
+            .join(" ")
+            .trim()
+        }
       />
 
       <Confirm

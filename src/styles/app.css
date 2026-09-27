@@ -855,6 +855,37 @@ select {
   flex-direction: column;
   gap: 14px;
 }
+.coversearch__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coversearch__msg {
+  font-size: 0.85rem;
+}
+.coversearch__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+}
+.coversearch__item {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.coversearch__item:hover,
+.coversearch__item:focus-visible {
+  border-color: var(--clay);
+  outline: none;
+}
+.coversearch__fallback {
+  font-size: 0.85rem;
+}
 
 /* ---------- Combobox ---------- */
 .combo {
