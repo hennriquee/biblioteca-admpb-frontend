@@ -45,7 +45,7 @@ export default function CoverSearchModal({
       setSearched(true);
       if (!found.length) {
         setError(
-          "Nao achamos nenhuma foto para essa busca. Tente outras palavras ou use o link do Google abaixo.",
+          "Não achamos nenhuma foto para essa busca. Tente outras palavras ou use o link do Google abaixo.",
         );
       }
     } catch {
@@ -114,15 +114,16 @@ export default function CoverSearchModal({
 
         {!loading && searched ? (
           <p className="muted coversearch__fallback">
-            Nao encontrou a capa certa?{" "}
+            Não encontrou a capa certa?{" "}
             <a
+              className="link-decoration"
               href={googleImagesSearchUrl(query)}
               target="_blank"
               rel="noopener noreferrer"
             >
               Buscar no Google Imagens
             </a>
-            , clique com o botao direito na foto, escolha "Copiar endereco da
+            , clique com o botão direito na foto, escolha "Copiar endereco da
             imagem" e cole no campo "Link da capa".
           </p>
         ) : null}

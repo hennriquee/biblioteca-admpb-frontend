@@ -78,6 +78,11 @@ a {
   text-decoration: none;
 }
 
+.link-decoration {
+  color: blue;
+  text-decoration: underline;
+}
+
 button,
 input,
 textarea,
