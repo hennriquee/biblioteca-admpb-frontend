@@ -1,12 +1,12 @@
 const base = {
   width: 22,
   height: 22,
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
   strokeWidth: 1.6,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
 };
 
 export const IconHome = (props) => (
@@ -78,5 +78,20 @@ export const IconBook = (props) => (
   <svg {...base} {...props}>
     <path d="M5 4.5h9a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z" />
     <path d="M17 7.5h2v12h-2" />
+  </svg>
+);
+
+export const IconEye = (props) => (
+  <svg {...base} {...props}>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const IconEyeOff = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3.5 3.5l17 17" />
+    <path d="M10.6 5.7A10.4 10.4 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.6 15.6 0 0 1-3.2 4.1M6.6 6.6C4 8.3 2.5 12 2.5 12s3.5 6.5 9.5 6.5a9.9 9.9 0 0 0 3.9-.8" />
+    <path d="M9.9 10a3 3 0 0 0 4.2 4.2" />
   </svg>
 );

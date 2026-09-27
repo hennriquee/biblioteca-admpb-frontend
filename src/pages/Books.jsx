@@ -5,6 +5,7 @@ import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import CoverSearchModal from "../components/CoverSearchModal.jsx";
+import { extractDirectImageUrl } from "../api/imageSearch.js";
 import {
   IconPlus,
   IconSearch,
@@ -518,7 +519,12 @@ export default function Books() {
               <span>Link da capa</span>
               <input
                 value={form.cover}
-                onChange={(e) => setForm({ ...form, cover: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    cover: extractDirectImageUrl(e.target.value),
+                  })
+                }
               />
             </label>
             <button

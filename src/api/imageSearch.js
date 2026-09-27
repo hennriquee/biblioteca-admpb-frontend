@@ -15,3 +15,35 @@ export function googleImagesSearchUrl(query) {
     encodeURIComponent((query || "").trim())
   );
 }
+
+// O Google mudou o que "Copiar endereco da imagem" devolve: em vez do link
+// direto do arquivo, agora vem um link da PROPRIA pagina de resultados
+// (https://www.google.com/imgres?...&imgurl=<link real>&imgrefurl=...&...).
+// Colar esse link direto no <img src> nao funciona - o navegador tenta
+// carregar a pagina de busca do Google como se fosse a foto. O link de
+// verdade fica guardado dentro do parametro "imgurl", entao extraimos ele
+// aqui sempre que detectamos esse formato.
+export function extractDirectImageUrl(rawUrl) {
+  const value = (rawUrl || "").trim();
+  if (!value) return value;
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    // Nao e uma URL valida (ex: a pessoa ainda esta digitando) - devolve
+    // como veio, sem tentar "consertar" texto que nao e um link.
+    return value;
+  }
+
+  const isGoogleResultLink =
+    /(^|\.)google\.[a-z.]+$/i.test(url.hostname) &&
+    url.searchParams.has("imgurl");
+
+  if (isGoogleResultLink) {
+    const imgUrl = url.searchParams.get("imgurl");
+    if (imgUrl) return imgUrl;
+  }
+
+  return value;
+}

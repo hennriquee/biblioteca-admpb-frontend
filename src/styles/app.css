@@ -391,6 +391,37 @@ select {
   gap: 12px;
 }
 
+.field__input-wrap {
+  position: relative;
+  display: flex;
+}
+.field__input-wrap input {
+  padding-right: 44px;
+}
+.field__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.field__toggle:hover {
+  color: var(--ink);
+}
+.field__toggle:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
 .form-error {
   background: var(--danger-wash);
   border: 1px solid var(--danger-line);

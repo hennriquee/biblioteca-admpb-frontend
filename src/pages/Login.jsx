@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import ReadingScene from "../components/ReadingScene.jsx";
+import { IconEye, IconEyeOff } from "../components/Icons.jsx";
 
 export default function Login() {
   const { login, user, loading } = useAuth();
@@ -9,6 +10,7 @@ export default function Login() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,13 +60,27 @@ export default function Login() {
 
           <label className="field">
             <span>Senha</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
+            <div className="field__input-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                className="field__toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? (
+                  <IconEyeOff width={18} height={18} />
+                ) : (
+                  <IconEye width={18} height={18} />
+                )}
+              </button>
+            </div>
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
