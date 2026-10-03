@@ -159,7 +159,7 @@ export default function Books() {
     try {
       const data = await api("/api/books/lookup/" + isbn);
       if (data.alreadyRegistered) {
-        notify("Esse livro ja esta no acervo.", "error");
+        notify("Esse livro já está no acervo.", "error");
         setLookupState("idle");
         return;
       }
@@ -289,7 +289,7 @@ export default function Books() {
           <p>
             {search.trim()
               ? "Nenhum livro corresponde a essa busca."
-              : "A estante esta vazia."}
+              : "A estante está vazia."}
           </p>
           {!search.trim() ? (
             <button
@@ -606,7 +606,7 @@ export default function Books() {
         message={
           'Excluir "' +
           (confirmDelete?.title || "") +
-          '" do acervo? Essa acao nao tem volta.'
+          '" do acervo? Essa ação não tem volta.'
         }
         confirmLabel="Excluir"
         tone="danger"

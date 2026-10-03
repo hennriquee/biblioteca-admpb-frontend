@@ -123,7 +123,7 @@ export default function CoverSearchModal({
             >
               Buscar no Google Imagens
             </a>
-            , clique com o botão direito na foto, escolha "Copiar endereçoo da
+            , clique com o botão direito na foto, escolha "Copiar endereço da
             imagem" e cole no campo "Link da capa".
           </p>
         ) : null}

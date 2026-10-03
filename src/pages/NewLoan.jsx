@@ -182,7 +182,7 @@ export default function NewLoan() {
                           <strong>{item.title}</strong>
                           <small>
                             {item.loanedTo
-                              ? "ja esta com " + item.loanedTo
+                              ? "já está com " + item.loanedTo
                               : (item.authors || []).join(", ") || item.isbn}
                           </small>
                         </span>
@@ -237,7 +237,7 @@ export default function NewLoan() {
                         <strong>{person.fullName}</strong>
                         <small>
                           {person.activeLoans.length > 0
-                            ? "esta com " + person.activeLoans.join(", ")
+                            ? "está com " + person.activeLoans.join(", ")
                             : person.loansCount + " empréstimo(s) no historico"}
                         </small>
                       </span>
