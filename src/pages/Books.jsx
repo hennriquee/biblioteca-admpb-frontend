@@ -5,6 +5,7 @@ import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import CoverSearchModal from "../components/CoverSearchModal.jsx";
+import CoverPicker from "../components/CoverPicker.jsx";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
   IconPlus,
@@ -21,6 +22,9 @@ const emptyForm = {
   year: "",
   pages: "",
   cover: "",
+  // Foto tirada/escolhida e recortada no app (data URI). So existe ate salvar:
+  // o servidor envia para o Cloudinary e guarda o link em "cover".
+  coverImage: "",
   synopsis: "",
   copies: 1,
 };
@@ -65,6 +69,7 @@ export default function Books() {
   const [saving, setSaving] = useState(false);
   const [coverSearchOpen, setCoverSearchOpen] = useState(false);
   const [coverSearchQuery, setCoverSearchQuery] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const loadPage = useCallback(
     async (pageToLoad, term) => {
@@ -119,6 +124,7 @@ export default function Books() {
     setIsbnInput("");
     setLookupState("idle");
     setEditingId(null);
+    setLinkOpen(false);
     setCreating(true);
   }
 
@@ -132,12 +138,13 @@ export default function Books() {
   function handleCoverInputChange(rawValue) {
     const parsed = parseCoverInput(rawValue);
     if (parsed.type === "query") {
-      setForm((f) => ({ ...f, cover: "" }));
+      setForm((f) => ({ ...f, cover: "", coverImage: "" }));
       setCoverSearchQuery(parsed.value);
       setCoverSearchOpen(true);
       return;
     }
-    setForm((f) => ({ ...f, cover: parsed.value }));
+    // Um link colado substitui qualquer foto que estivesse pendente.
+    setForm((f) => ({ ...f, cover: parsed.value, coverImage: "" }));
   }
 
   async function handleLookup(event) {
@@ -164,6 +171,7 @@ export default function Books() {
         year: data.year || "",
         pages: data.pages || "",
         cover: data.cover || "",
+        coverImage: "",
         synopsis: data.synopsis || "",
         copies: 1,
       });
@@ -184,9 +192,11 @@ export default function Books() {
       year: book.year || "",
       pages: book.pages || "",
       cover: book.cover || "",
+      coverImage: "",
       synopsis: book.synopsis || "",
       copies: book.copies || 1,
     });
+    setLinkOpen(false);
     setEditingId(book._id);
     setLookupState("found");
     setSelected(null);
@@ -432,7 +442,11 @@ export default function Books() {
                 className="btn btn--primary"
                 disabled={saving}
               >
-                {saving ? "Salvando…" : "Salvar livro"}
+                {saving
+                  ? form.coverImage
+                    ? "Enviando capa…"
+                    : "Salvando…"
+                  : "Salvar livro"}
               </button>
             </>
           ) : null
@@ -475,9 +489,34 @@ export default function Books() {
           </form>
         ) : (
           <form id="book-form" className="bookform" onSubmit={handleSave}>
-            <div className="bookform__preview">
-              <BookCover src={form.cover} alt="" className="cover--md" />
-            </div>
+            <CoverPicker
+              src={form.coverImage || form.cover}
+              linkOpen={linkOpen}
+              notify={notify}
+              onPhoto={(dataUri) =>
+                setForm((f) => ({ ...f, coverImage: dataUri, cover: "" }))
+              }
+              onSearch={() => {
+                setCoverSearchQuery(null);
+                setCoverSearchOpen(true);
+              }}
+              onToggleLink={() => setLinkOpen((open) => !open)}
+              onRemove={() =>
+                setForm((f) => ({ ...f, cover: "", coverImage: "" }))
+              }
+            />
+
+            {linkOpen ? (
+              <label className="field">
+                <span>Link da imagem da capa</span>
+                <input
+                  value={form.cover}
+                  placeholder="Cole aqui o endereço da imagem"
+                  onChange={(e) => handleCoverInputChange(e.target.value)}
+                  autoFocus
+                />
+              </label>
+            ) : null}
 
             <label className="field">
               <span>Titulo</span>
@@ -535,25 +574,6 @@ export default function Books() {
             </div>
 
             <label className="field">
-              <span>Link da capa</span>
-              <input
-                value={form.cover}
-                onChange={(e) => handleCoverInputChange(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="btn btn--ghost btn--block"
-              onClick={() => {
-                setCoverSearchQuery(null);
-                setCoverSearchOpen(true);
-              }}
-            >
-              <IconSearch width={16} height={16} />
-              Buscar foto na internet
-            </button>
-
-            <label className="field">
               <span>Sinopse</span>
               <textarea
                 rows="5"
@@ -568,7 +588,9 @@ export default function Books() {
       <CoverSearchModal
         open={coverSearchOpen}
         onClose={() => setCoverSearchOpen(false)}
-        onSelect={(url) => setForm((f) => ({ ...f, cover: url }))}
+        onSelect={(url) =>
+          setForm((f) => ({ ...f, cover: url, coverImage: "" }))
+        }
         initialQuery={
           coverSearchQuery ??
           [form.title, form.authors.split(",")[0]]

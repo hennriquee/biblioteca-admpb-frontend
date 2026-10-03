@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import { IconClose } from "./Icons.jsx";
 
+// Pilha de modais abertos. Quando ha um modal sobre outro (ex.: o recorte da
+// capa sobre o formulario do livro), o Esc fecha so o de cima.
+const openModals = [];
+
 export default function Modal({
   open,
   onClose,
@@ -8,14 +12,22 @@ export default function Modal({
   children,
   footer,
   size = "md",
+  closeOnBackdrop = true,
 }) {
   const panelRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
 
+    const token = {};
+    openModals.push(token);
+
     function onKeyDown(event) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (openModals[openModals.length - 1] !== token) return;
+      onCloseRef.current();
     }
 
     document.addEventListener("keydown", onKeyDown);
@@ -25,6 +37,8 @@ export default function Modal({
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      const index = openModals.indexOf(token);
+      if (index !== -1) openModals.splice(index, 1);
       document.body.style.overflow = previousOverflow;
     };
   }, [open]);
@@ -34,7 +48,9 @@ export default function Modal({
   return (
     <div
       className="modal-backdrop"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onMouseDown={(e) =>
+        closeOnBackdrop && e.target === e.currentTarget && onClose()
+      }
     >
       <div
         className={"modal modal--" + size}

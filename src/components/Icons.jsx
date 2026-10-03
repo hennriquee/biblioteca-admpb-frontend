@@ -95,3 +95,25 @@ export const IconEyeOff = (props) => (
     <path d="M9.9 10a3 3 0 0 0 4.2 4.2" />
   </svg>
 );
+
+export const IconCamera = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.1-1.7A1.5 1.5 0 0 1 10.1 4.6h3.8a1.5 1.5 0 0 1 1.3.7L16.3 7h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+    <circle cx="12" cy="13" r="3.4" />
+  </svg>
+);
+
+export const IconImage = (props) => (
+  <svg {...base} {...props}>
+    <rect x="4" y="5" width="16" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.4" />
+    <path d="m5 17 4.5-4.5L13 16l2.5-2.5L19 17" />
+  </svg>
+);
+
+export const IconLink = (props) => (
+  <svg {...base} {...props}>
+    <path d="M10 14a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" />
+    <path d="M14 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
+  </svg>
+);

@@ -1,8 +1,13 @@
 import { IconBook } from './Icons.jsx';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function BookCover({ src, alt, className = '' }) {
   const [failed, setFailed] = useState(false);
+
+  // Se o link falhou e a pessoa escolhe outra capa, tenta carregar de novo.
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (
