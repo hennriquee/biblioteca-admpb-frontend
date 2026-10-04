@@ -24,7 +24,7 @@ export default function AppSplash({ duration = 1100 }) {
   return (
     <div className={`app-splash${fading ? " app-splash--fade" : ""}`}>
       <img
-        src="/img/logo-biblioteca.png"
+        src="/img/logo-biblioteca.svg"
         alt="Biblioteca ADMP Brasil"
         className="app-splash__logo"
       />

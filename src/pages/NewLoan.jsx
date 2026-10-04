@@ -6,6 +6,7 @@ import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
 import { IconSearch, IconClose } from "../components/Icons.jsx";
+import { maskPhone } from "../utils/whatsapp.js";
 
 export default function NewLoan() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function NewLoan() {
   const [book, setBook] = useState(null);
 
   const [personName, setPersonName] = useState("");
+  const [phone, setPhone] = useState("");
   const [personSuggestions, setPersonSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -78,6 +80,7 @@ export default function NewLoan() {
         body: {
           bookId: book._id,
           personName: personName.trim(),
+          phone: phone.trim(),
           startDate,
           dueDate: dueDate || null,
           notes,
@@ -105,6 +108,10 @@ export default function NewLoan() {
     if (!book) return notify("Escolha o livro que vai sair.", "error");
     if (personName.trim().split(/\s+/).length < 2) {
       return notify("Digite o nome completo da pessoa.", "error");
+    }
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 11)) {
+      return notify("WhatsApp incompleto. Use o DDD e o número.", "error");
     }
     if (dueDate && dueDate < startDate) {
       return notify(
@@ -230,6 +237,7 @@ export default function NewLoan() {
                       onMouseDown={() => clearTimeout(personBlurTimer.current)}
                       onClick={() => {
                         setPersonName(person.fullName);
+                        if (person.phone) setPhone(maskPhone(person.phone));
                         setShowSuggestions(false);
                       }}
                     >
@@ -248,6 +256,21 @@ export default function NewLoan() {
             ) : null}
           </div>
         </div>
+
+        <label className="field">
+          <span>WhatsApp (opcional)</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            placeholder="(83) 99999-8888"
+            onChange={(e) => setPhone(maskPhone(e.target.value))}
+            autoComplete="off"
+          />
+          <small className="field__hint">
+            Usado só para lembrar a pessoa da devolução do livro.
+          </small>
+        </label>
 
         <div className="field-row">
           <label className="field">

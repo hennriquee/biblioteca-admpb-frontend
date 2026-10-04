@@ -6,6 +6,11 @@ import Modal from "../components/Modal.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { IconPlus, IconSearch, IconCheck } from "../components/Icons.jsx";
+import {
+  formatStoredPhone,
+  reminderKind,
+  whatsappLink,
+} from "../utils/whatsapp.js";
 
 function LoanCard({ loan, onOpen }) {
   const isReturned = loan.status === "devolvido";
@@ -64,6 +69,23 @@ function LoanCard({ loan, onOpen }) {
               style={{ width: (openEnded ? 8 : percent) + "%" }}
             />
           </div>
+
+          {!isReturned && loan.personPhone && reminderKind(loan) !== "ok" ? (
+            <p
+              className={
+                "loancard__notice" +
+                (reminderKind(loan) === "late" ? " is-late" : "")
+              }
+            >
+              {(reminderKind(loan) === "late"
+                ? loan.overdueSentAt
+                : loan.reminderSentAt)
+                ? "WhatsApp aberto para avisar"
+                : reminderKind(loan) === "late"
+                  ? "Avisar atraso no WhatsApp"
+                  : "Avisar devolução no WhatsApp"}
+            </p>
+          ) : null}
 
           <div className="loancard__dates">
             <span>{formatDate(loan.startDate)}</span>
@@ -125,6 +147,24 @@ export default function Loans() {
       notify(error.message, "error");
     } finally {
       setReturning(false);
+    }
+  }
+
+  async function openWhatsapp() {
+    const kind = reminderKind(selected) === "late" ? "overdue" : "reminder";
+    // Abre primeiro (o navegador so permite no clique) e registra depois.
+    window.open(whatsappLink(selected), "_blank", "noopener");
+    try {
+      const updated = await api("/api/loans/" + selected._id + "/notified", {
+        method: "PATCH",
+        body: { kind },
+      });
+      setSelected(updated);
+      setLoans((list) =>
+        list.map((item) => (item._id === updated._id ? updated : item)),
+      );
+    } catch {
+      /* o aviso ja foi aberto; falhar em registrar nao atrapalha */
     }
   }
 
@@ -217,6 +257,15 @@ export default function Loans() {
             >
               Fechar
             </button>
+            {selected?.status === "ativo" && selected?.personPhone ? (
+              <button
+                type="button"
+                className="btn btn--whatsapp"
+                onClick={openWhatsapp}
+              >
+                Avisar no WhatsApp
+              </button>
+            ) : null}
             {selected?.status === "ativo" ? (
               <button
                 type="button"
@@ -243,6 +292,14 @@ export default function Loans() {
               <div>
                 <dt>Com quem está</dt>
                 <dd>{selected.personName}</dd>
+              </div>
+              <div>
+                <dt>WhatsApp</dt>
+                <dd>
+                  {selected.personPhone
+                    ? formatStoredPhone(selected.personPhone)
+                    : "não informado"}
+                </dd>
               </div>
               <div>
                 <dt>Retirada</dt>

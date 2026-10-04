@@ -1538,3 +1538,28 @@ select {
     bottom: 24px;
   }
 }
+
+
+/* ---------- WhatsApp ---------- */
+.field__hint {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.btn--whatsapp {
+  background: #1f9d57;
+  color: #fff;
+  border: 1px solid #1f9d57;
+}
+.btn--whatsapp:hover:not(:disabled) {
+  background: #178048;
+}
+.loancard__notice {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f7a4a;
+}
+.loancard__notice.is-late {
+  color: #b3402a;
+}

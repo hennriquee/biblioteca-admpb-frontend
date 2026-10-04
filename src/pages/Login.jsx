@@ -36,7 +36,7 @@ export default function Login() {
         <form className="login__form" onSubmit={handleSubmit}>
           <img
             className="login__logo"
-            src="/img/logo-biblioteca.png"
+            src="/img/logo-biblioteca.svg"
             alt="Biblioteca ADMP Brasil"
           />
 

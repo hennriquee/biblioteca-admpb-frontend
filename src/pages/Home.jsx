@@ -37,7 +37,7 @@ export default function Home() {
     <div className="home rise">
       <img
         className="home__logo rise-1"
-        src="/img/logo-biblioteca.png"
+        src="/img/logo-biblioteca.svg"
         alt="Biblioteca ADMP Brasil"
       />
 
