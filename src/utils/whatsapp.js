@@ -1,21 +1,11 @@
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { formatLongDate, loanProgress } from "./dates.js";
 
-// Mascara enquanto digita: (83) 99999-8888
-export function maskPhone(value) {
-  const d = String(value || "")
-    .replace(/\D/g, "")
-    .replace(/^55(?=\d{10,11}$)/, "")
-    .slice(0, 11);
-  if (d.length <= 2) return d;
-  if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
-  if (d.length <= 10)
-    return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
-  return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
-}
-
-// Mostra um numero salvo (5583999998888) como (83) 99999-8888
+// Mostra o numero salvo (so digitos com DDI) de forma legivel:
+// 5534997885466 -> +55 34 99788-5466
 export function formatStoredPhone(phone) {
-  return maskPhone(phone);
+  const parsed = phone ? parsePhoneNumberFromString("+" + phone) : null;
+  return parsed ? parsed.formatInternational() : phone || "";
 }
 
 // Diz em qual situacao o emprestimo esta, para escolher a mensagem:

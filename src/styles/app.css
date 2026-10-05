@@ -1563,3 +1563,93 @@ select {
 .loancard__notice.is-late {
   color: #b3402a;
 }
+
+/* ---------- Campo de telefone com bandeira ---------- */
+.phone {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease;
+}
+.phone:focus-within {
+  border-color: var(--clay);
+}
+.phone__country {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px 0 12px;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+.phone__country:hover {
+  background: var(--surface-sunk);
+}
+.phone__flag {
+  width: 22px;
+  height: 15px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  flex: none;
+}
+.phone__dial {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+.field .phone .phone__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.phone__list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-float);
+  scrollbar-width: thin;
+}
+.phone__option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.phone__option:hover,
+.phone__option.is-active {
+  background: var(--clay-wash);
+}
+.phone__name {
+  flex: 1;
+}
+.phone__code {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.88rem;
+}
