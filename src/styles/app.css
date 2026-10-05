@@ -190,71 +190,11 @@ select {
 
 /* ---------- Estrutura ---------- */
 .shell {
+  position: relative;
   min-height: 100%;
   display: flex;
   flex-direction: column;
   padding-top: env(safe-area-inset-top, 0px);
-}
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: var(--header-h);
-  padding: 0 16px;
-  background: var(--surface);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--line);
-}
-
-.topbar__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.topbar__brand img {
-  object-fit: contain;
-}
-.topbar__brand div {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-.topbar__brand strong {
-  font-family: var(--font-ui);
-  font-size: 1.02rem;
-}
-.topbar__brand span {
-  font-size: 0.72rem;
-  color: var(--ink-soft);
-  letter-spacing: 0.04em;
-}
-
-.topbar__nav {
-  display: none;
-  gap: 4px;
-}
-
-.topbar__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 0.91rem;
-  color: var(--ink-soft);
-}
-.topbar__link:hover {
-  background: var(--surface-sunk);
-  color: var(--ink);
-}
-.topbar__link.active {
-  background: var(--clay-wash);
-  color: var(--clay-strong);
 }
 
 .content {
@@ -263,34 +203,7 @@ select {
   max-width: var(--max-w);
   margin: 0 auto;
   padding: 20px 16px
-    calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom, 0px));
-}
-
-.tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  display: flex;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.tabbar__link {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  height: var(--tabbar-h);
-  font-size: 0.7rem;
-  color: var(--ink-soft);
-}
-.tabbar__link.active {
-  color: var(--clay);
+    calc(36px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------- Tela de abertura (capa) do app ---------- */
@@ -392,8 +305,15 @@ select {
 
 .field-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+}
+.field-row > * {
+  min-width: 0;
+}
+.field input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field__input-wrap {
@@ -1161,7 +1081,7 @@ select {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(var(--tabbar-h) + 14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -1295,6 +1215,7 @@ select {
 .home__stats {
   width: 100%;
   display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .stat {
@@ -1498,16 +1419,7 @@ select {
     display: block;
   }
 
-  .topbar {
-    padding: 0 24px;
-  }
-  .topbar__nav {
-    display: flex;
-  }
-  .tabbar {
-    display: none;
-  }
-  .content {
+        .content {
     padding: 32px 24px 60px;
   }
 
@@ -1652,4 +1564,109 @@ select {
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
   font-size: 0.88rem;
+}
+
+
+/* ---------- Navegacao estilo app (sem barra de menu) ---------- */
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  margin: -6px 0 10px -6px;
+  padding: 8px 12px 8px 6px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.backlink:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+.appexit {
+  position: absolute;
+  z-index: 5;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 14px;
+}
+@media (min-width: 860px) {
+  .appexit {
+    top: 20px;
+    right: 24px;
+  }
+}
+
+/* ---------- Indicadores: pontinhos pulando enquanto carrega ---------- */
+.stat__value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem; /* mesma altura do numero: nada pula quando ele chega */
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.5;
+}
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 1.5rem;
+}
+/* Seletor mais especifico que ".stat span", que pintaria os pontos de cinza. */
+.stat__value .dots {
+  color: var(--clay); /* marrom da marca, o mesmo dos botoes e icones */
+}
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes dot-bounce {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  35% {
+    transform: translateY(-7px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: dot-pulse 1.6s ease-in-out infinite !important;
+  }
+  @keyframes dot-pulse {
+    50% {
+      opacity: 0.3;
+    }
+  }
+}
+
+/* Desktop: a Inicio ocupa a tela com a logo maior e o conteudo centralizado */
+@media (min-width: 860px) {
+  .home {
+    min-height: calc(100dvh - 92px);
+    justify-content: center;
+    gap: 24px;
+  }
+  .home__logo {
+    width: min(320px, 60%);
+  }
+}
+@media (max-width: 420px) {
+  .stat {
+    padding: 14px 6px;
+  }
 }

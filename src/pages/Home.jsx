@@ -4,8 +4,25 @@ import { api } from "../api/client.js";
 import ReadingScene from "../components/ReadingScene.jsx";
 import { IconBooks, IconLoans, IconPlus } from "../components/Icons.jsx";
 
+function StatValue({ value }) {
+  if (value === null || value === undefined) {
+    return (
+      <strong className="stat__value is-loading" role="status">
+        <span className="dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="sr-only">Carregando</span>
+      </strong>
+    );
+  }
+  return <strong className="stat__value">{value}</strong>;
+}
+
 export default function Home() {
-  const [stats, setStats] = useState({ books: 0, active: 0, overdue: 0 });
+  // null = ainda carregando (mostra os pontinhos); "error" = nao foi possivel carregar
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -23,7 +40,8 @@ export default function Home() {
         ).length;
         setStats({ books: books.length, active: loans.length, overdue });
       } catch {
-        /* a home continua util mesmo sem os numeros */
+        // a home continua util mesmo sem os numeros
+        if (active) setStats("error");
       }
     }
 
@@ -47,15 +65,19 @@ export default function Home() {
 
       <div className="home__stats rise-3">
         <div className="stat">
-          <strong>{stats.books}</strong>
+          <StatValue value={stats === "error" ? "—" : stats?.books} />
           <span>livros no acervo</span>
         </div>
         <div className="stat">
-          <strong>{stats.active}</strong>
+          <StatValue value={stats === "error" ? "—" : stats?.active} />
           <span>emprestados agora</span>
         </div>
-        <div className={"stat" + (stats.overdue > 0 ? " stat--alert" : "")}>
-          <strong>{stats.overdue}</strong>
+        <div
+          className={
+            "stat" + (stats && stats !== "error" && stats.overdue > 0 ? " stat--alert" : "")
+          }
+        >
+          <StatValue value={stats === "error" ? "—" : stats?.overdue} />
           <span>passaram da data</span>
         </div>
       </div>

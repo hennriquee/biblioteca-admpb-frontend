@@ -117,3 +117,9 @@ export const IconLink = (props) => (
     <path d="M14 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
   </svg>
 );
+
+export const IconChevronLeft = (props) => (
+  <svg {...base} {...props}>
+    <path d="m14.5 6-6 6 6 6" />
+  </svg>
+);

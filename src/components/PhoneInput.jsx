@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AsYouType,
   getCountryCallingCode,
@@ -56,7 +56,9 @@ export default function PhoneInput({ value, onChange, id }) {
   const [national, setNational] = useState(""); // so digitos, sem DDI
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
+  const inputRef = useRef(null);
   const lastEmitted = useRef("");
+  const pendingCaret = useRef(null); // quantos digitos ficam antes do cursor
 
   // Se o valor mudar de fora (ex.: escolheu uma pessoa ja cadastrada),
   // reflete no campo. Ignora o que o proprio campo acabou de emitir.
@@ -89,6 +91,26 @@ export default function PhoneInput({ value, onChange, id }) {
   }, [open]);
 
   const country = byIso(iso);
+  const formatted = national ? new AsYouType(iso).input(national) : "";
+
+  // Depois de reformatar, devolve o cursor para o lugar certo (logo apos o
+  // mesmo numero de digitos de antes), em vez de pula-lo para o fim.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    const digitsBefore = pendingCaret.current;
+    pendingCaret.current = null;
+    if (!el || digitsBefore === null || document.activeElement !== el) return;
+    let pos = formatted.length;
+    if (digitsBefore < national.length) {
+      let seen = 0;
+      pos = 0;
+      while (pos < formatted.length && seen < digitsBefore) {
+        if (/\d/.test(formatted[pos])) seen += 1;
+        pos += 1;
+      }
+    }
+    el.setSelectionRange(pos, pos);
+  }, [formatted, national]);
 
   function emit(nextIso, nextNational) {
     const digits = nextNational ? byIso(nextIso).dial + nextNational : "";
@@ -97,7 +119,8 @@ export default function PhoneInput({ value, onChange, id }) {
   }
 
   function handleInput(event) {
-    const raw = event.target.value;
+    const el = event.target;
+    const raw = el.value;
 
     // Colou um numero completo com "+" (ex.: +351 912 345 678): detecta o pais.
     if (raw.trim().startsWith("+")) {
@@ -113,7 +136,23 @@ export default function PhoneInput({ value, onChange, id }) {
       }
     }
 
-    const digits = raw.replace(/\D/g, "").slice(0, 15);
+    let digits = raw.replace(/\D/g, "").slice(0, 15);
+    const caret = el.selectionStart ?? raw.length;
+    let before = raw.slice(0, caret).replace(/\D/g, "").length;
+
+    // Apagou so um simbolo do formato -- "(", ")", espaco ou "-": nenhum digito
+    // sumiu. Sem isto o campo recolocaria o simbolo e o cursor ficaria preso.
+    // Entao apagamos o digito vizinho, como a pessoa espera.
+    const type = event.nativeEvent.inputType || "";
+    if (type.startsWith("delete") && digits === national && digits) {
+      const at = type === "deleteContentForward" ? before : before - 1;
+      if (at >= 0 && at < digits.length) {
+        digits = digits.slice(0, at) + digits.slice(at + 1);
+        before = at;
+      }
+    }
+
+    pendingCaret.current = before;
     setNational(digits);
     emit(iso, digits);
   }
@@ -124,7 +163,6 @@ export default function PhoneInput({ value, onChange, id }) {
     emit(next.iso, national);
   }
 
-  const formatted = national ? new AsYouType(iso).input(national) : "";
   const example = getExampleNumber(iso, examples);
   const placeholder = example ? example.formatNational() : "";
 
@@ -147,6 +185,7 @@ export default function PhoneInput({ value, onChange, id }) {
 
       <input
         id={id}
+        ref={inputRef}
         type="tel"
         inputMode="tel"
         autoComplete="off"

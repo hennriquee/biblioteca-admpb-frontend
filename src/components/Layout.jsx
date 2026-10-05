@@ -1,60 +1,60 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { IconHome, IconBooks, IconLoans, IconExit } from "./Icons.jsx";
+import Confirm from "./Confirm.jsx";
+import { IconChevronLeft, IconExit } from "./Icons.jsx";
 
-const links = [
-  { to: "/", label: "Inicio", Icon: IconHome, end: true },
-  { to: "/livros", label: "Livros", Icon: IconBooks },
-  { to: "/emprestimos", label: "Empréstimos", Icon: IconLoans },
-];
+// Navegacao no estilo de app: sem barra de menu. A Inicio e o hub (os cartoes
+// levam para cada area) e as telas internas mostram um "voltar" no topo.
+const PARENTS = {
+  "/livros": { to: "/", label: "Início" },
+  "/emprestimos": { to: "/", label: "Início" },
+  "/emprestimos/novo": { to: "/emprestimos", label: "Empréstimos" },
+};
 
 export default function Layout() {
   const { logout, user } = useAuth();
-  const location = useLocation();
+  const { pathname } = useLocation();
+  const [confirmExit, setConfirmExit] = useState(false);
+
+  const isHome = pathname === "/";
+  const parent = PARENTS[pathname.replace(/\/$/, "")] || { to: "/", label: "Início" };
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="topbar__brand">
-          <img src="/img/logo-admpb-fire.png" alt="" width="34" height="34" />
-          <div>
-            <strong>Biblioteca</strong>
-            <span>ADMP Brasil</span>
-          </div>
-        </div>
-
-        <nav className="topbar__nav" aria-label="Paginas">
-          {links.map(({ to, label, Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className="topbar__link">
-              <Icon width={18} height={18} />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
+      {isHome ? (
         <button
           type="button"
-          className="icon-button topbar__exit"
-          onClick={logout}
+          className="icon-button appexit"
+          onClick={() => setConfirmExit(true)}
           title={"Sair de " + (user?.username || "")}
         >
           <IconExit width={20} height={20} />
           <span className="sr-only">Sair</span>
         </button>
-      </header>
+      ) : null}
 
-      <main className="content" key={location.pathname}>
+      <main className="content" key={pathname}>
+        {!isHome ? (
+          <Link to={parent.to} className="backlink">
+            <IconChevronLeft width={18} height={18} />
+            {parent.label}
+          </Link>
+        ) : null}
         <Outlet />
       </main>
 
-      <nav className="tabbar" aria-label="Paginas">
-        {links.map(({ to, label, Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className="tabbar__link">
-            <Icon width={21} height={21} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <Confirm
+        open={confirmExit}
+        title="Sair da biblioteca?"
+        message="Você precisará entrar de novo com usuário e senha."
+        confirmLabel="Sair"
+        onCancel={() => setConfirmExit(false)}
+        onConfirm={() => {
+          setConfirmExit(false);
+          logout();
+        }}
+      />
     </div>
   );
 }
