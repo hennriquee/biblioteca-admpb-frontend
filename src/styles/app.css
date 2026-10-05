@@ -16,6 +16,12 @@ body,
   height: 100%;
 }
 
+/* Sem "elastico" ao puxar a tela para cima/baixo: o app se comporta como app. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Sem barra de rolagem visivel no mobile (o scroll continua funcionando
    normalmente, so a barra fica invisivel). Cobre a pagina inteira (html/body)
    e as duas areas internas que tem scroll proprio: o corpo do modal e a
@@ -203,7 +209,7 @@ select {
   max-width: var(--max-w);
   margin: 0 auto;
   padding: 20px 16px
-    calc(36px + env(safe-area-inset-bottom, 0px));
+    calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------- Tela de abertura (capa) do app ---------- */
@@ -391,7 +397,8 @@ select {
 }
 .segmented__item {
   flex: 1;
-  padding: 8px 10px;
+  white-space: nowrap;
+  padding: 8px 6px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -1081,7 +1088,7 @@ select {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 14px + env(safe-area-inset-bottom, 0px));
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -1611,16 +1618,16 @@ select {
 .dots {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 1.5rem;
 }
 /* Seletor mais especifico que ".stat span", que pintaria os pontos de cinza. */
 .stat__value .dots {
-  color: var(--clay); /* marrom da marca, o mesmo dos botoes e icones */
+  color: var(--ink); /* mesma cor dos numeros que vao aparecer */
 }
 .dots i {
-  width: 7px;
-  height: 7px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: currentColor;
   animation: dot-bounce 1.2s ease-in-out infinite;
@@ -1636,10 +1643,10 @@ select {
   70%,
   100% {
     transform: translateY(0);
-    opacity: 0.55;
+    opacity: 0.4;
   }
   35% {
-    transform: translateY(-7px);
+    transform: translateY(-5px);
     opacity: 1;
   }
 }
@@ -1668,5 +1675,98 @@ select {
 @media (max-width: 420px) {
   .stat {
     padding: 14px 6px;
+  }
+}
+
+
+/* ---------- Barra de abas (so no celular) ---------- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabbar__link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: var(--tabbar-h);
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
+.tabbar__link.active {
+  color: var(--clay);
+}
+.backlink--desktop {
+  display: none;
+}
+@media (min-width: 860px) {
+  .tabbar {
+    display: none;
+  }
+  .backlink--desktop {
+    display: inline-flex;
+  }
+}
+
+/* ---------- Indicadores clicaveis ---------- */
+a.stat {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+a.stat:hover {
+  border-color: var(--clay);
+}
+a.stat:active {
+  transform: scale(0.98);
+}
+
+/* ---------- Inicio cabe na tela, sem rolagem ---------- */
+.home__logo {
+  max-height: 24dvh;
+  object-fit: contain;
+}
+.home {
+  gap: clamp(10px, 2.2dvh, 20px);
+}
+@media (max-height: 900px) {
+  .home__scene {
+    display: none;
+  }
+}
+@media (max-height: 700px) {
+  .home__welcome {
+    display: none;
+  }
+}
+@media (max-width: 599px) {
+  /* Cartoes em linha (icone ao lado do texto): ocupam bem menos altura. */
+  .tile {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "icon title" "icon text";
+    column-gap: 14px;
+    row-gap: 0;
+    align-items: center;
+    padding: 12px 16px;
+  }
+  .tile svg {
+    grid-area: icon;
+    margin: 0;
+  }
+  .tile strong {
+    grid-area: title;
+  }
+  .tile span {
+    grid-area: text;
   }
 }

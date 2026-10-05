@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
+import { loanProgress } from "../utils/dates.js";
 import ReadingScene from "../components/ReadingScene.jsx";
 import { IconBooks, IconLoans, IconPlus } from "../components/Icons.jsx";
 
@@ -34,9 +35,9 @@ export default function Home() {
           api("/api/loans?status=ativo"),
         ]);
         if (!active) return;
-        const today = new Date();
+        // Mesma regra da tela de Empréstimos: atrasado = prazo vencido por dia.
         const overdue = loans.filter(
-          (loan) => loan.dueDate && new Date(loan.dueDate) < today,
+          (loan) => loan.dueDate && loanProgress(loan.startDate, loan.dueDate).overdue,
         ).length;
         setStats({ books: books.length, active: loans.length, overdue });
       } catch {
@@ -64,22 +65,24 @@ export default function Home() {
       </p>
 
       <div className="home__stats rise-3">
-        <div className="stat">
+        <Link to="/livros" className="stat stat--link">
           <StatValue value={stats === "error" ? "—" : stats?.books} />
           <span>livros no acervo</span>
-        </div>
-        <div className="stat">
+        </Link>
+        <Link to="/emprestimos" className="stat stat--link">
           <StatValue value={stats === "error" ? "—" : stats?.active} />
           <span>emprestados agora</span>
-        </div>
-        <div
+        </Link>
+        <Link
+          to="/emprestimos?filtro=atrasados"
           className={
-            "stat" + (stats && stats !== "error" && stats.overdue > 0 ? " stat--alert" : "")
+            "stat stat--link" +
+            (stats && stats !== "error" && stats.overdue > 0 ? " stat--alert" : "")
           }
         >
           <StatValue value={stats === "error" ? "—" : stats?.overdue} />
           <span>passaram da data</span>
-        </div>
+        </Link>
       </div>
 
       <nav className="home__actions rise-4">

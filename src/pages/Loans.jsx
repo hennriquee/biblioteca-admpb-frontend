@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -110,7 +110,15 @@ export default function Loans() {
 
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("ativo");
+  // O filtro vive na URL (?filtro=atrasados): o botao "voltar" funciona e os
+  // cartoes da Inicio conseguem abrir esta tela ja filtrada.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawFilter = searchParams.get("filtro");
+  const status = ["atrasados", "devolvido", "todos"].includes(rawFilter)
+    ? rawFilter
+    : "ativo";
+  const setStatus = (key) =>
+    setSearchParams(key === "ativo" ? {} : { filtro: key }, { replace: true });
   const [bookFilter, setBookFilter] = useState("");
   const [personFilter, setPersonFilter] = useState("");
   const [selected, setSelected] = useState(null);
@@ -119,11 +127,17 @@ export default function Loans() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ status });
+      const params = new URLSearchParams({
+        status: status === "atrasados" ? "ativo" : status,
+      });
       if (bookFilter.trim()) params.set("book", bookFilter.trim());
       if (personFilter.trim()) params.set("person", personFilter.trim());
       const data = await api("/api/loans?" + params.toString());
-      setLoans(data);
+      setLoans(
+        status === "atrasados"
+          ? data.filter((loan) => loan.dueDate && loanProgress(loan.startDate, loan.dueDate).overdue)
+          : data,
+      );
     } catch (error) {
       notify(error.message, "error");
     } finally {
@@ -209,6 +223,7 @@ export default function Loans() {
       <div className="segmented" role="tablist">
         {[
           { key: "ativo", label: "Em andamento" },
+          { key: "atrasados", label: "Atrasados" },
           { key: "devolvido", label: "Devolvidos" },
           { key: "todos", label: "Todos" },
         ].map((option) => (
@@ -231,7 +246,11 @@ export default function Loans() {
 
       {!loading && loans.length === 0 ? (
         <div className="empty">
-          <p>Nada por aqui ainda.</p>
+          <p>
+            {status === "atrasados"
+              ? "Nenhum empréstimo atrasado."
+              : "Nada por aqui ainda."}
+          </p>
           <Link to="/emprestimos/novo" className="btn btn--ghost">
             Registrar um empréstimo
           </Link>

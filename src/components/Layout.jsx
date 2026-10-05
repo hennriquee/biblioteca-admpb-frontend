@@ -1,11 +1,24 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Confirm from "./Confirm.jsx";
-import { IconChevronLeft, IconExit } from "./Icons.jsx";
+import {
+  IconBooks,
+  IconChevronLeft,
+  IconExit,
+  IconHome,
+  IconLoans,
+} from "./Icons.jsx";
 
-// Navegacao no estilo de app: sem barra de menu. A Inicio e o hub (os cartoes
-// levam para cada area) e as telas internas mostram um "voltar" no topo.
+const links = [
+  { to: "/", label: "Início", Icon: IconHome, end: true },
+  { to: "/livros", label: "Livros", Icon: IconBooks },
+  { to: "/emprestimos", label: "Empréstimos", Icon: IconLoans },
+];
+
+// Navegacao no estilo de app: sem barra no topo. No celular a barra de abas
+// fica embaixo; no computador, a Inicio e o hub e as telas internas mostram
+// um "voltar" no topo.
 const PARENTS = {
   "/livros": { to: "/", label: "Início" },
   "/emprestimos": { to: "/", label: "Início" },
@@ -36,13 +49,25 @@ export default function Layout() {
 
       <main className="content" key={pathname}>
         {!isHome ? (
-          <Link to={parent.to} className="backlink">
+          <Link
+            to={parent.to}
+            className={"backlink" + (parent.to === "/" ? " backlink--desktop" : "")}
+          >
             <IconChevronLeft width={18} height={18} />
             {parent.label}
           </Link>
         ) : null}
         <Outlet />
       </main>
+
+      <nav className="tabbar" aria-label="Páginas">
+        {links.map(({ to, label, Icon, end }) => (
+          <NavLink key={to} to={to} end={end} className="tabbar__link">
+            <Icon width={21} height={21} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
 
       <Confirm
         open={confirmExit}
