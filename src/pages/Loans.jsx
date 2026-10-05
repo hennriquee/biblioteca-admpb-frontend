@@ -58,8 +58,8 @@ function LoanCard({ loan, onOpen }) {
               {daysWith === 0
                 ? "hoje"
                 : daysWith === 1
-                  ? "ha 1 dia"
-                  : "ha " + daysWith + " dias"}
+                  ? "há 1 dia"
+                  : "há " + daysWith + " dias"}
             </span>
           </p>
 
@@ -266,7 +266,7 @@ export default function Loans() {
       <Modal
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title="Detalhes do emprestimo"
+        title="Detalhes do empréstimo"
         footer={
           <>
             <button
@@ -329,7 +329,7 @@ export default function Loans() {
                 <dd>
                   {selected.dueDate
                     ? formatLongDate(selected.dueDate)
-                    : "nao combinada"}
+                    : "não combinada"}
                 </dd>
               </div>
               <div>

@@ -118,7 +118,7 @@ export default function NewLoan() {
     }
     if (dueDate && dueDate < startDate) {
       return notify(
-        "A data de devolucao nao pode ser antes da retirada.",
+        "A data de devolução não pode ser anterior à retirada.",
         "error",
       );
     }
@@ -177,7 +177,7 @@ export default function NewLoan() {
                       <button
                         type="button"
                         className="combo__item"
-                        disabled={Boolean(item.loanedTo)}
+                        disabled={item.available <= 0}
                         onClick={() => {
                           setBook(item);
                           setBookResults([]);
@@ -191,9 +191,18 @@ export default function NewLoan() {
                         <span>
                           <strong>{item.title}</strong>
                           <small>
-                            {item.loanedTo
-                              ? "já está com " + item.loanedTo
-                              : (item.authors || []).join(", ") || item.isbn}
+                            {item.available <= 0
+                              ? item.copies > 1
+                                ? "todas as unidades estão emprestadas"
+                                : "já está com " + ((item.loanedNames || [])[0] || "alguém")
+                              : [
+                                  (item.authors || []).join(", ") || item.isbn,
+                                  item.copies > 1
+                                    ? item.available + " de " + item.copies + " disponíveis"
+                                    : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                           </small>
                         </span>
                       </button>
@@ -249,7 +258,7 @@ export default function NewLoan() {
                         <small>
                           {person.activeLoans.length > 0
                             ? "está com " + person.activeLoans.join(", ")
-                            : person.loansCount + " empréstimo(s) no historico"}
+                            : person.loansCount + " empréstimo(s) no histórico"}
                         </small>
                       </span>
                     </button>
@@ -319,7 +328,7 @@ export default function NewLoan() {
 
       <Confirm
         open={Boolean(warning)}
-        title="Essa pessoa ja tem um livro"
+        title="Essa pessoa já tem um livro"
         message={
           (warning?.error || "") + " Tem certeza que quer emprestar outro?"
         }

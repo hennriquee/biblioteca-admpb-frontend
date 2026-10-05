@@ -24,7 +24,7 @@ export default function Login() {
       await login(username.trim(), password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message || "Nao foi possivel entrar.");
+      setError(err.message || "Não foi possível entrar.");
     } finally {
       setSubmitting(false);
     }
@@ -46,7 +46,7 @@ export default function Login() {
           </p>
 
           <label className="field">
-            <span>Usuario</span>
+            <span>Usuário</span>
             <input
               type="text"
               value={username}

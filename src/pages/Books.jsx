@@ -42,6 +42,28 @@ function groupByLetter(books) {
 }
 
 const PAGE_SIZE = 10;
+const MAX_COPIES = 999;
+
+// Texto da situação do livro, considerando todas as unidades.
+function loanStatusText(book) {
+  const names = book.loanedNames || [];
+  if ((book.copies || 1) > 1) {
+    const base = book.available + " de " + book.copies + " na estante";
+    return names.length ? base + " · com " + names.join(", ") : base;
+  }
+  return names.length ? "Com " + names[0] : "Na estante";
+}
+
+// Selo da lista: só aparece quando há unidade emprestada.
+function loanChip(book) {
+  if (!book.loanedCount) return null;
+  if ((book.copies || 1) === 1) return { label: "emprestado", full: true };
+  if (book.available === 0) return { label: "todos emprestados", full: true };
+  return {
+    label: book.loanedCount + " de " + book.copies + " emprestados",
+    full: false,
+  };
+}
 
 export default function Books() {
   const { notify } = useToast();
@@ -70,6 +92,11 @@ export default function Books() {
   const [coverSearchOpen, setCoverSearchOpen] = useState(false);
   const [coverSearchQuery, setCoverSearchQuery] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  // Unidades emprestadas agora do livro em edição: a quantidade não pode ficar
+  // abaixo disso. E o livro já cadastrado quando o ISBN digitado se repete.
+  const [loanedNow, setLoanedNow] = useState(0);
+  const [duplicateBook, setDuplicateBook] = useState(null);
+  const minCopies = Math.max(1, loanedNow);
 
   const loadPage = useCallback(
     async (pageToLoad, term) => {
@@ -124,6 +151,7 @@ export default function Books() {
     setIsbnInput("");
     setLookupState("idle");
     setEditingId(null);
+    setLoanedNow(0);
     setLinkOpen(false);
     setCreating(true);
   }
@@ -151,7 +179,7 @@ export default function Books() {
     event.preventDefault();
     const isbn = isbnInput.replace(/[^0-9Xx]/g, "");
     if (isbn.length !== 10 && isbn.length !== 13) {
-      notify("O ISBN precisa ter 10 ou 13 digitos.", "error");
+      notify("O ISBN precisa ter 10 ou 13 dígitos.", "error");
       return;
     }
 
@@ -159,8 +187,13 @@ export default function Books() {
     try {
       const data = await api("/api/books/lookup/" + isbn);
       if (data.alreadyRegistered) {
-        notify("Esse livro já está no acervo.", "error");
         setLookupState("idle");
+        // Em vez de só barrar, oferece alterar a quantidade do livro que já existe.
+        try {
+          setDuplicateBook(await api("/api/books/" + data.existingId));
+        } catch {
+          notify("Esse livro já está no acervo.", "error");
+        }
         return;
       }
       setForm({
@@ -196,6 +229,7 @@ export default function Books() {
       synopsis: book.synopsis || "",
       copies: book.copies || 1,
     });
+    setLoanedNow(book.loanedCount || 0);
     setLinkOpen(false);
     setEditingId(book._id);
     setLookupState("found");
@@ -206,7 +240,25 @@ export default function Books() {
   async function handleSave(event) {
     event.preventDefault();
     if (!form.title.trim()) {
-      notify("Preencha o titulo do livro.", "error");
+      notify("Preencha o título do livro.", "error");
+      return;
+    }
+
+    const copies = Number(form.copies);
+    if (!Number.isInteger(copies) || copies < 1 || copies > MAX_COPIES) {
+      notify("Informe a quantidade (de 1 a " + MAX_COPIES + ").", "error");
+      return;
+    }
+    if (editingId && copies < loanedNow) {
+      notify(
+        "Há " +
+          loanedNow +
+          (loanedNow === 1 ? " emprestado" : " emprestados") +
+          " agora, então a quantidade não pode ser menor que " +
+          loanedNow +
+          ".",
+        "error",
+      );
       return;
     }
 
@@ -215,7 +267,7 @@ export default function Books() {
       const payload = {
         ...form,
         pages: form.pages ? Number(form.pages) : null,
-        copies: Number(form.copies) || 1,
+        copies,
       };
 
       if (editingId) {
@@ -241,7 +293,7 @@ export default function Books() {
     setConfirmDelete(null);
     try {
       await api("/api/books/" + book._id, { method: "DELETE" });
-      notify("Livro excluido.", "success");
+      notify("Livro excluído.", "success");
       setSelected(null);
       await reloadFromStart();
     } catch (error) {
@@ -276,7 +328,7 @@ export default function Books() {
         <IconSearch width={18} height={18} />
         <input
           type="search"
-          placeholder="Buscar por titulo, autor ou ISBN"
+          placeholder="Buscar por título, autor ou ISBN"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -322,11 +374,23 @@ export default function Books() {
                   <span className="bookrow__text">
                     <strong>{book.title}</strong>
                     <small>
-                      {(book.authors || []).join(", ") || "Autor nao informado"}
+                      {(book.authors || []).join(", ") || "Autor não informado"}
+                      {book.copies > 1 ? (
+                        <span className="nowrap">
+                          {" · " + book.copies + " unidades"}
+                        </span>
+                      ) : null}
                     </small>
                   </span>
-                  {book.loanedTo ? (
-                    <span className="chip chip--out">emprestado</span>
+                  {loanChip(book) ? (
+                    <span
+                      className={
+                        "chip " +
+                        (loanChip(book).full ? "chip--out" : "chip--part")
+                      }
+                    >
+                      {loanChip(book).label}
+                    </span>
                   ) : null}
                 </button>
               </li>
@@ -395,7 +459,7 @@ export default function Books() {
                 <dd>{selected.year || "—"}</dd>
               </div>
               <div>
-                <dt>Paginas</dt>
+                <dt>Páginas</dt>
                 <dd>{selected.pages || "—"}</dd>
               </div>
               <div>
@@ -403,12 +467,12 @@ export default function Books() {
                 <dd>{selected.isbn || "—"}</dd>
               </div>
               <div>
-                <dt>Situacao</dt>
-                <dd>
-                  {selected.loanedTo
-                    ? "Com " + selected.loanedTo
-                    : "Na estante"}
-                </dd>
+                <dt>Quantidade</dt>
+                <dd>{selected.copies || 1}</dd>
+              </div>
+              <div>
+                <dt>Situação</dt>
+                <dd>{loanStatusText(selected)}</dd>
               </div>
             </dl>
             {selected.synopsis ? (
@@ -519,7 +583,7 @@ export default function Books() {
             ) : null}
 
             <label className="field">
-              <span>Titulo</span>
+              <span>Título</span>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -528,7 +592,7 @@ export default function Books() {
             </label>
 
             <label className="field">
-              <span>Autores (separados por virgula)</span>
+              <span>Autores (separados por vírgula)</span>
               <input
                 value={form.authors}
                 onChange={(e) => setForm({ ...form, authors: e.target.value })}
@@ -563,7 +627,7 @@ export default function Books() {
                 />
               </label>
               <label className="field">
-                <span>Paginas</span>
+                <span>Páginas</span>
                 <input
                   type="number"
                   min="0"
@@ -571,6 +635,76 @@ export default function Books() {
                   onChange={(e) => setForm({ ...form, pages: e.target.value })}
                 />
               </label>
+            </div>
+
+            <div className="field">
+              <label className="field__label" htmlFor="book-copies">
+                Quantidade
+              </label>
+              <div className="stepper">
+                <button
+                  type="button"
+                  className="stepper__btn"
+                  aria-label="Diminuir quantidade"
+                  disabled={(Number(form.copies) || 0) <= minCopies}
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      copies: Math.max(minCopies, (Number(form.copies) || 1) - 1),
+                    })
+                  }
+                >
+                  –
+                </button>
+                <input
+                  id="book-copies"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  value={form.copies}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      copies: e.target.value.replace(/\D/g, "").slice(0, 3),
+                    })
+                  }
+                  onBlur={() =>
+                    setForm((f) => ({
+                      ...f,
+                      copies: Math.min(
+                        MAX_COPIES,
+                        Math.max(minCopies, Number(f.copies) || 1),
+                      ),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="stepper__btn"
+                  aria-label="Aumentar quantidade"
+                  disabled={(Number(form.copies) || 0) >= MAX_COPIES}
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      copies: Math.min(
+                        MAX_COPIES,
+                        (Number(form.copies) || 0) + 1,
+                      ),
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
+              <small className="field__hint">
+                {loanedNow > 0
+                  ? loanedNow +
+                    (loanedNow === 1
+                      ? " está emprestado agora; a quantidade não pode ser menor que isso."
+                      : " estão emprestados agora; a quantidade não pode ser menor que isso.")
+                  : "Quantas cópias deste livro a biblioteca tem."}
+              </small>
             </div>
 
             <label className="field">
@@ -598,6 +732,25 @@ export default function Books() {
             .join(" ")
             .trim()
         }
+      />
+
+      <Confirm
+        open={Boolean(duplicateBook)}
+        title="Esse livro já está no acervo"
+        message={
+          '"' +
+          (duplicateBook?.title || "") +
+          '" já está cadastrado (quantidade: ' +
+          (duplicateBook?.copies || 1) +
+          "). Quer alterar a quantidade?"
+        }
+        confirmLabel="Alterar quantidade"
+        onCancel={() => setDuplicateBook(null)}
+        onConfirm={() => {
+          const book = duplicateBook;
+          setDuplicateBook(null);
+          startEdit(book);
+        }}
       />
 
       <Confirm

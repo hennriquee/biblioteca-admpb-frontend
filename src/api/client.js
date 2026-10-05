@@ -68,7 +68,7 @@ export async function api(path, options = {}) {
       window.location.href = "/login";
     }
     throw new ApiError(
-      (data && data.error) || "Nao foi possivel completar a ação.",
+      (data && data.error) || "Não foi possível concluir a ação.",
       response.status,
       data,
     );

@@ -77,7 +77,7 @@ export default function CoverSearchModal({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Titulo do livro, autor…"
+              placeholder="Título do livro, autor…"
               autoFocus
             />
           </label>
