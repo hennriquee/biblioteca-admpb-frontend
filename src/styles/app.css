@@ -453,11 +453,76 @@ select {
   flex-shrink: 0;
 }
 .cover--empty {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
   color: var(--ink-soft);
   border: 1px solid var(--line);
+  text-align: center;
 }
+.cover--empty svg {
+  opacity: 0.7;
+}
+.cover__label {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+/* Capas pequenas: o texto nao cabe com leitura boa, entao fica so o icone
+   (o leitor de tela continua anunciando "Sem imagem"). */
+.cover--xs .cover__label {
+  display: none;
+}
+.cover--empty.cover--sm {
+  padding: 3px;
+  gap: 3px;
+}
+.cover--sm svg {
+  width: 18px;
+  height: 18px;
+}
+.cover--sm .cover__label {
+  font-size: 0.56rem;
+}
+.cover--md .cover__label {
+  font-size: 0.68rem;
+}
+.cover--lg svg {
+  width: 32px;
+  height: 32px;
+}
+.cover--lg .cover__label {
+  font-size: 0.8rem;
+}
+/* Foto ainda baixando: um brilho dourado suave passa sobre o papel, usando as
+   cores do tema, ate a imagem aparecer. Mesma borda da capa vazia, para o
+   tamanho nao mudar quando a foto chega. */
+.cover--loading {
+  color: transparent;
+  border: 1px solid var(--line);
+  background: linear-gradient(
+    105deg,
+    var(--surface-sunk) 35%,
+    var(--gold-wash) 50%,
+    var(--surface-sunk) 65%
+  );
+  background-size: 300% 100%;
+  animation: cover-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes cover-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
 .cover--xs {
   width: 32px;
   height: 46px;
@@ -1911,4 +1976,118 @@ a.stat:active {
 
 .nowrap {
   white-space: nowrap;
+}
+
+/* ---------- Seletor de categoria ---------- */
+.catpicker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.catpicker__trigger,
+.catpicker__input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease;
+}
+.catpicker__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.catpicker__trigger:hover,
+.catpicker__trigger[aria-expanded="true"],
+.catpicker__input:focus {
+  border-color: var(--clay);
+  outline: none;
+}
+.catpicker__trigger:focus-visible {
+  border-color: var(--clay);
+  outline: 2px solid var(--clay-line);
+  outline-offset: 1px;
+}
+.catpicker__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catpicker__value--empty {
+  color: var(--ink-soft);
+}
+.catpicker__chevron {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  transition: transform 0.15s ease;
+}
+.catpicker__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Versao do filtro do acervo: redonda, igual a barra de busca. */
+.catpicker--filter .catpicker__trigger {
+  padding: 11px 16px;
+  border-radius: 999px;
+  color: var(--ink-soft);
+}
+.catpicker--filter .catpicker__value:not(.catpicker__value--empty) {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.catpicker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.catpicker__item.is-selected {
+  background: var(--clay-wash);
+}
+.catpicker__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+.catpicker__item.is-selected .catpicker__name {
+  font-weight: 600;
+  color: var(--clay);
+}
+.catpicker__count {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.catpicker__create {
+  color: var(--clay);
+  font-weight: 500;
+}
+.catpicker__none {
+  padding: 12px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  text-align: center;
+}
+.catpicker__back {
+  align-self: flex-start;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  color: var(--clay);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.catpicker__back:hover {
+  color: var(--clay-strong);
 }

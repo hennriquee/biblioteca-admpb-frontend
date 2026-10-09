@@ -123,3 +123,16 @@ export const IconChevronLeft = (props) => (
     <path d="m14.5 6-6 6 6 6" />
   </svg>
 );
+
+export const IconChevronDown = (props) => (
+  <svg {...base} {...props}>
+    <path d="m6 9.5 6 6 6-6" />
+  </svg>
+);
+
+export const IconTag = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3.5 12.2V5.5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-6.7 6.7a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4z" />
+    <circle cx="8.2" cy="8.2" r="1.3" />
+  </svg>
+);

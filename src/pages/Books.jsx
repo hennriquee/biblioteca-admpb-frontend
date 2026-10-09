@@ -6,6 +6,8 @@ import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import CoverSearchModal from "../components/CoverSearchModal.jsx";
 import CoverPicker from "../components/CoverPicker.jsx";
+import CategoryPicker from "../components/CategoryPicker.jsx";
+import { findCategory } from "../utils/categories.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
   IconPlus,
@@ -25,6 +27,8 @@ const emptyForm = {
   // Foto tirada/escolhida e recortada no app (data URI). So existe ate salvar:
   // o servidor envia para o Cloudinary e guarda o link em "cover".
   coverImage: "",
+  // Uma categoria por livro (tema, ex.: "Oração"); o servidor guarda em "categories".
+  category: "",
   synopsis: "",
   copies: 1,
 };
@@ -79,6 +83,9 @@ export default function Books() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
+  // Categorias que ja existem no acervo ([{ name, count }]) e a escolhida no filtro.
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
 
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -99,7 +106,7 @@ export default function Books() {
   const minCopies = Math.max(1, loanedNow);
 
   const loadPage = useCallback(
-    async (pageToLoad, term) => {
+    async (pageToLoad, term, category) => {
       const isFirstPage = pageToLoad === 1;
       if (isFirstPage) setLoading(true);
       else setLoadingMore(true);
@@ -110,6 +117,7 @@ export default function Books() {
           limit: String(PAGE_SIZE),
         });
         if (term.trim()) params.set("search", term.trim());
+        if (category) params.set("category", category);
 
         const data = await api("/api/books?" + params.toString());
 
@@ -129,22 +137,47 @@ export default function Books() {
     [notify],
   );
 
-  // Recarrega do zero (pagina 1) sempre que a busca muda, com um pequeno
-  // debounce pra nao disparar uma chamada a cada tecla digitada.
+  // Lista de categorias do acervo (alimenta o filtro e o campo do cadastro).
+  // Se a categoria filtrada deixou de existir (ex.: o ultimo livro dela foi
+  // editado ou excluido), o filtro volta para "todas".
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await api("/api/books/categories");
+      setCategories(data);
+      setCategoryFilter((current) =>
+        current && !data.some((item) => item.name === current) ? "" : current,
+      );
+    } catch {
+      // Nao e essencial: sem a lista, o filtro some e o cadastro ainda
+      // permite escrever a categoria.
+    }
+  }, []);
+
   useEffect(() => {
-    const timer = setTimeout(() => loadPage(1, search), 250);
+    loadCategories();
+  }, [loadCategories]);
+
+  // Recarrega do zero (pagina 1) sempre que a busca ou a categoria muda, com
+  // um pequeno debounce pra nao disparar uma chamada a cada tecla digitada.
+  useEffect(() => {
+    const timer = setTimeout(
+      () => loadPage(1, search, categoryFilter),
+      250,
+    );
     return () => clearTimeout(timer);
-  }, [search, loadPage]);
+  }, [search, categoryFilter, loadPage]);
 
   function loadMore() {
-    loadPage(page + 1, search);
+    loadPage(page + 1, search, categoryFilter);
   }
 
   function reloadFromStart() {
-    loadPage(1, search);
+    loadPage(1, search, categoryFilter);
+    loadCategories();
   }
 
   const groups = useMemo(() => groupByLetter(items), [items]);
+  const isFiltering = Boolean(search.trim() || categoryFilter);
 
   function openCreate() {
     setForm(emptyForm);
@@ -205,6 +238,8 @@ export default function Books() {
         pages: data.pages || "",
         cover: data.cover || "",
         coverImage: "",
+        // Sugestao das APIs; se ja existe no acervo, usa a grafia de la.
+        category: findCategory(categories, (data.categories || [])[0]),
         synopsis: data.synopsis || "",
         copies: 1,
       });
@@ -226,6 +261,7 @@ export default function Books() {
       pages: book.pages || "",
       cover: book.cover || "",
       coverImage: "",
+      category: (book.categories || [])[0] || "",
       synopsis: book.synopsis || "",
       copies: book.copies || 1,
     });
@@ -264,8 +300,10 @@ export default function Books() {
 
     setSaving(true);
     try {
+      const { category, ...fields } = form;
       const payload = {
-        ...form,
+        ...fields,
+        categories: category.trim() ? [category.trim()] : [],
         pages: form.pages ? Number(form.pages) : null,
         copies,
       };
@@ -315,7 +353,7 @@ export default function Books() {
                   " de " +
                   total +
                   " livro(s)" +
-                  (search.trim() ? " encontrados" : " cadastrados")}
+                  (isFiltering ? " encontrados" : " cadastrados")}
           </p>
         </div>
         <button type="button" className="btn btn--primary" onClick={openCreate}>
@@ -334,16 +372,29 @@ export default function Books() {
         />
       </div>
 
+      {categories.length > 0 ? (
+        <CategoryPicker
+          variant="filter"
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          options={categories}
+          emptyLabel="Todas as categorias"
+          placeholder="Todas as categorias"
+          searchable
+          showCounts
+        />
+      ) : null}
+
       {loading ? <p className="muted">Carregando o acervo…</p> : null}
 
       {!loading && items.length === 0 ? (
         <div className="empty">
           <p>
-            {search.trim()
+            {isFiltering
               ? "Nenhum livro corresponde a essa busca."
               : "A estante está vazia."}
           </p>
-          {!search.trim() ? (
+          {!isFiltering ? (
             <button
               type="button"
               className="btn btn--ghost"
@@ -449,6 +500,10 @@ export default function Books() {
               <div>
                 <dt>Autor</dt>
                 <dd>{(selected.authors || []).join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt>Categoria</dt>
+                <dd>{(selected.categories || []).join(", ") || "—"}</dd>
               </div>
               <div>
                 <dt>Editora</dt>
@@ -704,6 +759,25 @@ export default function Books() {
                       ? " está emprestado agora; a quantidade não pode ser menor que isso."
                       : " estão emprestados agora; a quantidade não pode ser menor que isso.")
                   : "Quantas cópias deste livro a biblioteca tem."}
+              </small>
+            </div>
+
+            <div className="field">
+              <label className="field__label" htmlFor="book-category">
+                Categoria
+              </label>
+              <CategoryPicker
+                id="book-category"
+                value={form.category}
+                onChange={(category) => setForm((f) => ({ ...f, category }))}
+                options={categories}
+                emptyLabel="Sem categoria"
+                placeholder="Selecione a categoria"
+                allowCreate
+              />
+              <small className="field__hint">
+                Escolha uma categoria do acervo ou escreva uma nova no fim da
+                lista.
               </small>
             </div>
 
