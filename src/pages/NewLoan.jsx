@@ -144,7 +144,9 @@ export default function NewLoan() {
               <BookCover src={book.cover} alt="" className="cover--sm" />
               <div>
                 <strong>{book.title}</strong>
-                <small>{book.isbn || (book.authors || []).join(", ")}</small>
+                <small title={(book.authors || []).join(", ") || undefined}>
+                  {book.isbn || (book.authors || []).join(", ")}
+                </small>
               </div>
               <button
                 type="button"
@@ -190,20 +192,23 @@ export default function NewLoan() {
                         />
                         <span>
                           <strong>{item.title}</strong>
-                          <small>
-                            {item.available <= 0
-                              ? item.copies > 1
-                                ? "todas as unidades estão emprestadas"
-                                : "já está com " + ((item.loanedNames || [])[0] || "alguém")
-                              : [
-                                  (item.authors || []).join(", ") || item.isbn,
-                                  item.copies > 1
-                                    ? item.available + " de " + item.copies + " disponíveis"
-                                    : "",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
+                          <small title={(item.authors || []).join(", ") || undefined}>
+                            {(item.authors || []).join(", ") ||
+                              item.isbn ||
+                              "Autor não informado"}
                           </small>
+                          {item.available <= 0 ? (
+                            <small className="combo__status combo__status--out">
+                              {item.copies > 1
+                                ? "todas as unidades estão emprestadas"
+                                : "já está com " +
+                                  ((item.loanedNames || [])[0] || "alguém")}
+                            </small>
+                          ) : item.copies > 1 ? (
+                            <small className="combo__status">
+                              {item.available + " de " + item.copies + " disponíveis"}
+                            </small>
+                          ) : null}
                         </span>
                       </button>
                     </li>

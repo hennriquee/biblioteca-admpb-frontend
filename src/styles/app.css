@@ -591,6 +591,21 @@ select {
   color: var(--ink-soft);
   font-size: 0.8rem;
 }
+.bookrow__meta {
+  display: flex;
+  gap: 0.35em;
+  min-width: 0;
+}
+.bookrow__authors {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bookrow__copies {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 .chip {
   text-transform: uppercase;
@@ -1124,6 +1139,17 @@ select {
 .combo__item small {
   color: var(--ink-soft);
   font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.combo__item .combo__status {
+  margin-top: 2px;
+  font-weight: 500;
+  color: var(--success);
+}
+.combo__item .combo__status--out {
+  color: var(--gold-strong);
 }
 
 .picked {
@@ -1148,6 +1174,9 @@ select {
 .picked small {
   color: var(--ink-soft);
   font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Toasts ---------- */

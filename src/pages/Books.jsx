@@ -160,10 +160,7 @@ export default function Books() {
   // Recarrega do zero (pagina 1) sempre que a busca ou a categoria muda, com
   // um pequeno debounce pra nao disparar uma chamada a cada tecla digitada.
   useEffect(() => {
-    const timer = setTimeout(
-      () => loadPage(1, search, categoryFilter),
-      250,
-    );
+    const timer = setTimeout(() => loadPage(1, search, categoryFilter), 250);
     return () => clearTimeout(timer);
   }, [search, categoryFilter, loadPage]);
 
@@ -424,11 +421,17 @@ export default function Books() {
                   />
                   <span className="bookrow__text">
                     <strong title={book.title}>{book.title}</strong>
-                    <small>
-                      {(book.authors || []).join(", ") || "Autor não informado"}
+                    <small className="bookrow__meta">
+                      <span
+                        className="bookrow__authors"
+                        title={(book.authors || []).join(", ") || undefined}
+                      >
+                        {(book.authors || []).join(", ") ||
+                          "Autor não informado"}
+                      </span>
                       {book.copies > 1 ? (
-                        <span className="nowrap">
-                          {" · " + book.copies + " unidades"}
+                        <span className="bookrow__copies">
+                          {"· " + book.copies + " unidades"}
                         </span>
                       ) : null}
                     </small>
@@ -705,7 +708,10 @@ export default function Books() {
                   onClick={() =>
                     setForm({
                       ...form,
-                      copies: Math.max(minCopies, (Number(form.copies) || 1) - 1),
+                      copies: Math.max(
+                        minCopies,
+                        (Number(form.copies) || 1) - 1,
+                      ),
                     })
                   }
                 >
