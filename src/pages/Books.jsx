@@ -423,7 +423,7 @@ export default function Books() {
                     className="cover--sm"
                   />
                   <span className="bookrow__text">
-                    <strong>{book.title}</strong>
+                    <strong title={book.title}>{book.title}</strong>
                     <small>
                       {(book.authors || []).join(", ") || "Autor não informado"}
                       {book.copies > 1 ? (

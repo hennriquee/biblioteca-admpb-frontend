@@ -583,7 +583,9 @@ select {
 }
 .bookrow__text strong {
   font-weight: 500;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bookrow__text small {
   color: var(--ink-soft);
