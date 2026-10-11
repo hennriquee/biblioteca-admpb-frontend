@@ -25,14 +25,37 @@ export default function Modal({
     openModals.push(token);
 
     function onKeyDown(event) {
-      if (event.key !== "Escape") return;
       if (openModals[openModals.length - 1] !== token) return;
-      onCloseRef.current();
+      if (event.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      // Tab fica dando a volta dentro do modal, sem escapar para a tela de tras.
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = [
+        ...panelRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((node) => !node.disabled && node.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const inside = panelRef.current.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === first || !inside || document.activeElement === panelRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+        event.preventDefault();
+        first.focus();
+      }
     }
 
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Guarda quem estava com o foco (o botao que abriu o modal) para devolver
+    // ao fechar: quem navega pelo teclado continua de onde estava.
+    const previousFocus = document.activeElement;
     panelRef.current?.focus();
 
     return () => {
@@ -40,6 +63,15 @@ export default function Modal({
       const index = openModals.indexOf(token);
       if (index !== -1) openModals.splice(index, 1);
       document.body.style.overflow = previousOverflow;
+      // (Campo de texto fica de fora: devolver o foco abriria o teclado no
+      // celular e reabriria as sugestoes do campo.)
+      if (
+        previousFocus instanceof HTMLElement &&
+        previousFocus.isConnected &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes(previousFocus.tagName)
+      ) {
+        previousFocus.focus({ preventScroll: true });
+      }
     };
   }, [open]);
 

@@ -130,6 +130,18 @@ export const IconChevronDown = (props) => (
   </svg>
 );
 
+export const IconPlay = (props) => (
+  <svg {...base} {...props}>
+    <path d="M8 5.5v13l10.5-6.5z" />
+  </svg>
+);
+
+export const IconPause = (props) => (
+  <svg {...base} {...props}>
+    <path d="M8.5 5.5v13M15.5 5.5v13" />
+  </svg>
+);
+
 export const IconTag = (props) => (
   <svg {...base} {...props}>
     <path d="M3.5 12.2V5.5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-6.7 6.7a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4z" />

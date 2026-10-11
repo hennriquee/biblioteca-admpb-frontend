@@ -16,7 +16,9 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
-        const data = await api('/api/auth/me');
+        // Sem redirecionar: se o token venceu, o "Protected" manda para o
+        // login so as telas privadas; o /catalogo (publico) continua abrindo.
+        const data = await api('/api/auth/me', { redirectOnExpired: false });
         if (active) setUser(data.user);
       } catch {
         setToken(null);

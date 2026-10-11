@@ -38,19 +38,52 @@ export function wakeBackend() {
   });
 }
 
+// Mensagem para quando a API nao devolveu um texto de erro proprio
+// (por exemplo, uma pagina de erro do Render quando o servidor cai).
+function fallbackMessage(status) {
+  if (status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (status === 403) return "Você não tem permissão para fazer isso.";
+  if (status === 404) return "Não encontramos o que você procurou.";
+  if (status === 429)
+    return "Muitas tentativas em pouco tempo. Aguarde um pouco e tente de novo.";
+  if (status >= 500)
+    return "O servidor está com problemas ou ainda iniciando. Tente novamente em instantes.";
+  return "Não foi possível concluir a ação.";
+}
+
+// Opcoes proprias (nao vao para o fetch):
+// - auth: false e para as rotas publicas (/api/public/*): nao envia o token
+//   (nao ha motivo para ele sair do navegador) e, se der 401, nao leva ao
+//   login. Use publicApi() em vez de passar isso na mao.
+// - redirectOnExpired: false deixa quem chamou decidir o que fazer com o 401.
+//   Usado ao restaurar a sessao: sem isso, quem tem um token vencido e abre o
+//   /catalogo (pagina publica) seria mandado para o login.
 export async function api(path, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (options.body && !headers["Content-Type"])
+  const { auth = true, redirectOnExpired = true, ...fetchOptions } = options;
+  const headers = { ...(fetchOptions.headers || {}) };
+  if (fetchOptions.body && !headers["Content-Type"])
     headers["Content-Type"] = "application/json";
 
-  const token = getToken();
+  const token = auth ? getToken() : null;
   if (token) headers.Authorization = "Bearer " + token;
 
-  const response = await fetch(BASE_URL + path, {
-    ...options,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(BASE_URL + path, {
+      ...fetchOptions,
+      headers,
+      body: fetchOptions.body ? JSON.stringify(fetchOptions.body) : undefined,
+    });
+  } catch {
+    // fetch so lanca erro quando nao chegou a resposta nenhuma: sem internet,
+    // servidor fora do ar/acordando ou bloqueio de CORS. O navegador mostraria
+    // apenas "Failed to fetch", entao trocamos por algo que o usuario entenda.
+    throw new ApiError(
+      "Não foi possível conectar ao servidor. Verifique sua internet e tente de novo; se o servidor estava parado, pode levar cerca de 1 minuto para acordar.",
+      0,
+      { code: "NETWORK_ERROR" },
+    );
+  }
 
   let data = null;
   const text = await response.text();
@@ -58,21 +91,30 @@ export async function api(path, options = {}) {
     try {
       data = JSON.parse(text);
     } catch {
-      data = { error: text };
+      // Corpo que nao e JSON (ex.: HTML de erro do proxy): nao exibimos.
+      data = null;
     }
   }
 
   if (!response.ok) {
-    if (response.status === 401 && !path.includes("/auth/login")) {
+    if (response.status === 401 && auth && !path.includes("/auth/login")) {
       setToken(null);
-      window.location.href = "/login";
+      if (redirectOnExpired) window.location.href = "/login";
     }
     throw new ApiError(
-      (data && data.error) || "Não foi possível concluir a ação.",
+      (data && data.error) ||
+        (response.status === 401 && path.includes("/auth/login")
+          ? "Usuário ou senha incorretos."
+          : fallbackMessage(response.status)),
       response.status,
       data,
     );
   }
 
   return data;
+}
+
+// Chamada sem login, so para /api/public/*. Nunca envia o token.
+export function publicApi(path, options = {}) {
+  return api(path, { ...options, auth: false });
 }

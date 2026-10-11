@@ -2122,3 +2122,340 @@ a.stat:active {
 .catpicker__back:hover {
   color: var(--clay-strong);
 }
+
+/* ---------- Catalogo publico (/catalogo) ----------
+   Pagina aberta a quem nao tem login. Fica fora do Layout do admin (sem barra
+   de abas) e reaproveita a lista do acervo (.group / .booklist / .bookrow):
+   titulo e autor numa linha so, com "..." quando nao cabem. Escrita primeiro
+   para celular. */
+.pub {
+  min-height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pub__inner {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 14px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+  gap: 14px;
+}
+
+.pub__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pub__logo {
+  display: block;
+  width: 116px;
+  height: auto;
+}
+.pub__admin {
+  flex-shrink: 0;
+  padding: 8px 14px;
+}
+
+.pub__filters {
+  display: grid;
+  gap: 10px;
+}
+.pub__status .segmented__item {
+  padding: 10px 6px;
+  font-size: 0.82rem;
+}
+.pub__count {
+  margin-top: -4px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.pub__wait {
+  text-align: center;
+}
+
+.pub__results {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: opacity 0.15s ease;
+}
+/* Buscando de novo: a lista antiga fica esmaecida ate a nova chegar. */
+.pub__results.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Situacao do livro, na terceira linha do item da lista. */
+.pub__avail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin-top: 4px;
+}
+.pub__note {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+/* A cor reforca, mas o texto sozinho ja diz tudo (nao depende so de cor). */
+.avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.avail svg {
+  flex-shrink: 0;
+}
+.avail--in {
+  background: var(--success-wash);
+  color: var(--success);
+}
+.avail--out {
+  background: var(--gold-wash);
+  color: var(--gold-strong);
+}
+
+/* Esqueleto enquanto a lista carrega (mesmo brilho das capas). */
+.pub__skelrow {
+  cursor: default;
+  pointer-events: none;
+}
+.pubskel {
+  display: block;
+  background: linear-gradient(
+    105deg,
+    var(--surface-sunk) 35%,
+    var(--gold-wash) 50%,
+    var(--surface-sunk) 65%
+  );
+  background-size: 300% 100%;
+  animation: cover-shimmer 1.6s ease-in-out infinite;
+}
+.pubskel__cover {
+  flex-shrink: 0;
+  width: 46px;
+  height: 66px;
+  border-radius: 6px;
+}
+.pubskel__line {
+  width: 80%;
+  height: 11px;
+  margin: 3px 0;
+  border-radius: 6px;
+}
+.pubskel__line--lg {
+  width: 92%;
+  height: 14px;
+}
+.pubskel__line--sm {
+  width: 40%;
+  height: 20px;
+  margin-top: 6px;
+  border-radius: 999px;
+}
+
+/* Detalhe do livro: a situacao ocupa a linha toda, no topo. */
+.detail__wide {
+  grid-column: 1 / -1;
+}
+.detail__wide dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.pub__situation {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.pub__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.pub__foot p:last-child {
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+@media (min-width: 600px) {
+  .pub__filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .pub__status {
+    max-width: 420px;
+  }
+}
+@media (min-width: 860px) {
+  .pub__inner {
+    padding: 28px 24px 56px;
+    gap: 18px;
+  }
+  .pub__logo {
+    width: 140px;
+  }
+}
+
+/* ---------- Boas-vindas do catalogo (animacao a lapis) ---------- */
+.pub__logobtn {
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* O "papel" onde o desenho acontece, com um granulado bem leve. */
+.welcome__stage {
+  overflow: hidden;
+  background-color: var(--paper);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--ink) 7%, transparent) 0.6px,
+    transparent 0.8px
+  );
+  background-size: 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+.welcome-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Em tela baixa o desenho encolhe para o texto caber. */
+  max-height: 40vh;
+  max-height: 40dvh;
+}
+/* Traco de lapis do passaro. "non-scaling-stroke" impede que o traco deforme
+   quando o passaro se amassa ou estica; em troca, a espessura passa a ser em
+   pixels da tela, e por isso e multiplicada por --k (a escala atual do
+   desenho, medida no WelcomeScene) para ficar proporcional em qualquer
+   tamanho. --pw e a espessura do traco principal, que vem do roteiro (ela
+   engrossa quando o desenho vira a logo). */
+.welcome-scene__pencil path,
+.welcome-scene__thin path {
+  vector-effect: non-scaling-stroke;
+}
+.welcome-scene__pencil path {
+  stroke-width: calc(var(--k, 1) * var(--pw, 2) * 1px);
+}
+/* Detalhes (bico, pernas, rascunho): traco mais fino. */
+.welcome-scene__thin path,
+.welcome-scene__pencil path.welcome-scene__thin {
+  stroke-width: calc(var(--k, 1) * 1.2px);
+}
+/* Segunda passada do lapis e hachuras: mais claras e finas. */
+.welcome-scene__faint {
+  opacity: 0.38;
+}
+.welcome-scene__pencil .welcome-scene__faint path {
+  stroke-width: calc(var(--k, 1) * 1.1px);
+}
+/* A estante fica em segundo plano: mais clara e fina que o passaro. (Sem
+   "non-scaling-stroke": com ele o traco desenhado aos poucos saia cortado
+   em telas grandes. Aqui a espessura ja acompanha o tamanho do desenho.) */
+.welcome-scene__shelf path {
+  stroke-width: 1.2;
+}
+
+/* Letras que sobem do livro: a fonte dos titulos. */
+.welcome-scene__letters {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Botao de pausar/continuar, discreto, no canto do desenho. */
+.welcome-scene-wrap {
+  position: relative;
+}
+.welcome-scene__toggle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+.welcome-scene__toggle:hover {
+  border-color: var(--clay);
+  color: var(--clay);
+}
+
+.welcome__text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.welcome__lead {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+/* Celular deitado: desenho de um lado e texto do outro. O texto pode
+   precisar de um pouco de rolagem, mas o desenho aparece inteiro. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .welcome {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .welcome__stage {
+    flex: 0 0 44%;
+  }
+  .welcome-scene {
+    max-height: none;
+  }
+  .welcome-scene__toggle {
+    right: 5px;
+    bottom: 5px;
+    width: 28px;
+    height: 28px;
+  }
+  .welcome__text {
+    gap: 6px;
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+  .welcome__lead {
+    font-size: 1rem;
+  }
+}
