@@ -35,9 +35,9 @@ export default function WelcomeModal({ open, onClose }) {
           <h2 className="welcome__title">Boas-vindas!</h2>
           <p className="welcome__lead">Esta é a biblioteca da ADMP Brasil.</p>
           <p>
-            Nosso propósito é que cada membro cultive uma vida de leitura:
-            para edificação, para alcançar vidas para Cristo e para que Deus
-            seja louvado nos corações.
+            Nosso propósito é que cada membro cultive uma vida de leitura: para
+            edificação, para alcançar vidas para Cristo e para que Deus seja
+            louvado nos corações.
           </p>
           <p>
             Aqui você encontra os livros do nosso acervo e vê quais estão
