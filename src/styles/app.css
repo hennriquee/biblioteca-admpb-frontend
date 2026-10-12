@@ -247,6 +247,16 @@ select {
   }
 }
 
+/* Abertura do acervo publico (/catalogo): enquanto o app carrega e o React
+   ainda nao desenhou nada, a logo do acervo (o livro com "Catalogo") ocupa a
+   tela. Some sozinha quando o #root ganha conteudo, sem cobrir a animacao de
+   boas-vindas (por isso o AppSplash nao roda ali). */
+html[data-app="catalogo"] #root:empty {
+  position: fixed;
+  inset: 0;
+  background: var(--paper) url("/img/logo-catalogo.svg") center / min(58vw, 260px) auto no-repeat;
+}
+
 .boot {
   height: 100%;
   display: flex;

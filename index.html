@@ -27,6 +27,15 @@
       rel="stylesheet"
     />
     <title>Biblioteca ADMP Brasil</title>
+
+    <!-- Marca a pagina do acervo publico antes de qualquer outra coisa: o CSS
+         usa isso para mostrar a logo do acervo enquanto o app carrega (veja
+         "html[data-app=catalogo] #root:empty" em app.css). -->
+    <script>
+      if (/^\/catalogo\/?$/.test(location.pathname)) {
+        document.documentElement.setAttribute("data-app", "catalogo");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

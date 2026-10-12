@@ -7,6 +7,7 @@ import BookCover from "../components/BookCover.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import { IconCheck, IconLoans, IconSearch } from "../components/Icons.jsx";
+import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 
 /**
  * Acervo PUBLICO (/catalogo): a unica tela que abre sem login.
@@ -178,6 +179,9 @@ export default function Catalog() {
       document.title = previous;
     };
   }, []);
+
+  // Icone, manifesto e nome do app: o do acervo (o livro com "Catalogo").
+  useEffect(() => applyCatalogIdentity(), []);
 
   const loadOverview = useCallback(async () => {
     try {

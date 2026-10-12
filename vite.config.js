@@ -10,6 +10,7 @@ export default defineConfig({
       includeAssets: [
         'img/logo-admpb-fire.png',
         'icons/apple-touch-icon.png',
+        'manifest-catalogo.webmanifest',
       ],
       manifest: {
         name: 'Biblioteca ADMP Brasil',
