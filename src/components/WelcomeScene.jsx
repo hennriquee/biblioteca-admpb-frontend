@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { IconPause, IconPlay } from "./Icons.jsx";
 import {
-  LETTERS,
+  BACKDROP,
+  LOGO,
+  PHRASE,
   SCENE,
-  SHELF,
-  STROKES,
   frameAt,
 } from "../utils/welcomeAnimation.js";
 import {
@@ -14,9 +14,11 @@ import {
 } from "../utils/logoPaths.js";
 
 /**
- * Animacao de boas-vindas: sobre uma estante desenhada a lapis, um passaro
- * pousa, se sacode, abre as asas e vira o livro da logo, de onde sobem as
- * letras de "LEITURA". Fica repetindo enquanto estiver na tela.
+ * Animacao de boas-vindas ("uma linha so"): uma linha desenha um passaro de
+ * traco unico, ele voa enquanto a frase "Ler para edificar / alcancar /
+ * louvar" troca a cada batida de asa e palavras de livro passam ao fundo; na
+ * ultima batida os tracos viram o livro da logo e o nome da biblioteca entra.
+ * Fica repetindo enquanto estiver na tela.
  *
  * O roteiro (o que desenhar em cada instante) esta em utils/welcomeAnimation.js;
  * aqui so se aplica cada quadro no SVG, direto nos elementos (sem re-renderizar
@@ -29,37 +31,71 @@ import {
  * (decisao do projeto: ela e a apresentacao da biblioteca). Por isso o botao
  * no canto permite pausar e continuar.
  */
+
+// Quantas vezes o texto de cada linha de fundo e repetido (para sempre haver
+// texto cobrindo o palco enquanto a linha desliza).
+const REPEAT = 4;
+const LOGO_TRANSFORM =
+  "translate(" + LOGO.x + " " + LOGO.y + ") scale(" + LOGO.scale + ") translate(" +
+  -LOGO.originX + " " + -LOGO.originY + ")";
+const WORD_GAP = 6; // espaco entre "Ler para" e o verbo
+const NBSP = " ";
+
 export default function WelcomeScene({ time = null }) {
   const nodes = useRef({});
   const [playing, setPlaying] = useState(true);
   // Em que ponto do roteiro a animacao esta (segundos). Fica fora do efeito
   // para o "pausar" continuar de onde parou.
   const elapsedRef = useRef(0);
+  // Larguras medidas do texto (dependem da fonte ja carregada).
+  const layout = useRef({ blocks: BACKDROP.map((row) => row.text.length * row.size * 0.5) });
+  const redraw = useRef(null);
+  const id = useId();
 
   const bind = (name) => (element) => {
     nodes.current[name] = element;
   };
 
-  // O traco do passaro tem espessura fixa na tela (nao deforma quando ele se
-  // amassa ou estica). Para ficar proporcional ao desenho em qualquer tamanho
-  // (celular, celular deitado, computador), a escala atual do quadro vai para
-  // o CSS em "--k" e as espessuras sao multiplicadas por ela.
+  // Mede o texto e posiciona a frase: "Ler para" nunca se mexe, e a frase
+  // mais comprida fica centralizada. Repete quando a fonte termina de carregar.
   useEffect(() => {
-    const svg = nodes.current.svg;
-    if (!svg || typeof ResizeObserver === "undefined") return undefined;
-    const observer = new ResizeObserver(() => {
-      const box = svg.getBoundingClientRect();
-      const scale = Math.min(box.width / SCENE.width, box.height / SCENE.height);
-      if (scale > 0) svg.style.setProperty("--k", scale.toFixed(3));
-    });
-    observer.observe(svg);
-    return () => observer.disconnect();
+    let alive = true;
+    function measure() {
+      const el = nodes.current;
+      if (!alive || !el.prefix) return;
+      const prefix = el.prefix.getComputedTextLength();
+      const verbs = PHRASE.verbs.map((_, index) => el["verb" + index].getComputedTextLength());
+      const left = (SCENE.width - (prefix + WORD_GAP + Math.max(...verbs))) / 2;
+      const verbX = left + prefix + WORD_GAP;
+      el.prefix.setAttribute("x", left.toFixed(1));
+      PHRASE.verbs.forEach((_, index) => {
+        el["verb" + index].setAttribute("x", verbX.toFixed(1));
+        const y = PHRASE.baseline + 5.5;
+        const w = verbs[index];
+        // Sublinhado feito a mao: uma linha quase reta, de leve torta.
+        el["underline" + index].setAttribute(
+          "d",
+          "M" + (verbX + 1).toFixed(1) + " " + (y + 0.5) + "C" + (verbX + w * 0.3).toFixed(1) + " " +
+            (y - 1.1) + " " + (verbX + w * 0.65).toFixed(1) + " " + (y + 1) + " " +
+            (verbX + w - 1).toFixed(1) + " " + (y - 0.3),
+        );
+      });
+      layout.current = {
+        blocks: BACKDROP.map((_, index) => el["row" + index].getComputedTextLength() / REPEAT),
+      };
+      if (redraw.current) redraw.current();
+    }
+    measure();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useLayoutEffect(() => {
     const el = nodes.current;
     // So escreve no SVG o que mudou desde o ultimo quadro: boa parte do tempo
-    // (estante pronta, logo parada) quase nada muda.
+    // (logo parada) nada muda.
     const written = {};
     function set(name, attribute, value) {
       const key = name + "|" + attribute;
@@ -67,72 +103,67 @@ export default function WelcomeScene({ time = null }) {
       written[key] = value;
       el[name].setAttribute(attribute, value);
     }
+    function letters(name, list) {
+      list.forEach((letter, index) => {
+        set(name + "-" + index, "dx", letter.dx);
+        set(name + "-" + index, "fill-opacity", letter.opacity);
+      });
+    }
 
     function draw(seconds) {
       const frame = frameAt(seconds);
-      set("all", "opacity", frame.opacity.all);
-      set("rig", "transform", frame.rig);
-      set("legs", "opacity", frame.opacity.legs);
-      if (frame.opacity.legs > 0) {
-        set("legs", "transform", frame.legsRig);
-        set("legs", "d", frame.legs);
-      }
-      set("draft", "opacity", frame.opacity.draft);
-      if (frame.opacity.draft > 0) {
-        set("draft", "transform", frame.rig);
-        set("draft", "d", frame.draft);
+
+      set("line", "d", frame.line);
+      set("line", "stroke-width", frame.lineWidth);
+      set("lead", "d", frame.lead);
+      set("ink", "d", frame.ink);
+      set("nib", "opacity", frame.nib.opacity);
+      if (frame.nib.opacity > 0) {
+        set("nib", "cx", frame.nib.x);
+        set("nib", "cy", frame.nib.y);
       }
 
-      set("pencil", "opacity", frame.opacity.pencil);
-      if (frame.bird) {
-        STROKES.forEach((name) => {
-          set(name, "d", frame.bird.strokes[name]);
-          set(name + "Sketch", "d", frame.bird.sketch[name]);
+      set("book", "opacity", frame.logo);
+      set("word", "opacity", frame.word.opacity);
+      set("word", "transform", "translate(0 " + frame.word.lift + ")");
+      set("sub", "opacity", frame.sub.opacity);
+      set(
+        "sub",
+        "transform",
+        "translate(" + SCENE.width / 2 + " 0) scale(" + frame.sub.stretch + " 1) translate(" +
+          -SCENE.width / 2 + " 0)",
+      );
+
+      set("prefix", "opacity", frame.phrase.prefix.opacity);
+      if (frame.phrase.prefix.opacity > 0) letters("prefix", frame.phrase.prefix.letters);
+      frame.phrase.verbs.forEach((verb, index) => {
+        set("verb" + index, "opacity", verb.opacity);
+        set("underline" + index, "opacity", verb.underlineOpacity);
+        if (!verb.letters) return;
+        set("verb" + index, "transform", "translate(" + verb.shift + " 0)");
+        set("underline" + index, "transform", "translate(" + verb.shift + " 0)");
+        set("underline" + index, "stroke-dashoffset", 1 - verb.underline);
+        letters("verb" + index, verb.letters);
+      });
+
+      set("backdrop", "opacity", frame.backdrop.opacity);
+      if (frame.backdrop.opacity > 0) {
+        frame.backdrop.travel.forEach((travel, index) => {
+          const block = layout.current.blocks[index] || 1;
+          set("row" + index, "x", ((travel % block) - block).toFixed(1));
         });
-        if (written.pencilWidth !== frame.pencilWidth) {
-          written.pencilWidth = frame.pencilWidth;
-          el.pencil.style.setProperty("--pw", frame.pencilWidth);
-        }
-        set("head", "d", frame.bird.head);
-        set("hatch", "opacity", frame.opacity.hatch);
-        if (frame.opacity.hatch > 0) set("hatch", "d", frame.bird.hatch);
-        set("beak", "d", frame.bird.beak);
-        set("eye", "cx", frame.bird.eye.cx);
-        set("eye", "cy", frame.bird.eye.cy);
-        set("bits", "opacity", frame.opacity.bits);
       }
-
-      set("book", "opacity", frame.opacity.logo);
-      set("word", "opacity", frame.opacity.word);
-      set("word", "transform", "translate(0 " + frame.wordLift + ")");
-      set("sub", "opacity", frame.opacity.sub);
-      set("sub", "transform", "translate(0 " + frame.subLift + ")");
-
-      set("shelf", "opacity", frame.opacity.shelf);
-      set("shelf", "transform", frame.shelfJitter);
-      frame.shelf.forEach((drawn, index) => {
-        // Traco ainda nao comecado fica escondido: com a ponta redonda, ele
-        // apareceria como um pontinho.
-        set("shelf" + index, "visibility", drawn > 0 ? "visible" : "hidden");
-        set("shelf" + index, "stroke-dashoffset", 1 - drawn);
-      });
-      frame.letters.forEach((letter, index) => {
-        set("letter" + index, "opacity", letter.opacity);
-        if (letter.opacity > 0) {
-          set(
-            "letter" + index,
-            "transform",
-            "translate(" + letter.x + " " + letter.y + ") rotate(" + letter.rot +
-              ") scale(" + letter.scale + ")",
-          );
-        }
-      });
     }
 
     if (time !== null) {
+      redraw.current = () => {
+        Object.keys(written).forEach((key) => delete written[key]);
+        draw(time);
+      };
       draw(time);
       return undefined;
     }
+    redraw.current = () => draw(elapsedRef.current);
     draw(elapsedRef.current);
     if (!playing) return undefined;
 
@@ -153,6 +184,10 @@ export default function WelcomeScene({ time = null }) {
   }, [time, playing]);
 
   const toggleLabel = playing ? "Pausar animação" : "Continuar animação";
+  const fadeId = id + "fade";
+  const clearId = id + "clear";
+  const maskId = id + "mask";
+  const clipId = id + "clip";
 
   return (
     <div className="welcome-scene-wrap">
@@ -177,73 +212,102 @@ export default function WelcomeScene({ time = null }) {
         className="welcome-scene"
         viewBox={"0 0 " + SCENE.width + " " + SCENE.height}
         role="img"
-        aria-label="Desenho a lápis: um pássaro pousa numa estante de livros, abre as asas e se transforma no livro da logo da Biblioteca ADMP Brasil."
+        aria-label="Uma linha desenha um pássaro em traço único; ele voa entre palavras de livros enquanto passa a frase “Ler para edificar, alcançar, louvar”, e então se transforma no livro da logo da Biblioteca ADMP Brasil."
         fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       >
-        <g ref={bind("all")}>
-          <g ref={bind("shelf")} className="welcome-scene__shelf">
-            {SHELF.map((d, index) => (
-              <path
-                key={d}
-                ref={bind("shelf" + index)}
-                d={d}
-                pathLength="1"
-                strokeDasharray="1"
-                strokeDashoffset="1"
-              />
+        <defs>
+          {/* As linhas de fundo somem nas laterais e abrem uma clareira em
+              volta do passaro: nenhuma letra cruza o traco. */}
+          <linearGradient id={fadeId} x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0.02" stopColor="#000" />
+            <stop offset="0.11" stopColor="#fff" />
+            <stop offset="0.89" stopColor="#fff" />
+            <stop offset="0.98" stopColor="#000" />
+          </linearGradient>
+          <radialGradient id={clearId}>
+            <stop offset="0.76" stopColor="#000" />
+            <stop offset="1" stopColor="#000" stopOpacity="0" />
+          </radialGradient>
+          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width={SCENE.width} height={SCENE.height}>
+            <rect width={SCENE.width} height={SCENE.height} fill={"url(#" + fadeId + ")"} />
+            <ellipse cx="200" cy="90" rx="126" ry="88" fill={"url(#" + clearId + ")"} />
+          </mask>
+          {/* "ADMP BRASIL" sobe por tras da sua linha de base. */}
+          <clipPath id={clipId}>
+            <rect x="0" y="140" width={SCENE.width} height="37.2" />
+          </clipPath>
+        </defs>
+
+        <g ref={bind("backdrop")} className="welcome-scene__backdrop" mask={"url(#" + maskId + ")"}>
+          {BACKDROP.map((row, index) => (
+            <text
+              key={row.y}
+              ref={bind("row" + index)}
+              y={row.y}
+              fontSize={row.size}
+              fillOpacity={row.opacity}
+              xmlSpace="preserve"
+            >
+              {row.text.replace(/ /g, NBSP).repeat(REPEAT)}
+            </text>
+          ))}
+        </g>
+
+        <g className="welcome-scene__phrase" fontSize={PHRASE.size}>
+          <text ref={bind("prefix")} className="welcome-scene__prefix" y={PHRASE.baseline} opacity="0">
+            {[...PHRASE.prefix].map((char, index) => (
+              <tspan key={index} ref={bind("prefix-" + index)}>
+                {char === " " ? NBSP : char}
+              </tspan>
             ))}
-          </g>
-
-          <g className="welcome-scene__letters" fill="currentColor" stroke="none">
-            {LETTERS.map((char, index) => (
-              <text
-                key={index}
-                ref={bind("letter" + index)}
-                textAnchor="middle"
-                opacity="0"
-              >
-                {char}
-              </text>
-            ))}
-          </g>
-
-          <g className="welcome-scene__thin">
-            <path ref={bind("draft")} opacity="0" />
-            <path ref={bind("legs")} opacity="0" />
-          </g>
-
-          <g ref={bind("rig")}>
-            <g ref={bind("pencil")} className="welcome-scene__pencil">
-              <g className="welcome-scene__faint">
-                {STROKES.map((name) => (
-                  <path key={name} ref={bind(name + "Sketch")} />
-                ))}
-                <path ref={bind("hatch")} />
-              </g>
-              {STROKES.map((name) => (
-                <path key={name} ref={bind(name)} />
+          </text>
+          {PHRASE.verbs.map((verb, verbIndex) => (
+            <text
+              key={verb}
+              ref={bind("verb" + verbIndex)}
+              className="welcome-scene__verb"
+              y={PHRASE.baseline}
+              opacity="0"
+            >
+              {[...verb].map((char, index) => (
+                <tspan key={index} ref={bind("verb" + verbIndex + "-" + index)}>
+                  {char}
+                </tspan>
               ))}
-              <g ref={bind("bits")}>
-                <path ref={bind("head")} />
-                <path ref={bind("beak")} className="welcome-scene__thin" />
-                <circle
-                  ref={bind("eye")}
-                  r="12"
-                  fill="currentColor"
-                  stroke="none"
-                />
-              </g>
-            </g>
+            </text>
+          ))}
+          {PHRASE.verbs.map((verb, verbIndex) => (
+            <path
+              key={verb}
+              ref={bind("underline" + verbIndex)}
+              className="welcome-scene__underline"
+              pathLength="1"
+              strokeDasharray="1"
+              strokeDashoffset="1"
+              opacity="0"
+            />
+          ))}
+        </g>
 
-            {/* A logo de verdade: o desenho a lapis termina em cima dela. */}
-            <g fill="currentColor" stroke="none" fillRule="evenodd">
-              <path ref={bind("book")} d={LOGO_BOOK} opacity="0" />
-              <path ref={bind("word")} d={LOGO_WORD_MAIN} opacity="0" />
-              <path ref={bind("sub")} d={LOGO_WORD_SUB} opacity="0" />
+        <g className="welcome-scene__ink">
+          <path ref={bind("lead")} className="welcome-scene__line" />
+          <path ref={bind("line")} className="welcome-scene__line" />
+          <path ref={bind("ink")} fill="currentColor" />
+          <circle ref={bind("nib")} className="welcome-scene__nib" r="2" opacity="0" />
+        </g>
+
+        {/* A logo de verdade: as pinceladas terminam exatamente em cima dela. */}
+        <g fill="currentColor" fillRule="evenodd">
+          <g transform={LOGO_TRANSFORM}>
+            <path ref={bind("book")} d={LOGO_BOOK} opacity="0" />
+          </g>
+          <g clipPath={"url(#" + clipId + ")"}>
+            <g ref={bind("word")} opacity="0">
+              <path d={LOGO_WORD_MAIN} transform={LOGO_TRANSFORM} />
             </g>
+          </g>
+          <g ref={bind("sub")} opacity="0">
+            <path d={LOGO_WORD_SUB} transform={LOGO_TRANSFORM} />
           </g>
         </g>
       </svg>

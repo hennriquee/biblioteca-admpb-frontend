@@ -2325,15 +2325,12 @@ a.stat:active {
   flex-direction: column;
   gap: 16px;
 }
-/* O "papel" onde o desenho acontece, com um granulado bem leve. */
+/* O "papel" onde o desenho acontece: um grao irregular bem leve (ruido
+   gerado uma vez, como imagem de fundo; nao e um filtro ao vivo). */
 .welcome__stage {
   overflow: hidden;
   background-color: var(--paper);
-  background-image: radial-gradient(
-    color-mix(in srgb, var(--ink) 7%, transparent) 0.6px,
-    transparent 0.8px
-  );
-  background-size: 5px 5px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .17 0 0 0 0 .13 0 0 0 0 .07 0 0 0 -1.1 .62'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)' opacity='.26'/%3E%3C/svg%3E");
   border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--ink);
@@ -2346,43 +2343,41 @@ a.stat:active {
   max-height: 40vh;
   max-height: 40dvh;
 }
-/* Traco de lapis do passaro. "non-scaling-stroke" impede que o traco deforme
-   quando o passaro se amassa ou estica; em troca, a espessura passa a ser em
-   pixels da tela, e por isso e multiplicada por --k (a escala atual do
-   desenho, medida no WelcomeScene) para ficar proporcional em qualquer
-   tamanho. --pw e a espessura do traco principal, que vem do roteiro (ela
-   engrossa quando o desenho vira a logo). */
-.welcome-scene__pencil path,
-.welcome-scene__thin path {
-  vector-effect: non-scaling-stroke;
+/* O traco do passaro: uma linha so, de espessura uniforme (a espessura vem do
+   roteiro: ela some quando a tinta do livro engrossa). */
+.welcome-scene__line {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.welcome-scene__pencil path {
-  stroke-width: calc(var(--k, 1) * var(--pw, 2) * 1px);
+/* O dourado aparece em um elemento por vez: a ponta da pena que desenha e o
+   sublinhado do verbo. */
+.welcome-scene__nib {
+  fill: var(--gold);
 }
-/* Detalhes (bico, pernas, rascunho): traco mais fino. */
-.welcome-scene__thin path,
-.welcome-scene__pencil path.welcome-scene__thin {
-  stroke-width: calc(var(--k, 1) * 1.2px);
-}
-/* Segunda passada do lapis e hachuras: mais claras e finas. */
-.welcome-scene__faint {
-  opacity: 0.38;
-}
-.welcome-scene__pencil .welcome-scene__faint path {
-  stroke-width: calc(var(--k, 1) * 1.1px);
-}
-/* A estante fica em segundo plano: mais clara e fina que o passaro. (Sem
-   "non-scaling-stroke": com ele o traco desenhado aos poucos saia cortado
-   em telas grandes. Aqui a espessura ja acompanha o tamanho do desenho.) */
-.welcome-scene__shelf path {
-  stroke-width: 1.2;
+.welcome-scene__underline {
+  stroke: var(--gold);
+  stroke-width: 1.3;
+  stroke-linecap: round;
 }
 
-/* Letras que sobem do livro: a fonte dos titulos. */
-.welcome-scene__letters {
+/* Letras: a fonte dos titulos. "Ler para" e as linhas de fundo em italico e
+   mais claras; o verbo, firme. */
+.welcome-scene__phrase,
+.welcome-scene__backdrop {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  fill: var(--ink-soft);
+}
+.welcome-scene__verb {
+  font-style: normal;
   font-weight: 600;
+  fill: var(--ink);
+}
+.welcome-scene__backdrop {
+  fill: var(--ink);
 }
 
 /* Botao de pausar/continuar, discreto, no canto do desenho. */
