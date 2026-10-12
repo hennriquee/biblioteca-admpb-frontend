@@ -2,16 +2,18 @@
  * A "cara" do acervo publico como app: o livro da logo com "Catalogo" embaixo.
  *
  * O painel e o acervo vivem no mesmo site, entao o navegador so conhece um app
- * (manifesto, icone do celular, favicon). Ao abrir /catalogo trocamos essas
- * quatro pecas pelas do acervo: quem instala a partir dali, ou adiciona a tela
- * inicial, leva o icone certo (e a abertura do app, no Android, sai dele). Ao
- * sair da tela, volta tudo como estava.
+ * (manifesto, icone do celular). Ao abrir /catalogo trocamos essas pecas pelas
+ * do acervo: quem instala a partir dali, ou adiciona a tela inicial, leva o
+ * icone certo (e a abertura do app, no Android, sai dele). Ao sair da tela,
+ * volta tudo como estava.
+ *
+ * O favicon da aba (o "foguinho") NAO troca: e sempre o mesmo, em todas as
+ * telas.
  *
  * Devolve a funcao que desfaz a troca (serve de retorno de useEffect).
  */
 const CATALOG = {
   manifest: "/manifest-catalogo.webmanifest",
-  icon: "/icons/catalogo-192.png",
   appleIcon: "/icons/catalogo-apple-touch-icon.png",
   appTitle: "Catálogo",
 };
@@ -44,7 +46,6 @@ function make(tag, attributes) {
 export function applyCatalogIdentity() {
   const undo = [
     swap('link[rel="manifest"]', () => make("link", { rel: "manifest" }), "href", CATALOG.manifest),
-    swap('link[rel="icon"]', () => make("link", { rel: "icon", type: "image/png" }), "href", CATALOG.icon),
     swap(
       'link[rel="apple-touch-icon"]',
       () => make("link", { rel: "apple-touch-icon" }),
