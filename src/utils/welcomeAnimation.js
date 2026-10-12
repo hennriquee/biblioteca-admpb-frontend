@@ -1,96 +1,131 @@
 /**
- * Animacao de boas-vindas do acervo publico: "uma linha so".
+ * Animacao de boas-vindas do acervo publico: "da pagina ao galho".
  *
- * Uma linha entra pela direita e desenha, de uma vez, um passaro de traco
- * unico. Ele voa; a cada batida de asa uma palavra troca na frase "Ler para
- * ..." e linhas de texto passam ao fundo. Na ultima batida, os proprios
- * tracos do passaro viram as pinceladas do livro da logo, a tinta engrossa e
- * o nome da biblioteca entra. No fim o livro sai pela direita, de onde a
- * linha volta no ciclo seguinte.
+ * Uma mini historia: a logo sobe; as pinceladas do livro dela se abrem num
+ * livro visto de frente, de paginas brancas; letras surgem no papel e as
+ * paginas sao folheadas cada vez mais rapido; as seis ultimas linhas de texto
+ * viram os seis tracos de um passaro de traco unico, que voa para longe, faz
+ * a volta e pousa de costas num galho, de onde uma folha cai devagar, girando.
+ * No ciclo seguinte a logo sobe de novo e empurra a cena do passaro para cima.
  *
  * Este arquivo e so a "partitura": dado um instante (em segundos), devolve o
  * que desenhar. Nao mexe na tela; quem desenha e o WelcomeScene.jsx. Assim da
  * para conferir qualquer quadro isolado.
  *
  * Tudo aqui esta em unidades do palco (SCENE.width x SCENE.height). As formas
- * do passaro e do livro vem de welcomeShapes.js.
+ * do passaro e do livro da logo vem de welcomeShapes.js. (A animacao anterior,
+ * "uma linha so", continua guardada em welcomeLineAnimation.js.)
  */
-import { BIRD, BIRD_DRAW, BOOK } from "./welcomeShapes.js";
+import { BIRD, BOOK } from "./welcomeShapes.js";
 
 export const SCENE = { width: 400, height: 240 };
-export const DURATION = 10; // segundos de um ciclo completo
+export const DURATION = 12.5; // segundos de um ciclo completo
 
 // Onde a logo fica no palco: (x, y) do palco = LOGO.x/y + (logo - origem) * escala.
 export const LOGO = { x: 200, y: 104, scale: 0.118, originX: 1089, originY: 652 };
 
+// O livro aberto, visto de frente: duas paginas brancas e a lombada no meio.
+// As bordas de cima e de baixo caem "sag" unidades em direcao a lombada.
+export const PAGE = { left: 68, middle: 200, right: 332, top: 32, bottom: 208, sag: 4 };
+const PAGE_WIDTH = PAGE.right - PAGE.middle;
+
+/* ---------- O que esta escrito nas paginas ----------
+   Cada item e uma "abertura" do livro (pagina esquerda e pagina direita).
+   - title: frase grande, uma linha por item (so na primeira; surge letra a letra)
+   - word: uma palavra grande
+   - text: paragrafo miudo (textura); "cap" e a capitular
+   - glyph: uma letra gigante e clara (as paginas que passam rapido)
+   - lines: as linhas da ultima abertura, que viram os tracos do passaro
+   - sprig: uma folhinha desenhada
+   Para trocar o texto, mexa so aqui. */
+const PARAGRAPH = [
+  "Ler para edificar. Ler para alcançar",
+  "vidas para Cristo. Ler para que Deus",
+  "seja louvado nos corações. Esta é a",
+  "biblioteca da ADMP Brasil: um lugar",
+  "para cultivar, livro a livro, uma",
+  "vida de leitura.",
+];
+export const SPREADS = [
+  { left: { sprig: true }, right: { title: ["Uma vida", "de leitura"] } },
+  {
+    left: {
+      cap: "L",
+      beside: ["er para edificar.", "Ler para alcançar", "vidas para Cristo."],
+      text: ["Ler para que Deus seja louvado", "nos corações. Esta é a biblioteca", "da ADMP Brasil: um lugar para", "cultivar, livro a livro, uma vida", "de leitura."],
+    },
+    right: { word: "edificar" },
+  },
+  { left: { word: "alcançar" }, right: { text: PARAGRAPH } },
+  { left: { text: PARAGRAPH }, right: { word: "louvar" } },
+  { left: {}, right: { glyph: "a" } },
+  { left: { glyph: "g" }, right: {} },
+  { left: {}, right: { glyph: "R" } },
+  { left: { glyph: "&" }, right: {} },
+  { left: {}, right: { glyph: "f" } },
+  { left: { glyph: "Q" }, right: {} },
+  { left: {}, right: { glyph: "ç" } },
+  { left: { glyph: "y" }, right: {} },
+  {
+    left: { lines: ["página por página,", "linha por linha,", "palavra por palavra,"] },
+    right: { lines: ["uma vida", "de leitura", "ganha asas."] },
+  },
+];
+// Linhas de base das tres linhas da ultima abertura, e o tamanho da letra.
+export const CLOSING = { baselines: [95, 121, 147], size: 9.5 };
+export const LEFT_CENTER = (PAGE.left + PAGE.middle) / 2;
+export const RIGHT_CENTER = (PAGE.middle + PAGE.right) / 2;
+
 /* ---------- Roteiro (tempos em segundos) ---------- */
 const T = {
-  drawStart: 0.15, // a linha entra pela direita...
-  drawEnd: 1.06, // ...e termina o passaro
-  releaseStart: 1.02, // o fio de entrada e recolhido ate a cauda
-  releaseEnd: 1.3,
-  beats: [1.55, 2.45, 3.35], // inicio de cada batida de asa (uma a cada 0,9 s)
-  anticipate: 4.25, // freia e estica as asas
-  morph: 4.52, // a ultima batida: o passaro vira livro
-  inkStart: 5.14, // a forma ja chegou; a tinta engrossa
-  inkEnd: 5.58,
-  swapStart: 5.54, // a arte oficial da logo assume
-  swapEnd: 5.66,
-  wordStart: 5.4,
-  subStart: 5.68,
-  nameOut: 9.2,
-  bookOut: 9.3, // a tinta afina e a linha sai pela direita
-  bookGone: 9.88,
-  backdropIn: 9.6,
+  pushEnd: 1.1, // a logo termina de subir (empurrando a cena anterior)
+  settle: 1.35,
+  nameOut: 1.8, // o nome some; o livro comeca a se abrir
+  thin: 1.82, // a tinta afina ate virar traco...
+  open: 2, // ...e so entao as pinceladas viram o contorno do livro aberto
+  openEnd: 2.7,
+  paper: 2.45, // o branco das paginas entra
+  write: 2.7, // as letras surgem na primeira pagina
+  // Cada virada de folha: [inicio, duracao]. Tres lentas, depois acelera.
+  flips: [
+    [3.5, 0.6],
+    [4.5, 0.45],
+    [5.2, 0.32],
+    [5.62, 0.26],
+    [5.8, 0.22],
+    [5.95, 0.19],
+    [6.07, 0.16],
+    [6.17, 0.14],
+    [6.25, 0.12],
+    [6.32, 0.11],
+    [6.38, 0.1],
+    [6.43, 0.1],
+  ],
+  lines: 6.5, // as seis linhas de texto viram seis tracos retos...
+  linesEnd: 6.64,
+  bird: 6.58, // ...que sobem da pagina e se curvam no passaro
+  fly: 7.07, // primeira batida de asa: decola
+  spineOut: 6.62, // a lombada some antes (senao cortaria o passaro ao meio)
+  bookOut: 6.74, // o livro desce e some
+  bookGone: 7.14,
+  turn: 7.97, // meia-volta, no ponto mais longe
+  turnEnd: 8.22,
+  branch: 7.82, // o galho e desenhado da borda para a ponta
+  branchEnd: 8.82,
+  flare: 9.37, // empina para pousar
+  land: 9.62, // toca o galho
+  turnBack: 9.72, // vira de costas: o desenho fecha de perfil...
+  folded: 9.94, // ...e reabre ja pousado, de costas
+  leaf: 9.86, // a folha se solta, no retorno do galho
 };
-const BEAT = 0.9;
-const DOWN = 0.34; // a asa desce rapido...
-const UP = BEAT - DOWN; // ...e sobe mais devagar
-
-const LINE_WIDTH = 2;
-const ENTRY = [408, 128]; // por onde a linha entra e sai (borda direita)
-const BIRD_HOME = [206, 98]; // centro do passaro ao ser desenhado
+const LINE_WIDTH = 2; // traco do passaro na logo e na pagina
+const BIRD_WIDTH = 1.8;
 const PARTS = ["BELLY", "HD", "WL", "WR", "TE", "TL"];
-// As pinceladas do livro. A cabeca (HD) nao tem uma so dela: ela se deita
-// sobre o comeco da pincelada de baixo (BELLY) e some dentro dela.
+// As pinceladas do livro da logo (a cabeca nao tem uma so dela: ela se deita
+// sobre o comeco da pincelada de baixo).
 const STROKES = PARTS.filter((part) => part !== "HD");
-// Em que instante (depois de T.morph) cada trecho comeca a virar livro.
-// (A cabeca vai na frente da asa de tras, para as duas linhas nao se cruzarem.)
-const MORPH_DELAY = { HD: 0, BELLY: 0.03, WL: 0.08, WR: 0.08, TE: 0.08, TL: 0.1 };
-const MORPH_TIME = 0.56;
-// Emendas do traco: pontas de trechos vizinhos que no passaro sao o mesmo
-// ponto. Ficam coladas ate boa parte do caminho, e so entao a linha se parte
-// nas pinceladas do livro. [trecho, "first" | "last"]
-const SEAMS = [
-  [["HD", "first"], ["WL", "first"], ["WR", "first"]], // ombro
-  [["WR", "last"], ["TE", "first"]], // ponta da asa da frente
-  [["TE", "last"], ["TL", "first"]], // laco da cauda
-];
 // Cantos vivos de cada trecho (no resto, a curva passa suave pelos pontos).
 const CORNERS = { WL: [7, 16] };
-
-/* ---------- Texto ---------- */
-export const PHRASE = {
-  prefix: "Ler para",
-  verbs: ["edificar", "alcançar", "louvar"],
-  baseline: 186,
-  size: 23,
-};
-const PREFIX_IN = 0.5;
-const VERB_IN = [0.68, 2.45, 3.35];
-const VERB_OUT = [2.26, 3.16, 4.3];
-const LETTER_GAP = 0.022;
-const LETTER_TIME = 0.18;
-
-// Linhas de texto que passam ao fundo, da esquerda para a direita (o passaro
-// voa para a esquerda). "speed" em unidades do palco por segundo.
-const DOT = "  ·  ";
-export const BACKDROP = [
-  { y: 24, size: 11, opacity: 0.26, speed: 150, words: ["capítulo", "página", "prefácio", "índice", "margem", "rodapé"] },
-  { y: 46, size: 9, opacity: 0.18, speed: 95, words: ["salmos", "cartas", "histórias", "biografias", "devocionais", "poesia"] },
-  { y: 124, size: 10, opacity: 0.22, speed: 190, words: ["palavra", "sabedoria", "graça", "verdade", "esperança"] },
-  { y: 150, size: 9, opacity: 0.18, speed: 120, words: ["ler", "reler", "sublinhar", "guardar", "emprestar", "devolver"] },
-].map((line) => ({ ...line, text: line.words.join(DOT) + DOT }));
 
 /* ---------- Matematica basica ---------- */
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -98,8 +133,8 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // 0 antes de "from", 1 depois de "to", linear no meio.
 const span = (t, from, to) => clamp01((t - from) / (to - from));
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeInOutSine = (t) => 0.5 - Math.cos(Math.PI * t) / 2;
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
 const easeIn = (t) => t * t * t;
 const easeInQuad = (t) => t * t;
 const smoothstep = (t) => {
@@ -107,6 +142,8 @@ const smoothstep = (t) => {
   return v * v * (3 - 2 * v);
 };
 const n2 = (v) => Math.round(v * 100) / 100;
+const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 
 // Curva "cubic-bezier" do CSS: devolve y para um x de 0 a 1.
 function cubicBezier(x1, y1, x2, y2) {
@@ -122,9 +159,10 @@ function cubicBezier(x1, y1, x2, y2) {
     return at(y1, y2, (lo + hi) / 2);
   };
 }
+const pushEase = cubicBezier(0.4, 0, 0.2, 1);
+const morphEase = cubicBezier(0.45, 0, 0.25, 1);
 const wingDown = cubicBezier(0.5, 0, 0.2, 1);
 const wingUp = cubicBezier(0.4, 0, 0.6, 1);
-const morphEase = cubicBezier(0.45, 0, 0.25, 1);
 
 function rotate(point, center, degrees) {
   const angle = (degrees * Math.PI) / 180;
@@ -134,7 +172,6 @@ function rotate(point, center, degrees) {
   const y = point[1] - center[1];
   return [center[0] + x * cos - y * sin, center[1] + x * sin + y * cos];
 }
-const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /* ---------- Caminhos SVG ---------- */
 function curveTo(p0, p1, p2, p3) {
@@ -173,74 +210,131 @@ function polyline(points) {
   return d;
 }
 
-/* ---------- A linha que desenha o passaro ---------- */
-// Fio de entrada (da borda direita ate a ponta da cauda) + o passaro inteiro,
-// na ordem do traco. Guardado com o comprimento acumulado, para desenhar "ate
-// tal ponto" e saber onde esta a ponta da pena.
-const DRAW = (() => {
-  const first = [BIRD_HOME[0] + BIRD_DRAW[0][0], BIRD_HOME[1] + BIRD_DRAW[0][1]];
-  const second = [BIRD_HOME[0] + BIRD_DRAW[1][0], BIRD_HOME[1] + BIRD_DRAW[1][1]];
-  const step = distance(first, second);
-  // Chega na cauda ja na direcao em que o traco continua.
-  const handle = [
-    first[0] - ((second[0] - first[0]) / step) * 34,
-    first[1] - ((second[1] - first[1]) / step) * 34,
-  ];
-  const control = [ENTRY[0] - 46, ENTRY[1]];
-  const points = [];
-  const LEAD = 26;
-  for (let i = 0; i < LEAD; i += 1) {
-    const u = i / LEAD;
-    const k = 1 - u;
-    points.push([
-      k * k * k * ENTRY[0] + 3 * k * k * u * control[0] + 3 * k * u * u * handle[0] + u * u * u * first[0],
-      k * k * k * ENTRY[1] + 3 * k * k * u * control[1] + 3 * k * u * u * handle[1] + u * u * u * first[1],
-    ]);
+const posePath = (pose, parts = PARTS) =>
+  parts.map((part) => smoothPath(pose[part], CORNERS[part])).join("");
+
+const mixPose = (a, b, amount) => {
+  const pose = {};
+  PARTS.forEach((part) => {
+    const t = typeof amount === "function" ? amount(part) : amount;
+    pose[part] = a[part].map((point, i) => mix(point, b[part][i], t));
+  });
+  return pose;
+};
+
+// Passa uma curva suave por alguns pontos de controle e devolve "count"
+// pontos igualmente espacados ao longo dela (para desenhar formas a mao).
+function trace(control, count) {
+  const dense = [];
+  for (let i = 0; i < control.length - 1; i += 1) {
+    const p0 = control[Math.max(0, i - 1)];
+    const p1 = control[i];
+    const p2 = control[i + 1];
+    const p3 = control[Math.min(control.length - 1, i + 2)];
+    for (let k = 0; k < 16; k += 1) {
+      const u = k / 16;
+      const u2 = u * u;
+      const u3 = u2 * u;
+      dense.push([0, 1].map((axis) =>
+        0.5 * (2 * p1[axis] + (p2[axis] - p0[axis]) * u +
+          (2 * p0[axis] - 5 * p1[axis] + 4 * p2[axis] - p3[axis]) * u2 +
+          (3 * p1[axis] - p0[axis] - 3 * p2[axis] + p3[axis]) * u3),
+      ));
+    }
   }
-  BIRD_DRAW.forEach(([x, y]) => points.push([BIRD_HOME[0] + x, BIRD_HOME[1] + y]));
+  dense.push(control[control.length - 1]);
   const lengths = [0];
-  for (let i = 1; i < points.length; i += 1) {
-    lengths.push(lengths[i - 1] + distance(points[i - 1], points[i]));
+  for (let i = 1; i < dense.length; i += 1) lengths.push(lengths[i - 1] + distance(dense[i - 1], dense[i]));
+  const total = lengths[lengths.length - 1];
+  const out = [];
+  let j = 1;
+  for (let i = 0; i < count; i += 1) {
+    const at = (total * i) / (count - 1);
+    while (j < lengths.length - 1 && lengths[j] < at) j += 1;
+    out.push(mix(dense[j - 1], dense[j], clamp01((at - lengths[j - 1]) / (lengths[j] - lengths[j - 1] || 1))));
   }
-  return { points, lengths, total: lengths[lengths.length - 1], lead: lengths[LEAD] };
-})();
-
-// Ponto da linha a uma distancia "at" do comeco.
-function drawPoint(at) {
-  const { points, lengths } = DRAW;
-  let i = 1;
-  while (i < lengths.length - 1 && lengths[i] < at) i += 1;
-  const u = clamp01((at - lengths[i - 1]) / (lengths[i] - lengths[i - 1] || 1));
-  return [lerp(points[i - 1][0], points[i][0], u), lerp(points[i - 1][1], points[i][1], u)];
+  return out;
 }
+// Pontos igualmente espacados numa reta.
+const straight = (from, to, count) =>
+  Array.from({ length: count }, (_, i) => mix(from, to, i / (count - 1)));
 
-// Trecho da linha entre as distancias "from" e "to".
-function drawSlice(from, to, dy) {
-  if (to - from < 0.05) return "";
-  const { points, lengths } = DRAW;
-  const out = [drawPoint(from)];
-  for (let i = 0; i < points.length; i += 1) {
-    if (lengths[i] > from && lengths[i] < to) out.push(points[i]);
-  }
-  out.push(drawPoint(to));
-  return polyline(dy ? out.map(([x, y]) => [x, y + dy]) : out);
+/* ---------- Da logo ao livro aberto ----------
+   As pinceladas do livro da logo (ja afinadas em traco) viram o contorno do
+   livro aberto visto de frente: cada pincelada vai para uma borda. */
+const BOOK_CENTER = {};
+PARTS.forEach((part) => {
+  BOOK_CENTER[part] = BOOK[part].a.map((point, i) => mix(point, BOOK[part].b[i], 0.5));
+});
+const { left: PL, middle: PM, right: PR, top: PT, bottom: PB, sag: SAG } = PAGE;
+const OUTLINE = {
+  // Pagina esquerda da logo -> borda de cima e borda esquerda da pagina esquerda.
+  WL: trace([[PM, PT + SAG], [PM - 40, PT + 0.6], [PL, PT]], 17).concat(straight([PL, PT], [PL, PB], 12).slice(1)),
+  // Arco de cima -> borda de cima da pagina direita.
+  WR: trace([[PM, PT + SAG], [PM + 40, PT + 0.6], [PR, PT]], BIRD.WR.length),
+  // Diagonal grossa -> borda direita.
+  TE: straight([PR, PT], [PR, PB], BIRD.TE.length),
+  // Pincelada de baixo -> as duas bordas de baixo, passando pela lombada.
+  BELLY: trace([[PL, PB], [PM - 40, PB + 0.6], [PM, PB + SAG], [PM + 40, PB + 0.6], [PR, PB]], BIRD.BELLY.length),
+  // Pincelada interna -> a linha da lombada.
+  TL: straight([PM, PT + SAG], [PM, PB + SAG], BIRD.TL.length),
+};
+OUTLINE.HD = OUTLINE.BELLY.slice(0, BIRD.HD.length).reverse();
+// Com o livro ja aberto, a lombada e um traco a parte (ela some antes).
+const EDGES = STROKES.filter((part) => part !== "TL");
+const OUTLINE_PATH = posePath(OUTLINE, EDGES);
+export const SPINE_PATH = polyline(OUTLINE.TL);
+// A forma de cada pagina (para o papel branco e para a folha que vira).
+export const PAGE_RIGHT_PATH =
+  polyline([...OUTLINE.WR, ...OUTLINE.TE, ...OUTLINE.BELLY.slice(15).reverse(), ...OUTLINE.TL.slice().reverse()]) + "Z";
+export const PAGE_LEFT_PATH =
+  polyline([...OUTLINE.WL, ...OUTLINE.BELLY.slice(0, 15), ...OUTLINE.TL.slice().reverse()]) + "Z";
+export const BRANCH_PIVOT_POINT = [402, 150];
+
+// Pincelada preenchida da logo: "ink" vai de 0 (traco fino) a 1 (a pincelada).
+function logoInk(ink) {
+  let fill = "";
+  STROKES.forEach((part) => {
+    const { a, b } = BOOK[part];
+    const center = BOOK_CENTER[part];
+    const left = [];
+    const right = [];
+    center.forEach((point, i) => {
+      let dx = a[i][0] - b[i][0];
+      let dy = a[i][1] - b[i][1];
+      let length = Math.hypot(dx, dy);
+      if (length < 0.05) {
+        // Ponta da pincelada: os lados se encontram; usa a perpendicular.
+        const next = center[Math.min(i + 1, center.length - 1)];
+        const prev = center[Math.max(i - 1, 0)];
+        dx = -(next[1] - prev[1]);
+        dy = next[0] - prev[0];
+        length = Math.hypot(dx, dy) || 1;
+      }
+      const thin = [(dx / length) * (LINE_WIDTH / 2), (dy / length) * (LINE_WIDTH / 2)];
+      left.push([point[0] + lerp(thin[0], a[i][0] - point[0], ink), point[1] + lerp(thin[1], a[i][1] - point[1], ink)]);
+      right.push([point[0] + lerp(-thin[0], b[i][0] - point[0], ink), point[1] + lerp(-thin[1], b[i][1] - point[1], ink)]);
+    });
+    fill += polyline(left.concat(right.reverse())) + "Z";
+  });
+  return fill;
 }
 
 /* ---------- O passaro em voo ---------- */
 const SHOULDER_L = BIRD.WL[0]; // onde a asa de tras se prende
 const SHOULDER_R = BIRD.WR[2]; // entalhe do ombro: raiz da asa da frente
 const TAIL_ROOT = BIRD.TL[0];
+const BELLY_TAIL = 7; // os ultimos pontos da barriga sao a ponta de baixo da cauda
 
 // Quanto cada ponto acompanha a asa (0 = preso ao corpo, 1 = solto) e quanto
-// ele atrasa: a ponta chega depois da raiz, e e isso que faz a asa flexionar
-// em vez de girar como uma regua.
+// ele atrasa: a ponta chega depois da raiz, e e isso que faz a asa flexionar.
 function wingMap(points, pivot, reach, fade) {
   const far = Math.max(...points.map((point) => distance(point, pivot)));
   return points.map((point, index) => {
     const d = distance(point, pivot);
     return {
       weight: smoothstep(d / reach) * (fade ? 1 - smoothstep(index / (points.length - 1)) : 1),
-      lag: 0.09 * (d / far),
+      lag: 0.08 * (d / far),
     };
   });
 }
@@ -250,39 +344,87 @@ const WING = {
   // A borda de fuga estica como uma membrana: solta na ponta, presa no corpo.
   TE: wingMap(BIRD.TE, SHOULDER_R, 10, true),
 };
-const BELLY_TAIL = 7; // os ultimos pontos da barriga sao a ponta de baixo da cauda
+
+// Batidas de asa: [inicio, duracao]. Fortes na decolagem, uma so no planeio,
+// e duas curtas para frear antes do pouso.
+const BEATS = [
+  [T.fly, 0.46],
+  [T.fly + 0.46, 0.46],
+  [T.fly + 0.92, 0.42],
+  [8.62, 0.44],
+  [9.18, 0.22],
+  [9.4, 0.22],
+];
 
 // Altura das asas: 1 = no alto, 0 = embaixo.
 function wingHeight(t) {
-  for (let i = 0; i < T.beats.length; i += 1) {
-    const v = t - T.beats[i];
-    if (v >= 0 && v < BEAT) {
-      if (v < DOWN) return 1 - wingDown(v / DOWN);
-      const u = (v - DOWN) / UP;
-      // Sobe e passa um pouco do ponto antes de assentar.
-      return wingUp(u) + 0.1 * Math.sin(Math.PI * u) * u;
-    }
+  for (let i = 0; i < BEATS.length; i += 1) {
+    const v = (t - BEATS[i][0]) / BEATS[i][1];
+    if (v >= 0 && v < 1) return v < 0.38 ? 1 - wingDown(v / 0.38) : wingUp((v - 0.38) / 0.62);
   }
   return 1;
 }
+// Planeio: 1 enquanto ele plana (asas na pose do desenho de referencia).
+const gliding = (t) => smoothstep(span(t, 8.2, 8.4)) * (1 - smoothstep(span(t, 8.95, 9.15)));
 
-// Pontos do passaro no palco, por trecho, no instante t.
-function birdPose(t) {
-  const live = easeInOut(span(t, T.drawEnd, T.beats[0])); // sai da pose do desenho
-  const stretch = easeOut(span(t, T.anticipate, T.morph)); // antecipacao
-  const glide = span(t, T.releaseEnd - 0.05, T.anticipate);
-  const height = wingHeight(t - 0.05);
+// Rota do voo: [tempo, x, y, tamanho]. Sai da pagina, sobe, vai para longe
+// (fica pequeno), faz a volta e vem pousar no galho.
+const ROUTE = [
+  [T.fly, 200, 112, 0.95],
+  [7.57, 128, 74, 0.66],
+  [8.07, 66, 46, 0.36],
+  [8.62, 150, 40, 0.34],
+  [9.12, 232, 64, 0.42],
+  [T.land, 268, 116, 0.5],
+];
+// Velocidade em cada ponto da rota (para a curva passar suave por todos).
+const ROUTE_SPEED = ROUTE.map((key, i) => {
+  if (i === 0 || i === ROUTE.length - 1) return [0, 0];
+  const before = ROUTE[i - 1];
+  const after = ROUTE[i + 1];
+  return [(after[1] - before[1]) / (after[0] - before[0]), (after[2] - before[2]) / (after[0] - before[0])];
+});
 
-  const center = [
-    lerp(BIRD_HOME[0], 194, easeInOut(glide)),
-    BIRD_HOME[1] +
-      3 * Math.sin(Math.PI * span(t, T.releaseStart, T.releaseStart + 0.5)) - // afunda ao ser solto
-      3.5 * live * (1 - height) - // o corpo sobe quando a asa desce
-      5 * stretch,
-  ];
-  const scale = 1 + 0.04 * stretch;
-  const tilt = 2 * live * (0.5 - height) * 2 * (1 - stretch);
-  const tailSwing = 4 * live * (2 * wingHeight(t - 0.12) - 1) * (1 - stretch);
+function routeAt(t) {
+  if (t <= ROUTE[0][0]) return { x: ROUTE[0][1], y: ROUTE[0][2], scale: ROUTE[0][3] };
+  const last = ROUTE[ROUTE.length - 1];
+  if (t >= last[0]) return { x: last[1], y: last[2], scale: last[3] };
+  let i = 0;
+  while (t > ROUTE[i + 1][0]) i += 1;
+  const a = ROUTE[i];
+  const b = ROUTE[i + 1];
+  const dt = b[0] - a[0];
+  const u = (t - a[0]) / dt;
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const h = [2 * u3 - 3 * u2 + 1, u3 - 2 * u2 + u, -2 * u3 + 3 * u2, u3 - u2];
+  return {
+    x: h[0] * a[1] + h[1] * dt * ROUTE_SPEED[i][0] + h[2] * b[1] + h[3] * dt * ROUTE_SPEED[i + 1][0],
+    y: h[0] * a[2] + h[1] * dt * ROUTE_SPEED[i][1] + h[2] * b[2] + h[3] * dt * ROUTE_SPEED[i + 1][1],
+    scale: lerp(a[3], b[3], smoothstep(u)),
+  };
+}
+
+// Para que lado ele esta virado: 1 = esquerda, -1 = direita (passa por zero
+// na meia-volta).
+const facingAt = (t) => lerp(1, -1, easeInOutSine(span(t, T.turn, T.turnEnd)));
+
+// Pontos do passaro em voo, no palco, por trecho.
+function flightPose(t) {
+  const { x, y, scale } = routeAt(t);
+  const ahead = routeAt(t + 0.03);
+  const dx = ahead.x - x;
+  const dy = ahead.y - y;
+  // Inclina acompanhando a subida ou a descida (metade do angulo da rota) e
+  // empina para frear antes do pouso.
+  const flare = easeOut(span(t, T.flare, T.land));
+  const pitch = Math.hypot(dx, dy) > 0.02 ? (Math.atan2(-dy, Math.abs(dx)) * 180) / Math.PI : 0;
+  const tilt = lerp(Math.max(-14, Math.min(14, pitch / 2)), -14, flare) * smoothstep(span(t, T.fly, T.fly + 0.25));
+  // Meia-volta: o desenho se fecha e reabre espelhado, enquanto esta pequeno.
+  const facing = facingAt(t);
+  const glide = gliding(t);
+  const tailSwing = 4 * (2 * wingHeight(t - 0.12) - 1) * (1 - flare) * (1 - glide);
+  const bob = -1.6 * (1 - wingHeight(t - 0.05));
 
   const pose = {};
   PARTS.forEach((part) => {
@@ -291,14 +433,11 @@ function birdPose(t) {
       let p = point;
       if (map) {
         const h = wingHeight(t - map[index].lag - (part === "WL" ? 0 : 0.04));
-        // As asas oscilam em torno da pose de referencia (graus positivos
-        // giram no sentido horario): a de tras entre 8 acima e 4 abaixo, a da
-        // frente entre 10 acima e 9 abaixo. Nenhuma passa da horizontal, e a
-        // da frente nao chega a deitar sobre a cauda.
-        const degrees =
-          part === "WL"
-            ? live * lerp(-4, 8, h) + stretch * 9
-            : live * lerp(9, -10, h) - stretch * 4;
+        // As asas oscilam em torno da pose de referencia: a de tras entre 8
+        // graus acima e 4 abaixo, a da frente entre 10 acima e 9 abaixo. No
+        // planeio ficam na pose de referencia; na freada, sobem mais.
+        const beat = part === "WL" ? lerp(-4, 8, h) : lerp(9, -10, h);
+        const degrees = beat * (1 - glide) + (part === "WL" ? 8 : -6) * flare;
         p = rotate(p, part === "WL" ? SHOULDER_L : SHOULDER_R, degrees * map[index].weight);
       } else if (part === "TL") {
         p = rotate(p, TAIL_ROOT, tailSwing * smoothstep(index / 4));
@@ -307,314 +446,305 @@ function birdPose(t) {
         if (k > 0) p = rotate(p, BIRD.BELLY[BIRD.BELLY.length - BELLY_TAIL], tailSwing * smoothstep(k / 4));
       }
       p = rotate(p, [0, 0], tilt);
-      return [center[0] + p[0] * scale, center[1] + p[1] * scale];
+      return [x + p[0] * scale * facing, y + bob * scale + p[1] * scale];
     });
   });
   return pose;
 }
+// Traco quase constante: afina pouco quando o passaro fica pequeno.
+const strokeFor = (scale) => n2(Math.max(1.3, BIRD_WIDTH * Math.pow(scale, 0.4)));
 
-/* ---------- O livro ---------- */
-// Linha central de cada pincelada (o meio entre os dois lados) e, por ponto,
-// o vetor do meio ate o lado "a" na espessura do traco fino.
-const BOOK_CENTER = {};
-const BOOK_THIN = {};
-const BOOK_INK_DELAY = {};
-const SPINE = [190, 134]; // de onde a tinta comeca a engrossar
-PARTS.forEach((part, partIndex) => {
-  const { a, b } = BOOK[part];
-  BOOK_CENTER[part] = a.map((point, i) => [(point[0] + b[i][0]) / 2, (point[1] + b[i][1]) / 2]);
-  BOOK_THIN[part] = a.map((point, i) => {
-    let dx = point[0] - b[i][0];
-    let dy = point[1] - b[i][1];
-    let length = Math.hypot(dx, dy);
-    if (length < 0.05) {
-      // Ponta da pincelada: os lados se encontram; usa a perpendicular ao traco.
-      const center = BOOK_CENTER[part];
-      const next = center[Math.min(i + 1, center.length - 1)];
-      const prev = center[Math.max(i - 1, 0)];
-      dx = -(next[1] - prev[1]);
-      dy = next[0] - prev[0];
-      length = Math.hypot(dx, dy) || 1;
+/* ---------- As linhas de texto que viram o passaro ----------
+   Cada linha da ultima abertura vira um trecho do passaro: as tres da
+   esquerda viram a asa de tras, a cabeca e a barriga; as tres da direita, a
+   borda de ataque, a borda de fuga e a cauda. Cada trecho comeca deitado,
+   reto, sobre a linha de base do seu texto. "widths" sao as larguras medidas
+   das seis linhas (esquerda de cima para baixo, depois direita). */
+const LINE_OF = { WL: 0, HD: 1, BELLY: 2, WR: 3, TE: 4, TL: 5 };
+const MORPH_DELAY = { BELLY: 0, HD: 0.03, WL: 0.06, WR: 0.08, TE: 0.08, TL: 0.11 };
+const MORPH_TIME = 0.38;
+
+function linesPose(widths) {
+  const row = (part) => {
+    const index = LINE_OF[part];
+    const center = index < 3 ? LEFT_CENTER : RIGHT_CENTER;
+    const y = CLOSING.baselines[index % 3] - 2.2;
+    const half = widths[index] / 2;
+    return { from: [center - half, y], to: [center + half, y] };
+  };
+  const pose = {};
+  PARTS.forEach((part) => {
+    const { from, to } = row(part);
+    const count = BIRD[part].length;
+    if (part === "WL") {
+      // A asa de tras vai ate a ponta e volta: dobrada sobre a mesma reta.
+      pose.WL = straight(to, from, 17).concat(straight(from, to, 12).slice(1));
+    } else if (part === "HD" || part === "TE") {
+      pose[part] = straight(to, from, count); // estes trechos correm da direita para a esquerda
+    } else {
+      pose[part] = straight(from, to, count);
     }
-    return [(dx / length) * (LINE_WIDTH / 2), (dy / length) * (LINE_WIDTH / 2)];
   });
-  // A tinta corre da lombada para fora, uma pincelada apos a outra.
-  BOOK_INK_DELAY[part] = BOOK_CENTER[part].map(
-    (point) => 0.02 * partIndex + 0.07 * Math.min(1, distance(point, SPINE) / 120),
-  );
+  return pose;
+}
+const TAKEOFF = flightPose(T.fly);
+
+/* ---------- O galho ---------- */
+// Tracos finos, da borda direita para a ponta. Cada pedaco e desenhado quando
+// o traco principal chega ate ele ("at" = em que ponto do desenho, 0 a 1).
+const BRANCH = trace([[402, 150], [340, 141], [290, 138], [240, 131.5], [200, 133.5], [186, 132], [176, 126]], 44);
+const BRANCH_PIVOT = [402, 150];
+const BRANCH_REACH = BRANCH_PIVOT[0] - BRANCH[BRANCH.length - 1][0];
+const branchY = (x) => {
+  let i = 1;
+  while (i < BRANCH.length - 1 && BRANCH[i][0] > x) i += 1;
+  const a = BRANCH[i - 1];
+  const b = BRANCH[i];
+  return lerp(a[1], b[1], clamp01((a[0] - x) / (a[0] - b[0] || 1)));
+};
+
+// Folha em forma de amendoa: sai de "base" na direcao "degrees".
+function leafPath(base, degrees, length = 14, width = 3.4) {
+  const rad = (degrees * Math.PI) / 180;
+  const along = [Math.cos(rad), Math.sin(rad)];
+  const side = [-along[1], along[0]];
+  const at = (f, w) =>
+    n2(base[0] + along[0] * length * f + side[0] * width * w) + " " +
+    n2(base[1] + along[1] * length * f + side[1] * width * w);
+  return "M" + at(0, 0) + "Q" + at(0.45, 1) + " " + at(1, 0) + "Q" + at(0.45, -1) + " " + at(0, 0);
+}
+const drawnAt = (x) => (BRANCH_PIVOT[0] - x) / BRANCH_REACH;
+const TWIG_UP = [[346, branchY(346)], [338, 124], [326, 108]];
+const TWIG_DOWN = [[214, branchY(214)], [206, 146], [196, 156]];
+export const BRANCH_PARTS = [
+  { d: smoothPath(BRANCH), at: 0, take: 1 },
+  { d: smoothPath(trace(TWIG_UP, 8)), at: drawnAt(346), take: 0.2 },
+  { d: leafPath(TWIG_UP[1], -18), at: drawnAt(346) + 0.1, take: 0.16 },
+  { d: leafPath(TWIG_UP[2], -112), at: drawnAt(346) + 0.2, take: 0.16 },
+  { d: smoothPath(trace(TWIG_DOWN, 8)), at: drawnAt(214), take: 0.08 },
+  { d: leafPath(TWIG_DOWN[2], 128), at: drawnAt(214) + 0.07, take: 0.09 },
+  // (So depois de o traco chegar a ponta.)
+  { d: leafPath(BRANCH[BRANCH.length - 1], -128), at: 0.93, take: 0.07 },
+];
+// A folha dourada (a unica cor do filme): pende do galho, e e ela que cai.
+const GOLD_BASE = [304, branchY(304) + 0.8];
+export const GOLD_LEAF = { d: leafPath(GOLD_BASE, 98, 15, 3.8), base: GOLD_BASE, at: drawnAt(304), take: 0.16 };
+
+// O galho cede quando o passaro toca e volta amortecido (graus; negativo = a
+// ponta desce).
+function branchSwing(t) {
+  const since = t - T.land;
+  if (since <= 0 || since > 1.3) return 0;
+  return -2 * Math.exp(-4.3 * since) * Math.sin(2 * Math.PI * 1.9 * since) * (1 - smoothstep((since - 1) / 0.3));
+}
+
+// A folha caindo, "since" segundos depois de se soltar: desce devagar, num
+// vaivem que vai diminuindo, girando e virando sobre si mesma.
+function leafFall(since) {
+  if (since <= 0) return { x: 0, y: 0, turn: 0, flip: 1 };
+  const start = smoothstep(since / 0.5); // solta-se aos poucos
+  const sway = Math.sin(since * 2 * Math.PI * 0.62);
+  return {
+    x: n2(-13 * since + 15 * sway * start * Math.exp(-since * 0.12)),
+    y: n2(19 * since + 4 * since * start - 5 * Math.abs(sway) * start),
+    // Gira acompanhando o vaivem, com uma volta lenta por cima.
+    turn: n2(start * (42 * Math.cos(since * 2 * Math.PI * 0.62) + 34 * since)),
+    // "Vira" sobre si mesma: a largura fecha e reabre.
+    // (Nunca fica de perfil exato: ali ela viraria um fio e pareceria piscar.)
+    flip: n2(lerp(1, ((c) => (c < 0 ? -1 : 1) * Math.max(0.3, Math.abs(c)))(Math.cos(since * 2 * Math.PI * 0.47)), start)),
+  };
+}
+
+/* ---------- O passaro pousado, de costas ----------
+   Pose desenhada a mao, com os mesmos trechos do passaro em voo (por isso um
+   vira o outro): visto por tras, cabeca redonda, corpo em gota, as duas asas
+   fechadas formando um "V" no dorso e a cauda pendendo atras do galho.
+   Coordenadas a partir do ponto em que o corpo cruza o galho. */
+const PERCH_SCALE = 0.44;
+const PERCH_AT = [266, branchY(266) - 0.5];
+const NECK_R = [12, -63];
+const NECK_L = [-12, -63];
+const PERCH = {
+  // A cabeca: do pescoco (a direita), por cima, ate o pescoco (a esquerda).
+  HD: trace([NECK_R, [15, -76], [9, -89], [0, -93], [-9, -89], [-15, -76], NECK_L], BIRD.HD.length),
+  // Lado esquerdo: ombro, flanco e a borda esquerda da cauda, ate a ponta.
+  BELLY: trace([NECK_L, [-23, -51], [-27, -28], [-21, -5], [-12, 14], [-6, 32], [0, 47]], BIRD.BELLY.length),
+  // Lado direito, igual, ate a ponta da cauda.
+  WR: trace([NECK_R, [23, -51], [27, -28], [21, -5], [12, 14], [6, 32], [0, 47]], BIRD.WR.length),
+  // Da ponta da cauda sobe pelo meio e desenha a borda da asa direita...
+  TE: trace([[0, 47], [1, 22], [5, 4], [9, -16], [6, -36], [0, -47]], BIRD.TE.length),
+  // ...e a borda da asa esquerda: as duas juntas fazem o "V" do dorso.
+  TL: trace([[0, -47], [-6, -36], [-9, -16], [-5, 4]], BIRD.TL.length),
+  // O trecho da asa de tras vira a pontinha do bico: a cabeca esta levemente
+  // virada, e isso ajuda a ler um passaro (ele continua de costas).
+  WL: straight([14.5, -82], [22, -77.5], 17).concat(straight([22, -77.5], [15.5, -73.5], 12).slice(1)),
+};
+const PERCHED = {};
+PARTS.forEach((part) => {
+  PERCHED[part] = PERCH[part].map(([x, y]) => [PERCH_AT[0] + x * PERCH_SCALE, PERCH_AT[1] + y * PERCH_SCALE]);
 });
-
-const MORPH_FROM = birdPose(T.morph);
-const PIVOT_FROM = MORPH_FROM.WL[0];
-const PIVOT_TO = [203, 108]; // a calha do livro: as paginas giram em torno dela
-const POLAR = { WL: true, WR: true, TE: true };
-
-// Trecho "part" a caminho do livro. u = 0 passaro, 1 livro (pode passar um
-// pouco de 1: as paginas abrem alem do ponto e voltam).
-function morphPart(part, u) {
-  const from = MORPH_FROM[part];
-  const to = BOOK_CENTER[part];
-  if (part === "TL") {
-    // O laco da cauda primeiro se desfaz em reta, e so entao viaja.
-    const last = from.length - 1;
-    const straight = from.map((_, i) => [
-      lerp(from[0][0], from[last][0], i / last),
-      lerp(from[0][1], from[last][1], i / last),
-    ]);
-    const untie = easeInOut(clamp01(u / 0.3));
-    const travel = clamp01((u - 0.2) / 0.8) + Math.max(0, u - 1);
-    return from.map((point, i) => [
-      lerp(lerp(point[0], straight[i][0], untie), to[i][0], travel),
-      lerp(lerp(point[1], straight[i][1], untie), to[i][1], travel),
-    ]);
-  }
-  if (!POLAR[part]) {
-    return from.map((point, i) => [lerp(point[0], to[i][0], u), lerp(point[1], to[i][1], u)]);
-  }
-  // As asas giram em torno do ombro (que vira a calha), em vez de encolher
-  // em linha reta atravessando o corpo.
-  const pivot = [lerp(PIVOT_FROM[0], PIVOT_TO[0], u), lerp(PIVOT_FROM[1], PIVOT_TO[1], u)];
-  return from.map((point, i) => {
-    const r0 = distance(point, PIVOT_FROM);
-    const r1 = distance(to[i], PIVOT_TO);
-    const a0 = Math.atan2(point[1] - PIVOT_FROM[1], point[0] - PIVOT_FROM[0]);
-    const a1 = Math.atan2(to[i][1] - PIVOT_TO[1], to[i][0] - PIVOT_TO[0]);
-    let turn = a1 - a0;
-    while (turn > Math.PI) turn -= 2 * Math.PI;
-    while (turn < -Math.PI) turn += 2 * Math.PI;
-    // Perto do pivo o angulo nao quer dizer nada: ali vai em linha reta.
-    const polar = smoothstep(Math.min(r0, r1) / 8);
-    const r = lerp(r0, r1, u);
-    const angle = a0 + turn * u;
-    return [
-      lerp(lerp(point[0], to[i][0], u), pivot[0] + r * Math.cos(angle), polar),
-      lerp(lerp(point[1], to[i][1], u), pivot[1] + r * Math.sin(angle), polar),
-    ];
+const LANDING = flightPose(T.land);
+const PERCHED_PATH = posePath(PERCHED);
+const PERCH_STROKE = 1.7; // o mesmo peso do galho
+// Estreita um desenho na horizontal em torno do ponto de pouso (o giro).
+const squeeze = (pose, amount) => {
+  const out = {};
+  PARTS.forEach((part) => {
+    out[part] = pose[part].map(([x, y]) => [PERCH_AT[0] + (x - PERCH_AT[0]) * amount, y]);
   });
-}
-
-// Mantem as emendas coladas: as pontas vizinhas vao para o ponto medio entre
-// elas, e os pontos proximos acompanham cada vez menos. "glue" = 1 colado.
-function joinSeams(shapes, glue) {
-  if (glue <= 0) return;
-  SEAMS.forEach((seam) => {
-    const ends = seam.map(([part, side]) => shapes[part][side === "first" ? 0 : shapes[part].length - 1]);
-    const middle = [
-      ends.reduce((sum, point) => sum + point[0], 0) / ends.length,
-      ends.reduce((sum, point) => sum + point[1], 0) / ends.length,
-    ];
-    seam.forEach(([part, side], which) => {
-      const points = shapes[part];
-      const dx = (middle[0] - ends[which][0]) * glue;
-      const dy = (middle[1] - ends[which][1]) * glue;
-      const reach = Math.min(6, Math.floor(points.length / 2));
-      for (let k = 0; k < reach; k += 1) {
-        const index = side === "first" ? k : points.length - 1 - k;
-        const pull = 1 - smoothstep(k / reach);
-        points[index] = [points[index][0] + dx * pull, points[index][1] + dy * pull];
-      }
-    });
-  });
-}
-
-function morphAmount(part, t) {
-  const start = T.morph + MORPH_DELAY[part];
-  const x = span(t, start, start + MORPH_TIME);
-  // Passa do ponto e assenta: o peso do pouso.
-  const settle = span(t, start + MORPH_TIME * 0.8, start + MORPH_TIME * 0.8 + 0.3);
-  return morphEase(x) + 0.045 * Math.sin(Math.PI * settle) * (1 - settle);
-}
-
-// Contorno preenchido de uma pincelada: "ink" (por ponto, 0 a 1) vai do traco
-// fino ate a pincelada da logo.
-function ribbon(part, center, ink) {
-  const { a, b } = BOOK[part];
-  const thin = BOOK_THIN[part];
-  const target = BOOK_CENTER[part];
-  const left = [];
-  const right = [];
-  center.forEach((point, i) => {
-    const w = ink(i);
-    left.push([
-      point[0] + lerp(thin[i][0], a[i][0] - target[i][0], w),
-      point[1] + lerp(thin[i][1], a[i][1] - target[i][1], w),
-    ]);
-    right.push([
-      point[0] + lerp(-thin[i][0], b[i][0] - target[i][0], w),
-      point[1] + lerp(-thin[i][1], b[i][1] - target[i][1], w),
-    ]);
-  });
-  return polyline(left.concat(right.reverse())) + "Z";
-}
-
-/* ---------- Fundo: velocidade das linhas de texto ---------- */
-// O "vento" das asas: as linhas aceleram a cada batida, freiam na
-// antecipacao e disparam na ultima batida. Guardado como distancia acumulada
-// (em segundos de velocidade normal), para a posicao ser funcao do tempo.
-const WIND_STEP = 1 / 120;
-function windAt(t) {
-  let speed = 1;
-  T.beats.forEach((beat) => {
-    speed += 0.35 * Math.sin(Math.PI * span(t, beat, beat + 0.3));
-  });
-  speed = lerp(speed, 0.3, easeOut(span(t, T.anticipate, T.morph)));
-  if (t >= T.morph) speed = 3;
-  return speed;
-}
-const WIND = (() => {
-  const table = [0];
-  for (let i = 1; i <= Math.round(DURATION / WIND_STEP); i += 1) {
-    table.push(table[i - 1] + windAt((i - 0.5) * WIND_STEP) * WIND_STEP);
-  }
-  return table;
-})();
+  return out;
+};
 
 /**
  * O que desenhar no instante "time" (segundos). Aceita qualquer valor: o
- * ciclo se repete sozinho.
+ * ciclo se repete sozinho. "widths" sao as larguras medidas das seis linhas
+ * da ultima abertura (sem elas, usa uma estimativa).
  */
-export function frameAt(time) {
+export function frameAt(time, widths) {
   const t = ((time % DURATION) + DURATION) % DURATION;
-  const cycle = Math.floor(time / DURATION);
+  const firstRun = time < DURATION;
+  const lineWidths = widths || [...SPREADS[SPREADS.length - 1].left.lines, ...SPREADS[SPREADS.length - 1].right.lines].map((text) => text.length * CLOSING.size * 0.46);
 
-  let line = ""; // o traco fino (passaro, e depois as linhas centrais do livro)
-  let lineWidth = LINE_WIDTH;
-  let lead = ""; // o fio que liga a borda a cauda
-  let ink = ""; // as pinceladas preenchidas
-  let logo = 0; // a arte oficial do livro
-  const nib = { x: ENTRY[0], y: ENTRY[1], opacity: 0 };
+  /* ----- A logo sobe (empurrando a cena anterior) e para ----- */
+  const push = pushEase(span(t, 0, T.pushEnd));
+  const settle = span(t, T.pushEnd, T.settle);
+  const appear = firstRun ? span(t, 0, 0.3) : 1;
+  const logo = {
+    // Chega passando um pouco do ponto e assenta.
+    lift: n2(SCENE.height * (1 - push) - 3 * Math.sin(Math.PI * settle) * (1 - settle)),
+    book: t < T.thin ? n2(appear) : 0,
+    name: n2(appear * (1 - easeInQuad(span(t, T.nameOut, T.nameOut + 0.3)))),
+  };
 
-  if (t >= T.drawStart && t < T.drawEnd) {
-    // A linha desenha o passaro: arranca rapido pelo fio e assenta no fim.
-    const u = span(t, T.drawStart, T.drawEnd);
-    const at = DRAW.total * lerp(u, easeInOut(u), 0.45);
-    line = drawSlice(0, at, 0);
-    const [x, y] = drawPoint(at);
-    nib.x = n2(x);
-    nib.y = n2(y);
-    nib.opacity = 1;
-  } else if (t >= T.drawEnd && t < T.morph) {
-    const pose = birdPose(t);
-    line = PARTS.map((part) => smoothPath(pose[part], CORNERS[part])).join("");
-    const sink = pose.BELLY[BIRD.BELLY.length - 1][1] - (BIRD_HOME[1] + BIRD.BELLY[BIRD.BELLY.length - 1][1]);
-    const pulled = DRAW.lead * easeOut(span(t, T.releaseStart, T.releaseEnd));
-    lead = drawSlice(pulled, DRAW.lead, sink);
-    const end = pose.TL[BIRD.TL.length - 1];
-    nib.x = n2(end[0]);
-    nib.y = n2(end[1]);
-    nib.opacity = n2(1 - span(t, T.drawEnd, T.drawEnd + 0.12));
-  } else if (t >= T.morph && t < T.swapEnd) {
-    // Pouso: 2 unidades de afundar e voltar, depois que a forma chega.
-    const land = span(t, T.morph + 0.52, T.morph + 0.84);
-    const dip = 1.6 * Math.sin(Math.PI * land) * (1 - land);
-    const shapes = {};
-    PARTS.forEach((part) => {
-      shapes[part] = morphPart(part, morphAmount(part, t)).map(([x, y]) => [x, y + dip]);
+  /* ----- O livro: abre, e folheado, e sai ----- */
+  const leaving = easeIn(span(t, T.bookOut, T.bookGone));
+  const flipsStarted = T.flips.filter(([start]) => t >= start).length;
+  const flipsDone = T.flips.filter(([start, length]) => t >= start + length).length;
+  const book = {
+    visible: t >= T.thin && t < T.bookGone,
+    opacity: n2(1 - leaving),
+    drop: n2(36 * leaving),
+    ink: "", // as pinceladas da logo, afinando
+    outline: OUTLINE_PATH, // o contorno do livro (as pinceladas, ja abertas)
+    outlineWidth: 1.5,
+    spine: n2(t < T.openEnd ? 0 : 1 - span(t, T.spineOut, T.spineOut + 0.18)),
+    paper: n2(span(t, T.paper, T.paper + 0.3)), // o branco das paginas
+    left: flipsDone, // qual abertura esta a mostra de cada lado
+    right: flipsStarted,
+    // Primeira pagina: quanto do texto ja surgiu, e a folhinha sendo desenhada.
+    written: n2(span(t, T.write, T.write + 0.72)),
+    sprig: n2(easeOut(span(t, T.write, T.write + 0.4))),
+    // As seis linhas viram tinta: o texto some e o traco reto assume.
+    closing: n2(1 - span(t, T.lines, T.linesEnd)),
+    leaves: [null, null, null],
+  };
+  if (t >= T.thin && t < T.openEnd) {
+    const ink = 1 - easeInOut(span(t, T.thin, T.open - 0.02));
+    const open = morphEase(span(t, T.open, T.openEnd));
+    book.ink = ink > 0 ? logoInk(ink) : "";
+    const shape = mixPose(BOOK_CENTER, OUTLINE, open);
+    // A pincelada de baixo comeca, na logo, a esquerda da pagina: no caminho
+    // ela e trazida para o pe da borda esquerda, para as duas nao se cruzarem.
+    const foot = shape.WL[shape.WL.length - 1];
+    const join = smoothstep((open - 0.1) / 0.2);
+    const dx = (foot[0] - shape.BELLY[0][0]) * join;
+    const dy = (foot[1] - shape.BELLY[0][1]) * join;
+    shape.BELLY = shape.BELLY.map(([x, y], i) => {
+      const pull = 1 - smoothstep(i / 9);
+      return [x + dx * pull, y + dy * pull];
     });
-    // Coladas ate uns 30% do caminho; soltas por volta de 65%.
-    const progress = morphEase(span(t, T.morph + 0.07, T.morph + 0.07 + MORPH_TIME));
-    joinSeams(shapes, 1 - smoothstep((progress - 0.3) / 0.35));
-    const inking = t >= T.inkStart;
-    lineWidth = n2(LINE_WIDTH * (1 - easeInOut(span(t, T.inkStart + 0.04, T.inkEnd - 0.06))));
-    if (lineWidth > 0.05) {
-      line = PARTS.map((part) => smoothPath(shapes[part], CORNERS[part])).join("");
+    book.outline = posePath(shape, STROKES);
+    book.outlineWidth = n2(ink > 0 ? LINE_WIDTH * (1 - ink) : lerp(LINE_WIDTH, 1.5, open));
+  }
+  T.flips.forEach(([start, length], index) => {
+    if (t < start || t >= start + length) return;
+    const u = (t - start) / length;
+    const angle = Math.PI * (index < 3 ? easeInOut(u) : easeInOutSine(u));
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const shade = Math.round(255 - 12 * sin);
+    book.leaves[index % 3] = {
+      front: index, // a pagina direita que esta sendo virada
+      back: index + 1, // o verso: a proxima pagina esquerda
+      // A folha gira presa a lombada: estreita ate sumir de perfil e reabre
+      // do outro lado; a borda solta sobe ao passar pelo meio.
+      width: n2(cos),
+      skew: n2(-(index < 3 ? 9 : 12) * sin * Math.sign(cos || 1)),
+      height: n2(1 + 0.06 * sin),
+      // O texto some antes de a folha ficar de perfil (senao apareceria espremido).
+      frontOpacity: n2(clamp01((cos - 0.5) / 0.25)),
+      backOpacity: n2(clamp01((-cos - 0.5) / 0.25)),
+      fill: "rgb(" + shade + "," + Math.round(255 - 19 * sin) + "," + Math.round(255 - 35 * sin) + ")",
+    };
+  });
+
+  /* ----- O passaro: nasce das linhas, voa, pousa ----- */
+  let bird = "";
+  let birdWidth = BIRD_WIDTH;
+  let birdOpacity = 1;
+  let perch = ""; // o passaro ja de costas (um segundo desenho, para o giro)
+  let perchOpacity = 1;
+  let swing = 0;
+  if (t >= T.lines && t < T.fly) {
+    const lines = linesPose(lineWidths);
+    birdOpacity = n2(span(t, T.lines, T.linesEnd));
+    bird = posePath(
+      mixPose(lines, TAKEOFF, (part) => morphEase(span(t, T.bird + MORPH_DELAY[part], T.bird + MORPH_DELAY[part] + MORPH_TIME))),
+    );
+    birdWidth = n2(lerp(BIRD_WIDTH, strokeFor(ROUTE[0][3]), span(t, T.bird, T.fly)));
+  } else if (t >= T.fly && t < T.land) {
+    bird = posePath(flightPose(t));
+    // Na meia-volta o desenho passa por largura zero: em vez de virar uma
+    // barra, ele afina e some por um instante.
+    const facing = Math.abs(facingAt(t));
+    birdOpacity = n2(clamp01((facing - 0.15) / 0.35));
+    // Chegando ao galho, o traco ganha o mesmo peso dele.
+    birdWidth = n2(lerp(strokeFor(routeAt(t).scale), PERCH_STROKE, smoothstep(span(t, 9.3, T.land))) * Math.sqrt(Math.max(0.05, facing)));
+  } else if (t >= T.land) {
+    // Pousa e vira de costas num giro no lugar: o desenho do voo estreita ate
+    // quase sumir de perfil, e o desenho de costas abre no mesmo ponto.
+    swing = branchSwing(t);
+    // (Pousado, ele balanca junto com o galho.)
+    const sway = (pose) => {
+      if (!swing) return pose;
+      const out = {};
+      PARTS.forEach((part) => { out[part] = pose[part].map((point) => rotate(point, BRANCH_PIVOT, swing)); });
+      return out;
+    };
+    const closing = easeInQuad(span(t, T.land, T.turnBack + 0.06));
+    if (closing < 1) {
+      bird = posePath(sway(squeeze(LANDING, lerp(1, 0.25, closing))));
+      birdOpacity = n2(1 - span(t, T.turnBack - 0.02, T.turnBack + 0.06));
     }
-    if (inking) {
-      ink = STROKES.map((part) =>
-        ribbon(part, shapes[part], (i) => {
-          const start = T.inkStart + BOOK_INK_DELAY[part][i];
-          return easeOut(span(t, start, start + 0.3));
-        }),
-      ).join("");
-    }
-    logo = n2(span(t, T.swapStart, T.swapEnd));
-  } else if (t >= T.swapEnd && t < T.bookOut) {
-    logo = 1;
-  } else if (t >= T.bookOut && t < T.bookGone) {
-    // Saida: a tinta afina de volta ao traco, e o traco e puxado para fora
-    // pela borda direita, achatando ate virar o fio por onde entrou.
-    const thin = smoothstep(span(t, T.bookOut, T.bookOut + 0.24));
-    const pull = easeIn(span(t, T.bookOut + 0.18, T.bookGone));
-    // So comeca a achatar depois de ja estar deslizando, e chega a borda ja
-    // como um fio na mesma altura por onde a linha volta.
-    const flat = smoothstep((pull - 0.4) / 0.45);
-    const shapes = {};
-    PARTS.forEach((part) => {
-      shapes[part] = BOOK_CENTER[part].map(([x, y]) => [
-        x + 290 * pull,
-        lerp(y, ENTRY[1], flat),
-      ]);
-    });
-    if (thin < 1) ink = STROKES.map((part) => ribbon(part, shapes[part], () => 1 - thin)).join("");
-    lineWidth = n2(LINE_WIDTH * thin);
-    if (lineWidth > 0.05) {
-      line = PARTS.map((part) => smoothPath(shapes[part], CORNERS[part])).join("");
+    birdWidth = PERCH_STROKE;
+    if (t >= T.turnBack) {
+      const opening = easeOut(span(t, T.turnBack, T.folded));
+      perch = opening >= 1 && !swing ? PERCHED_PATH : posePath(sway(squeeze(PERCHED, lerp(0.25, 1, opening))));
+      perchOpacity = n2(span(t, T.turnBack, T.turnBack + 0.08));
     }
   }
 
-  /* ----- A frase "Ler para ..." ----- */
-  const phraseOut = easeInQuad(span(t, VERB_OUT[2], VERB_OUT[2] + 0.18));
-  const letterIn = (start, index) => easeOut(span(t, start + index * LETTER_GAP, start + index * LETTER_GAP + LETTER_TIME));
-  // Cada letra vem de 4 unidades a esquerda. O deslocamento ("dx") de um
-  // pedaco de texto empurra tambem as letras seguintes, e por isso cada letra
-  // recebe so a diferenca para a anterior.
-  const lettersOf = (text, start) => {
-    let previous = 0;
-    return [...text].map((_, index) => {
-      const k = letterIn(start, index);
-      const offset = -4 * (1 - k);
-      const dx = n2(offset - previous);
-      previous = offset;
-      return { dx, opacity: n2(k) };
-    });
+  /* ----- O galho e a folha que cai ----- */
+  const grown = easeInOutSine(span(t, T.branch, T.branchEnd));
+  const nature = {
+    visible: t >= T.branch,
+    lift: 0,
+    swing: n2(swing),
+    parts: BRANCH_PARTS.map((part) => n2(span(grown, part.at, part.at + part.take))),
+    gold: { drawn: n2(span(grown, GOLD_LEAF.at, GOLD_LEAF.at + GOLD_LEAF.take)), opacity: 1, ...leafFall(t - T.leaf) },
   };
-  const phrase = {
-    prefix: {
-      opacity: n2(t < PREFIX_IN ? 0 : 1 - phraseOut),
-      letters: lettersOf(PHRASE.prefix, PREFIX_IN),
-    },
-    verbs: PHRASE.verbs.map((verb, index) => {
-      const leaving = easeInQuad(span(t, VERB_OUT[index], VERB_OUT[index] + (index === 2 ? 0.18 : 0.14)));
-      const visible = t >= VERB_IN[index] && leaving < 1;
-      return {
-        opacity: visible ? n2(1 - leaving) : 0,
-        shift: n2(index === 2 ? 0 : 16 * leaving),
-        letters: visible ? lettersOf(verb, VERB_IN[index]) : null,
-        // Sublinhado dourado: tracado da esquerda para a direita.
-        underline: visible ? n2(easeOut(span(t, VERB_IN[index] + 0.16, VERB_IN[index] + 0.38))) : 0,
-        underlineOpacity: visible && t > VERB_IN[index] + 0.175 ? n2(1 - leaving) : 0,
-      };
-    }),
-  };
+  // Ciclo seguinte: a logo sobe e empurra para cima a cena do passaro pousado
+  // (que sai um instante depois, como algo empurrado). A folha continua
+  // caindo e some enquanto a cena sobe.
+  if (t < T.pushEnd + 0.06 && !firstRun) {
+    nature.visible = true;
+    nature.lift = n2(-SCENE.height * pushEase(span(t, 0.06, T.pushEnd + 0.06)));
+    nature.parts = BRANCH_PARTS.map(() => 1);
+    nature.gold = { drawn: 1, opacity: n2(1 - smoothstep(span(t, 0.1, 0.75))), ...leafFall(DURATION - T.leaf + t) };
+    bird = "";
+    perch = PERCHED_PATH;
+    perchOpacity = 1;
+  }
 
-  /* ----- Linhas de fundo ----- */
-  const windIndex = t / WIND_STEP;
-  const windLow = Math.floor(windIndex);
-  const wind =
-    cycle * WIND[WIND.length - 1] +
-    lerp(WIND[windLow], WIND[Math.min(windLow + 1, WIND.length - 1)], windIndex - windLow);
-  const backdrop = {
-    // Somem na ultima batida (a asa "limpa a pagina") e voltam no respiro.
-    opacity: n2(t < T.morph ? 1 : t < T.backdropIn ? 1 - span(t, T.morph, T.morph + 0.45) : span(t, T.backdropIn, DURATION)),
-    travel: BACKDROP.map((row) => row.speed * wind),
-  };
-
-  const wordIn = easeOutQuart(span(t, T.wordStart, T.wordStart + 0.45));
-  const subIn = easeOut(span(t, T.subStart, T.subStart + 0.5));
-  const nameOut = easeInQuad(span(t, T.nameOut, T.nameOut + 0.3));
-
-  return {
-    line,
-    lineWidth,
-    lead,
-    ink,
-    nib,
-    logo,
-    phrase,
-    backdrop,
-    // "ADMP BRASIL" sobe por tras da linha de base; "BIBLIOTECA" entra aberta
-    // e fecha ate o espacamento da logo.
-    word: { opacity: n2(wordIn * (1 - nameOut)), lift: n2(8 * (1 - wordIn)) },
-    sub: { opacity: n2(subIn * (1 - nameOut)), stretch: n2(1 + 0.07 * (1 - subIn)) },
-  };
+  return { logo, book, bird, birdWidth, birdOpacity, perch, perchOpacity, nature };
 }

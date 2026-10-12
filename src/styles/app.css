@@ -2380,6 +2380,77 @@ a.stat:active {
   fill: var(--ink);
 }
 
+/* --- "Da pagina ao galho" (a animacao principal) --- */
+/* Tracos finos de ponta redonda: o contorno do livro, o galho e o passaro.
+   (A espessura vem do roteiro, pelo atributo; por isso nao e fixada aqui.) */
+.welcome-scene__stroke {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* A folha que cai: a unica cor do filme. */
+.welcome-scene__gold {
+  stroke: var(--gold);
+  stroke-width: 1.4;
+}
+/* Paginas brancas sobre o papel creme do palco: letras "preto no branco". */
+.welcome-scene__page {
+  fill: #fff;
+}
+.welcome-scene__leaf {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+/* O miolo do livro: bordas claras deslocadas, por tras das paginas. */
+.welcome-scene__block {
+  fill: #fff;
+  stroke: var(--line);
+  stroke-width: 0.9;
+}
+/* (Pelas classes, e nao por ".welcome-scene__book text": o texto e desenhado
+   uma vez e mostrado por referencia, e ali o seletor de ancestral nao vale.) */
+.welcome-scene__title,
+.welcome-scene__word,
+.welcome-scene__cap,
+.welcome-scene__small,
+.welcome-scene__glyph,
+.welcome-scene__closing {
+  font-family: var(--font-display);
+  fill: var(--ink);
+}
+.welcome-scene__title {
+  font-size: 25px;
+  font-style: italic;
+  font-weight: 400;
+}
+.welcome-scene__word {
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 400;
+}
+.welcome-scene__cap {
+  font-size: 54px;
+  font-weight: 600;
+}
+/* Paragrafo miudo: e textura de livro, nao texto para ler. */
+.welcome-scene__small {
+  font-size: 6.4px;
+}
+/* Letra gigante e clara das paginas que passam rapido (clara para o folhear
+   rapido nao piscar). */
+.welcome-scene__glyph {
+  font-size: 96px;
+  fill-opacity: 0.5;
+}
+.welcome-scene__sprig {
+  stroke: var(--ink-soft);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Botao de pausar/continuar, discreto, no canto do desenho. */
 .welcome-scene-wrap {
   position: relative;
