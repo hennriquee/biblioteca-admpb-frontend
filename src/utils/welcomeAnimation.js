@@ -603,7 +603,7 @@ function flapAt(t) {
 const STEP = 1 / 120;
 const BORN_YAW = 150; // nasce virado para a esquerda, um pouco de costas
 const LAND_YAW = 418; // chega ao galho ja meio de costas (360 + 58)
-const PERCH_YAW = 428; // pousado: de costas, em tres quartos (360 + 68)
+const PERCH_YAW = 450; // pousado: bem de costas (360 + 90), como na prancha
 let HEADING = [];
 let CLIMB = [];
 function planHeading() {
@@ -829,11 +829,11 @@ const PERCHED = {
   y: PERCH_AT[1],
   scale: PERCH_SCALE,
   yaw: PERCH_YAW,
-  pitch: 61,
+  pitch: 72,
   roll: 0,
   fold: 1,
-  spread: 0.12,
-  neck: -50,
+  spread: 0.3,
+  neck: -46,
 };
 function perchPose(t) {
   const settle = easeInOutSine(span(t, T.land, T.folded));
@@ -848,8 +848,10 @@ function perchPose(t) {
   pose.pitch -= 5 * Math.sin(Math.PI * dip) * (1 - dip);
   // Olha para o lado (a cabeca de perfil).
   const look = easeInOutSine(span(t, T.look, T.lookEnd));
-  pose.headYaw = 48 * look;
-  pose.neck = lerp(pose.neck, -46, look);
+  // (Para a esquerda, de perfil: a vista "de costas, asas fechadas" da prancha.
+  // E ergue o pescoco, que ali aparece inteiro.)
+  pose.headYaw = -88 * look;
+  pose.neck = lerp(pose.neck, -26, look);
   return pose;
 }
 

@@ -56,6 +56,9 @@ const LEAVES = [0, 1, 2]; // ate tres folhas no ar ao mesmo tempo
 const LAST = SPREADS.length - 1;
 // O marca-texto: ponta mais fina que a faixa (ela passa duas vezes).
 const MARK_STYLE = { strokeWidth: 4.9, strokeLinecap: "round", strokeLinejoin: "round" };
+// A mancha que tapa o galho atras do passaro pousado: a cor do papel do palco
+// (um nada mais escura que --paper, por causa do grao).
+const COVER = { fill: "color-mix(in srgb, var(--paper) 97%, var(--ink))" };
 // O lapis: linha fina e clara, por baixo da tinta.
 const PENCIL = { strokeWidth: 0.7, strokeLinecap: "round", strokeLinejoin: "round" };
 
@@ -413,7 +416,7 @@ export default function WelcomeScene({ time = null }) {
             />
           </g>
           <g ref={bind("bird")}>
-            <path ref={bind("birdCover")} fill="var(--paper)" stroke="none" opacity="0" />
+            <path ref={bind("birdCover")} style={COVER} stroke="none" opacity="0" />
             <path ref={bind("birdPencil")} {...PENCIL} />
             <path ref={bind("birdInk")} fill="currentColor" stroke="none" />
           </g>

@@ -2422,7 +2422,8 @@ a.stat:active {
   flex-shrink: 0;
   width: var(--welcome-brand-img);
   height: var(--welcome-brand-img);
-  margin: calc(var(--welcome-brand-img) * -0.059) calc(var(--welcome-brand-img) * -0.2) 0;
+  margin: calc(var(--welcome-brand-img) * -0.059)
+    calc(var(--welcome-brand-img) * -0.2) 0;
 }
 /* Celular em pe e baixo (ex.: 360x640): a logo empilhada faria o modal rolar.
    Ela vai para o canto do texto, na linha do titulo, sem gastar altura. */
@@ -2621,6 +2622,11 @@ a.stat:active {
   line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--ink);
+}
+.welcome__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .welcome__lead {
   font-family: var(--font-display);

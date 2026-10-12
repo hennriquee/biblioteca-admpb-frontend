@@ -32,14 +32,16 @@ export default function WelcomeModal({ open, onClose }) {
           <WelcomeScene />
         </div>
         <div className="welcome__text">
-          <div className="welcome__brand">
-            <img
-              className="welcome__brandmark"
-              src="/img/logo-admpb-black.png"
-              alt="ADMP Bairro Brasil"
-            />
+          <div className="welcome__header">
+            <div className="welcome__brand">
+              <img
+                className="welcome__brandmark"
+                src="/img/logo-admpb-black.png"
+                alt="ADMP Bairro Brasil"
+              />
+            </div>
+            <h2 className="welcome__title">Boas-vindas!</h2>
           </div>
-          <h2 className="welcome__title">Boas-vindas!</h2>
           <p className="welcome__lead">Esta é a biblioteca da ADMP Brasil.</p>
           <p>
             Nosso propósito é que cada membro cultive uma vida de leitura: para

@@ -75,6 +75,7 @@ const SPINE = [
 ];
 const SPHERES = spline(SPINE, 30);
 const NECK_AT = [15, 2];
+const HEAD_AT = [28.5, 4.3]; // o meio da cabeca: ela vira para o lado em torno dele
 const TAIL_ROOT = [-33, 2.4, 0];
 // Quantos pontos em volta de cada esfera entram na busca da silhueta.
 const RING = 16;
@@ -92,8 +93,8 @@ const WING_INNER = spline([[93, 25], [80, 24], [66, 27], [54, 33.5]], 7);
 const SHOULDER = [9, 5, 6];
 // A asa fechada, deitada no flanco: [x, y, z] no corpo (z do lado direito),
 // com os mesmos pontos da asa aberta (uma vira a outra ao recolher).
-const FOLD_LEAD = spline([[8, 6.5, 9.5], [-4, 8.5, 15], [-16, 7.5, 17], [-28, 4, 14], [-39, 0, 8.5], [-48, -4, 4]], 15);
-const FOLD_TRAIL = spline([[-48, -4, 4], [-38, -5, 9.5], [-25, -6.5, 15.5], [-12, -7, 18], [0, -5, 17], [8, 0, 13.5], [9, 4, 10]], 17);
+const FOLD_LEAD = spline([[13, 5.5, 7], [2, 8.5, 14.5], [-12, 8, 18.5], [-26, 4.5, 16], [-38, 0, 9.5], [-48, -4, 4]], 15);
+const FOLD_TRAIL = spline([[-48, -4, 4], [-39, -5, 11], [-27, -6.5, 19], [-13, -7, 23.5], [0, -4, 22], [9, 1, 15], [14, 4.5, 8]], 17);
 // (A segunda linha de penas se deita sobre a borda de baixo e some nela.)
 const FOLD_INNER = FOLD_TRAIL.slice(1, 8);
 
@@ -190,18 +191,20 @@ export function birdStrokes(input, options = {}) {
     let bx = x;
     let by = y;
     let bz = 0;
+    // Vira para o lado: so o bico e a frente da cabeca giram, em torno do
+    // meio dela (a cabeca continua redonda e no lugar, em cima do corpo).
+    const turn = headYaw ? smoothstep((x - HEAD_AT[0] + 2) / 3.5) : 0;
+    if (turn > 0) {
+      const dx = x - HEAD_AT[0];
+      bx = lerp(x, HEAD_AT[0] + dx * ch, turn);
+      bz = dx * sh * turn;
+    }
     const lift = smoothstep((x - NECK_AT[0] + 6) / 12); // 0 no corpo, 1 na cabeca
-    if (lift > 0 && (neck || headYaw)) {
-      const dx = x - NECK_AT[0];
+    if (lift > 0 && neck) {
+      const dx = bx - NECK_AT[0];
       const dy = y - NECK_AT[1];
-      // Vira para o lado (em torno do eixo de cima) e depois ergue.
-      const tx = dx * ch;
-      const tz = dx * sh;
-      const rx = tx * cn - dy * sn;
-      const ry = tx * sn + dy * cn;
-      bx = lerp(x, NECK_AT[0] + rx, lift);
-      by = lerp(y, NECK_AT[1] + ry, lift);
-      bz = tz * lift;
+      bx = lerp(bx, NECK_AT[0] + dx * cn - dy * sn, lift);
+      by = lerp(y, NECK_AT[1] + dx * sn + dy * cn, lift);
     }
     const w = world(bx, by, bz);
     return [w[0], -w[1], w[2], r]; // x e y ja no sentido do palco (y para baixo)
@@ -288,7 +291,19 @@ export function birdStrokes(input, options = {}) {
   }
   sideA.sort((p, q) => q[3] - p[3]);
   sideB.sort((p, q) => p[3] - q[3]);
-  const rim = sideA.concat(sideB);
+  const ordered = sideA.concat(sideB);
+  // Tira os pontos em que a linha daria meia-volta sobre si mesma (acontece
+  // onde o pescoco dobra ou a cabeca vira): sem isso apareceria um tique.
+  const rim = ordered.filter((p, i) => {
+    if (i === 0 || i === ordered.length - 1) return true;
+    const a = ordered[i - 1];
+    const b = ordered[i + 1];
+    const ux = p[0] - a[0];
+    const uy = p[1] - a[1];
+    const vx = b[0] - p[0];
+    const vy = b[1] - p[1];
+    return ux * vx + uy * vy > -0.2 * Math.hypot(ux, uy) * Math.hypot(vx, vy);
+  });
   // Reamostra em pontos igualmente espacados (a silhueta bruta tem pontos
   // demais onde as esferas se amontoam).
   const body = [];
