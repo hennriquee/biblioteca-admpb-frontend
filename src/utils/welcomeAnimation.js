@@ -30,52 +30,140 @@ export const PAGE = { left: 68, middle: 200, right: 332, top: 32, bottom: 208, s
 const PAGE_WIDTH = PAGE.right - PAGE.middle;
 
 /* ---------- O que esta escrito nas paginas ----------
-   Cada item e uma "abertura" do livro (pagina esquerda e pagina direita).
-   - title: frase grande, uma linha por item (so na primeira; surge letra a letra)
-   - word: uma palavra grande
-   - text: paragrafo miudo (textura); "cap" e a capitular
-   - glyph: uma letra gigante e clara (as paginas que passam rapido)
-   - lines: as linhas da ultima abertura, que viram os tracos do passaro
+   Cada item de SPREADS e uma "abertura" do livro (pagina esquerda e direita).
+   - page: pagina de texto corrido, vista de perto: titulo no alto, capitular
+     (a primeira letra, grande), paragrafo e um trecho grifado com marca-texto.
+     O texto passa rapido demais para ser lido; o que fica e o grifo.
    - sprig: uma folhinha desenhada
-   Para trocar o texto, mexa so aqui. */
-const PARAGRAPH = [
-  "Ler para edificar. Ler para alcançar",
-  "vidas para Cristo. Ler para que Deus",
-  "seja louvado nos corações. Esta é a",
-  "biblioteca da ADMP Brasil: um lugar",
-  "para cultivar, livro a livro, uma",
-  "vida de leitura.",
-];
-export const SPREADS = [
-  { left: { sprig: true }, right: { title: ["Uma vida", "de leitura"] } },
-  {
-    left: {
-      cap: "L",
-      beside: ["er para edificar.", "Ler para alcançar", "vidas para Cristo."],
-      text: ["Ler para que Deus seja louvado", "nos corações. Esta é a biblioteca", "da ADMP Brasil: um lugar para", "cultivar, livro a livro, uma vida", "de leitura."],
-    },
-    right: { word: "edificar" },
-  },
-  { left: { word: "alcançar" }, right: { text: PARAGRAPH } },
-  { left: { text: PARAGRAPH }, right: { word: "louvar" } },
-  { left: {}, right: { glyph: "a" } },
-  { left: { glyph: "g" }, right: {} },
-  { left: {}, right: { glyph: "R" } },
-  { left: { glyph: "&" }, right: {} },
-  { left: {}, right: { glyph: "f" } },
-  { left: { glyph: "Q" }, right: {} },
-  { left: {}, right: { glyph: "ç" } },
-  { left: { glyph: "y" }, right: {} },
-  {
-    left: { lines: ["página por página,", "linha por linha,", "palavra por palavra,"] },
-    right: { lines: ["uma vida", "de leitura", "ganha asas."] },
-  },
-];
-// Linhas de base das tres linhas da ultima abertura, e o tamanho da letra.
-export const CLOSING = { baselines: [95, 121, 147], size: 9.5 };
-export const LEFT_CENTER = (PAGE.left + PAGE.middle) / 2;
-export const RIGHT_CENTER = (PAGE.middle + PAGE.right) / 2;
-
+   A ultima pagina e especial: as seis primeiras linhas dela viram os seis
+   tracos do passaro.
+*/
+const ORANGE = "#f2a35e";
+const GREEN = "#c5d86d";
+// As paginas abaixo foram compostas medindo a fonte de verdade: quebra de
+// linha na largura da pagina, hifen no fim da linha e justificacao so pelo
+// espaco entre as palavras. Em cada linha: [texto, espaco extra entre
+// palavras]; em cada grifo: [linha, de onde, ate onde], em unidades a partir
+// do comeco da linha. Ao mudar um texto, confira no navegador se as linhas
+// continuam cabendo e se os grifos cobrem palavras inteiras.
+const FIRST = {
+  head: "Uma vida de leitura",
+  cap: "N",
+  color: ORANGE,
+  // ocupacao natural das linhas: 78% 93% 92% 92% 89% 96% 88% 94% 92% 92% 98% -
+  lines: [
+    ["ão deixe que a pressa", 0],
+    ["roube o seu tempo de lei-", 1.12],
+    ["tura. Quem lê com calma", 1.54],
+    ["descobre que cada página guarda", 2.03],
+    ["uma conversa antiga, e que uma", 0],
+    ["vida de leitura se constrói devagar,", 0.79],
+    ["linha por linha, dia após dia. Há", 2.22],
+    ["livros que pedem silêncio e outros", 1.19],
+    ["que pedem companhia; todos pe-", 2.14],
+    ["dem atenção. Volte ao trecho que", 1.78],
+    ["marcou, leia outra vez em voz baixa", 0.3],
+    ["e deixe que as palavras façam o seu", 0],
+  ],
+  marks: [[2, 16.2, 82], [4, 81.6, 97], [5, -1, 109]],
+};
+const EDIFY = {
+  head: "Ler para edificar",
+  cap: "A",
+  color: GREEN,
+  // ocupacao natural das linhas: 89% 89% 94% 93% 93% 93% 98% 82% 85% 81% 97% -
+  lines: [
+    ["té bem pouco tempo, ler", 2.16],
+    ["era um gesto raro e pre-", 1.78],
+    ["cioso. Os livros passavam", 1.49],
+    ["de mão em mão, e cada leitor dei-", 1.09],
+    ["xava neles um pouco de si. Lemos", 1.29],
+    ["para edificar: para que a mente se", 1.23],
+    ["renove e o coração aprenda a ouvir.", 0.3],
+    ["Um bom livro não termina na", 0],
+    ["última página; ele continua em", 0],
+    ["quem o leu, nas escolhas, nas", 0],
+    ["conversas e no modo de olhar para", 0.58],
+    ["as pessoas ao redor. É assim que a", 0],
+  ],
+  marks: [[4, 86.9, 109], [5, -1, 109], [6, -1, 21.7]],
+};
+const REACH = {
+  head: "Ler para alcançar",
+  cap: "L",
+  color: ORANGE,
+  // ocupacao natural das linhas: 94% 96% 99% 78% 95% 92% 90% 91% 96% 100% 96% -
+  lines: [
+    ["er é também um modo de", 0.93],
+    ["chegar mais longe. Há pa-", 0.79],
+    ["lavras que atravessam ma-", 0.24],
+    ["res e séculos para encontrar", 0],
+    ["alguém no momento certo. Lemos", 1.44],
+    ["para alcançar vidas para Cristo, e", 1.64],
+    ["por isso cada livro emprestado é", 2.21],
+    ["uma semente lançada. Não sabe-", 0],
+    ["mos onde ela vai cair, nem quando", 0.8],
+    ["vai brotar; sabemos apenas que vale", 0.08],
+    ["a pena semear com alegria, um lei-", 0.64],
+    ["tor de cada vez, uma página depois", 0],
+  ],
+  marks: [[1, -1, 58.7], [4, 86.9, 109], [5, -1, 102.6]],
+};
+const PRAISE = {
+  head: "Ler para louvar",
+  cap: "E",
+  color: GREEN,
+  // ocupacao natural das linhas: 97% 80% 100% 100% 85% 89% 89% 90% 88% 99% 91% -
+  lines: [
+    ["ntre uma página e outra, o", 0.47],
+    ["leitor para, levanta os", 0],
+    ["olhos e agradece. Toda boa", 0.08],
+    ["leitura termina em gratidão, porque", 0.09],
+    ["nos lembra de quem somos e a", 0],
+    ["quem pertencemos. Lemos para", 0],
+    ["que Deus seja louvado nos cora-", 0],
+    ["ções, e não há fim mais alto para", 1.55],
+    ["um livro. Quando a última linha", 0],
+    ["chega, fica o silêncio de quem ouviu", 0.13],
+    ["algo verdadeiro e deseja guardar", 0],
+    ["isso por toda a vida, e repartir com", 0],
+  ],
+  marks: [[1, 33.5, 65.8], [2, -1, 52.8], [5, 59.7, 97], [6, -1, 97.3], [7, -1, 16]],
+};
+const LAST = {
+  head: "Uma vida de leitura",
+  cap: "U",
+  color: ORANGE,
+  // ocupacao natural das linhas: 91% 91% 78% 89% 96% 77% 97% 92% 94% 93% -
+  lines: [
+    ["ma vida de leitura ganha", 1.81],
+    ["asas quando o que se leu", 1.53],
+    ["sai da página e vai ao", 0],
+    ["encontro de quem precisa ouvir.", 0],
+    ["Página por página, linha por linha,", 0.93],
+    ["palavra por palavra, o leitor", 0],
+    ["aprende a levantar voo. E o que era", 0.49],
+    ["tinta sobre o papel passa a morar", 1.45],
+    ["em quem leu, e segue adiante com", 1.01],
+    ["ele, para onde ele for, como quem", 1.24],
+    ["leva consigo uma boa notícia.", 0],
+  ],
+  marks: [],
+};
+const TEXTS = [FIRST, EDIFY, REACH, PRAISE];
+const LAST_TEXT = LAST;
+// De perto so se ve a pagina direita; por isso so ela tem texto.
+const FLIPS = 12;
+export const SPREADS = Array.from({ length: FLIPS + 1 }, (_, index) => ({
+  left: index === 0 ? { sprig: true } : {},
+  right: { page: index === FLIPS ? LAST_TEXT : TEXTS[index % TEXTS.length] },
+}));
+// Quantas linhas e grifos a primeira pagina tem (surgem um a um).
+export const FIRST_PAGE = { lines: TEXTS[0].lines.length, marks: TEXTS[0].marks.length };
+// Onde o texto fica dentro da pagina (a partir da borda de dentro e do topo).
+export const TEXT = { margin: 12, width: 108, indent: 27, first: 42, leading: 10.4, head: 25, size: 6.4 };
+// Quantas linhas da ultima pagina viram tracos do passaro.
+export const CLOSING_LINES = 6;
 /* ---------- Roteiro (tempos em segundos) ---------- */
 const T = {
   pushEnd: 1.1, // a logo termina de subir (empurrando a cena anterior)
@@ -85,12 +173,15 @@ const T = {
   open: 2, // ...e so entao as pinceladas viram o contorno do livro aberto
   openEnd: 2.7,
   paper: 2.45, // o branco das paginas entra
-  write: 2.7, // as letras surgem na primeira pagina
+  closeIn: 2.5, // o livro vem ate a tela: a pagina cobre tudo
+  close: 3.15,
+  write: 2.9, // as letras surgem na pagina quando ela ja cobre a tela
+  written: 3.85,
   // Cada virada de folha: [inicio, duracao]. Tres lentas, depois acelera.
   flips: [
-    [3.5, 0.6],
-    [4.5, 0.45],
-    [5.2, 0.32],
+    [3.95, 0.55],
+    [4.62, 0.42],
+    [5.16, 0.3],
     [5.62, 0.26],
     [5.8, 0.22],
     [5.95, 0.19],
@@ -101,21 +192,22 @@ const T = {
     [6.38, 0.1],
     [6.43, 0.1],
   ],
-  lines: 6.5, // as seis linhas de texto viram seis tracos retos...
-  linesEnd: 6.64,
-  bird: 6.58, // ...que sobem da pagina e se curvam no passaro
+  lines: 6.5, // seis linhas do texto (grandes na tela) viram seis tracos retos...
+  linesEnd: 6.62,
+  bird: 6.58, // ...que se soltam da pagina e se curvam no passaro
   fly: 7.07, // primeira batida de asa: decola
   spineOut: 6.62, // a lombada some antes (senao cortaria o passaro ao meio)
-  bookOut: 6.74, // o livro desce e some
-  bookGone: 7.14,
+  bookOut: 6.64, // a pagina se desfaz no papel
+  bookGone: 6.88,
   turn: 7.97, // meia-volta, no ponto mais longe
   turnEnd: 8.22,
   branch: 7.82, // o galho e desenhado da borda para a ponta
   branchEnd: 8.82,
   flare: 9.37, // empina para pousar
   land: 9.62, // toca o galho
-  turnBack: 9.72, // vira de costas: o desenho fecha de perfil...
-  folded: 9.94, // ...e reabre ja pousado, de costas
+  perched: 9.86, // pousado de perfil, asas recolhidas
+  turn3d: 9.94, // gira o corpo ate dar as costas
+  folded: 10.5,
   leaf: 9.86, // a folha se solta, no retorno do galho
 };
 const LINE_WIDTH = 2; // traco do passaro na logo e na pagina
@@ -135,7 +227,6 @@ const span = (t, from, to) => clamp01((t - from) / (to - from));
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const easeInOutSine = (t) => 0.5 - Math.cos(Math.PI * t) / 2;
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-const easeIn = (t) => t * t * t;
 const easeInQuad = (t) => t * t;
 const smoothstep = (t) => {
   const v = clamp01(t);
@@ -258,6 +349,26 @@ function trace(control, count) {
 // Pontos igualmente espacados numa reta.
 const straight = (from, to, count) =>
   Array.from({ length: count }, (_, i) => mix(from, to, i / (count - 1)));
+
+/* ---------- A camera ----------
+   De longe, o livro inteiro; de perto, a pagina direita cobre o palco todo
+   (nenhuma borda do livro aparece), um pouco inclinada, como um livro na
+   mao, e a camera desce devagar pelo texto. */
+const CLOSE = { zoom: 3.6, x: 266, y: 91, drift: 9, turn: -7 };
+function cameraAt(t) {
+  const near = easeInOut(span(t, T.closeIn, T.close));
+  return {
+    zoom: lerp(1, CLOSE.zoom, near),
+    x: lerp(PAGE.middle, CLOSE.x, near),
+    y: lerp((PAGE.top + PAGE.bottom) / 2, CLOSE.y + CLOSE.drift * span(t, T.close, T.lines), near),
+    turn: CLOSE.turn * near,
+  };
+}
+// Onde um ponto do livro aparece no palco, visto por essa camera.
+function seenBy(camera, point) {
+  const [x, y] = rotate([(point[0] - camera.x) * camera.zoom, (point[1] - camera.y) * camera.zoom], [0, 0], camera.turn);
+  return [SCENE.width / 2 + x, SCENE.height / 2 + y];
+}
 
 /* ---------- Da logo ao livro aberto ----------
    As pinceladas do livro da logo (ja afinadas em traco) viram o contorno do
@@ -455,22 +566,22 @@ function flightPose(t) {
 const strokeFor = (scale) => n2(Math.max(1.3, BIRD_WIDTH * Math.pow(scale, 0.4)));
 
 /* ---------- As linhas de texto que viram o passaro ----------
-   Cada linha da ultima abertura vira um trecho do passaro: as tres da
-   esquerda viram a asa de tras, a cabeca e a barriga; as tres da direita, a
-   borda de ataque, a borda de fuga e a cauda. Cada trecho comeca deitado,
-   reto, sobre a linha de base do seu texto. "widths" sao as larguras medidas
-   das seis linhas (esquerda de cima para baixo, depois direita). */
-const LINE_OF = { WL: 0, HD: 1, BELLY: 2, WR: 3, TE: 4, TL: 5 };
+   As seis primeiras linhas da ultima pagina (vistas de perto, grandes) viram
+   seis tracos retos, e cada traco se curva num trecho do passaro: as de cima
+   viram as asas; as do meio, a cabeca e a borda de fuga; as de baixo, a
+   barriga e a cauda. */
+const LINE_OF = { WL: 0, WR: 1, HD: 2, TE: 3, BELLY: 4, TL: 5 };
 const MORPH_DELAY = { BELLY: 0, HD: 0.03, WL: 0.06, WR: 0.08, TE: 0.08, TL: 0.11 };
 const MORPH_TIME = 0.38;
 
-function linesPose(widths) {
+const LINES_POSE = (() => {
+  const camera = cameraAt(T.lines);
   const row = (part) => {
     const index = LINE_OF[part];
-    const center = index < 3 ? LEFT_CENTER : RIGHT_CENTER;
-    const y = CLOSING.baselines[index % 3] - 2.2;
-    const half = widths[index] / 2;
-    return { from: [center - half, y], to: [center + half, y] };
+    const left = PAGE.middle + TEXT.margin + (index < 3 ? TEXT.indent : 0);
+    // No meio da altura das letras minusculas.
+    const y = PAGE.top + TEXT.first + index * TEXT.leading - 2.2;
+    return { from: seenBy(camera, [left, y]), to: seenBy(camera, [PAGE.middle + TEXT.margin + TEXT.width, y]) };
   };
   const pose = {};
   PARTS.forEach((part) => {
@@ -486,7 +597,7 @@ function linesPose(widths) {
     }
   });
   return pose;
-}
+})();
 const TAKEOFF = flightPose(T.fly);
 
 /* ---------- O galho ---------- */
@@ -555,55 +666,98 @@ function leafFall(since) {
   };
 }
 
-/* ---------- O passaro pousado, de costas ----------
-   Pose desenhada a mao, com os mesmos trechos do passaro em voo (por isso um
-   vira o outro): visto por tras, cabeca redonda, corpo em gota, as duas asas
-   fechadas formando um "V" no dorso e a cauda pendendo atras do galho.
+/* ---------- O passaro pousado: de perfil e de costas ----------
+   Poses desenhadas a mao, com os mesmos trechos do passaro em voo (por isso
+   uma vira a outra). Ele pousa de perfil, recolhendo as asas, e entao gira o
+   corpo ate dar as costas: o corpo (uma gota) quase nao muda, e o que conta
+   o giro sao os detalhes: o bico encurta ate virar uma pontinha, a cauda vem
+   de tras para o centro e as asas deslizam do flanco para o dorso.
    Coordenadas a partir do ponto em que o corpo cruza o galho. */
 const PERCH_SCALE = 0.44;
 const PERCH_AT = [266, branchY(266) - 0.5];
+
+// --- De perfil (virado para a direita): as curvas do desenho ---
+const BEAK_TOP = [19, -84];
+const BEAK_TIP = [32, -79];
+const BEAK_LOW = [19, -74];
+const THROAT = [15, -68];
+const NAPE = [-5, -66];
+const TAIL_TIP = [-27, 45];
+const WING_TOP = [4, -50]; // onde a asa fechada comeca, no ombro
+const WING_END = [-9, 5]; // a ponta da asa fechada, sobre a cauda
+const SIDE = {
+  dome: [NAPE, [-9, -78], [-3, -90], [8, -94], [16, -90], BEAK_TOP], // da nuca, por cima, ate o bico
+  front: [THROAT, [24, -52], [26, -30], [18, -8], [4, 10], [-12, 27], TAIL_TIP], // peito, barriga e baixo da cauda
+  back: [NAPE, [-15, -50], [-21, -28], [-23, -6], [-25, 18], TAIL_TIP], // dorso
+  tailBack: [TAIL_TIP, [-23, 31], [-19, 17]], // volta um pouco pela cauda
+  wingUp: [WING_TOP, [-6, -38], [-12, -16], WING_END], // borda de cima da asa fechada
+  wingLow: [WING_END, [4, -14], [9, -34], WING_TOP], // borda de baixo
+  tailMid: [TAIL_TIP, [-18, 25], WING_END], // o meio da cauda, ate a ponta da asa
+};
+const dorsal = trace(SIDE.back, 17).concat(trace(SIDE.tailBack, 12).slice(1));
+// 1) Com os trechos na ordem do voo (para ele recolher as asas ao pousar): a
+// barriga vira o peito, a cabeca vira a cabeca, a asa da frente fecha sobre o
+// flanco e a de tras deita no dorso.
+const PROFILE_FOLD = {
+  BELLY: trace([BEAK_TIP, BEAK_LOW, ...SIDE.front], BIRD.BELLY.length),
+  HD: trace([...SIDE.dome, BEAK_TIP], BIRD.HD.length),
+  WL: dorsal,
+  WR: trace(SIDE.wingUp, BIRD.WR.length),
+  TE: trace(SIDE.wingLow, BIRD.TE.length),
+  TL: trace([...SIDE.wingLow.slice().reverse(), ...SIDE.tailMid.slice().reverse().slice(1)], BIRD.TL.length),
+};
+// 2) O MESMO desenho, com os trechos na ordem que serve ao giro (cada trecho
+// tem o seu par na pose de costas).
+const PROFILE_TURN = {
+  BELLY: trace(SIDE.dome, BIRD.BELLY.length),
+  HD: straight(BEAK_TOP, BEAK_TIP, 5).concat(straight(BEAK_TIP, BEAK_LOW, 4).slice(1)),
+  WL: dorsal,
+  WR: trace([BEAK_LOW, ...SIDE.front], BIRD.WR.length),
+  TE: trace([...SIDE.tailMid, ...SIDE.wingLow.slice(1)], BIRD.TE.length),
+  TL: trace(SIDE.wingUp, BIRD.TL.length),
+};
+
+// --- De costas ---
 const NECK_R = [12, -63];
 const NECK_L = [-12, -63];
-const PERCH = {
-  // A cabeca: do pescoco (a direita), por cima, ate o pescoco (a esquerda).
-  HD: trace([NECK_R, [15, -76], [9, -89], [0, -93], [-9, -89], [-15, -76], NECK_L], BIRD.HD.length),
+const BACK_VIEW = {
+  // A cabeca redonda, vista por tras.
+  BELLY: trace([NECK_L, [-15, -76], [-9, -89], [0, -93], [9, -89], [15, -76], NECK_R], BIRD.BELLY.length),
+  // So a pontinha do bico: a cabeca fica levemente virada, e isso ajuda a ler
+  // um passaro (ele continua de costas).
+  HD: straight([14.5, -82], [22, -77.5], 5).concat(straight([22, -77.5], [15.5, -73.5], 4).slice(1)),
   // Lado esquerdo: ombro, flanco e a borda esquerda da cauda, ate a ponta.
-  BELLY: trace([NECK_L, [-23, -51], [-27, -28], [-21, -5], [-12, 14], [-6, 32], [0, 47]], BIRD.BELLY.length),
-  // Lado direito, igual, ate a ponta da cauda.
+  WL: trace([NECK_L, [-23, -51], [-27, -28], [-21, -5], [-12, 14], [-6, 32], [0, 47]], 17).concat(
+    trace([[0, 47], [-1, 30], [-4, 12]], 12).slice(1),
+  ),
+  // Lado direito, igual.
   WR: trace([NECK_R, [23, -51], [27, -28], [21, -5], [12, 14], [6, 32], [0, 47]], BIRD.WR.length),
   // Da ponta da cauda sobe pelo meio e desenha a borda da asa direita...
   TE: trace([[0, 47], [1, 22], [5, 4], [9, -16], [6, -36], [0, -47]], BIRD.TE.length),
   // ...e a borda da asa esquerda: as duas juntas fazem o "V" do dorso.
   TL: trace([[0, -47], [-6, -36], [-9, -16], [-5, 4]], BIRD.TL.length),
-  // O trecho da asa de tras vira a pontinha do bico: a cabeca esta levemente
-  // virada, e isso ajuda a ler um passaro (ele continua de costas).
-  WL: straight([14.5, -82], [22, -77.5], 17).concat(straight([22, -77.5], [15.5, -73.5], 12).slice(1)),
 };
-const PERCHED = {};
-PARTS.forEach((part) => {
-  PERCHED[part] = PERCH[part].map(([x, y]) => [PERCH_AT[0] + x * PERCH_SCALE, PERCH_AT[1] + y * PERCH_SCALE]);
-});
+const onBranch = (shape) => {
+  const pose = {};
+  PARTS.forEach((part) => {
+    pose[part] = shape[part].map(([x, y]) => [PERCH_AT[0] + x * PERCH_SCALE, PERCH_AT[1] + y * PERCH_SCALE]);
+  });
+  return pose;
+};
+const PROFILE_A = onBranch(PROFILE_FOLD);
+const PROFILE_B = onBranch(PROFILE_TURN);
+const PERCHED = onBranch(BACK_VIEW);
 const LANDING = flightPose(T.land);
 const PERCHED_PATH = posePath(PERCHED);
 const PERCH_STROKE = 1.7; // o mesmo peso do galho
-// Estreita um desenho na horizontal em torno do ponto de pouso (o giro).
-const squeeze = (pose, amount) => {
-  const out = {};
-  PARTS.forEach((part) => {
-    out[part] = pose[part].map(([x, y]) => [PERCH_AT[0] + (x - PERCH_AT[0]) * amount, y]);
-  });
-  return out;
-};
 
 /**
  * O que desenhar no instante "time" (segundos). Aceita qualquer valor: o
- * ciclo se repete sozinho. "widths" sao as larguras medidas das seis linhas
- * da ultima abertura (sem elas, usa uma estimativa).
+ * ciclo se repete sozinho.
  */
-export function frameAt(time, widths) {
+export function frameAt(time) {
   const t = ((time % DURATION) + DURATION) % DURATION;
   const firstRun = time < DURATION;
-  const lineWidths = widths || [...SPREADS[SPREADS.length - 1].left.lines, ...SPREADS[SPREADS.length - 1].right.lines].map((text) => text.length * CLOSING.size * 0.46);
 
   /* ----- A logo sobe (empurrando a cena anterior) e para ----- */
   const push = pushEase(span(t, 0, T.pushEnd));
@@ -617,13 +771,13 @@ export function frameAt(time, widths) {
   };
 
   /* ----- O livro: abre, e folheado, e sai ----- */
-  const leaving = easeIn(span(t, T.bookOut, T.bookGone));
+  const leaving = easeInQuad(span(t, T.bookOut, T.bookGone));
   const flipsStarted = T.flips.filter(([start]) => t >= start).length;
   const flipsDone = T.flips.filter(([start, length]) => t >= start + length).length;
   const book = {
     visible: t >= T.thin && t < T.bookGone,
     opacity: n2(1 - leaving),
-    drop: n2(36 * leaving),
+
     ink: "", // as pinceladas da logo, afinando
     outline: OUTLINE_PATH, // o contorno do livro (as pinceladas, ja abertas)
     outlineWidth: 1.5,
@@ -631,11 +785,12 @@ export function frameAt(time, widths) {
     paper: n2(span(t, T.paper, T.paper + 0.3)), // o branco das paginas
     left: flipsDone, // qual abertura esta a mostra de cada lado
     right: flipsStarted,
+    camera: (({ zoom, x, y, turn }) => ({ zoom: n2(zoom), x: n2(x), y: n2(y), turn: n2(turn) }))(cameraAt(t)),
     // Primeira pagina: quanto do texto ja surgiu, e a folhinha sendo desenhada.
-    written: n2(span(t, T.write, T.write + 0.72)),
-    sprig: n2(easeOut(span(t, T.write, T.write + 0.4))),
-    // As seis linhas viram tinta: o texto some e o traco reto assume.
-    closing: n2(1 - span(t, T.lines, T.linesEnd)),
+    written: n2(span(t, T.write, T.written)),
+    sprig: n2(easeOut(span(t, T.openEnd, T.openEnd + 0.4))),
+    // As linhas viram tinta: o texto some e o traco reto assume.
+    closing: n2(1 - span(t, T.lines, T.linesEnd - 0.04)),
     leaves: [null, null, null],
   };
   if (t >= T.thin && t < T.openEnd) {
@@ -686,10 +841,9 @@ export function frameAt(time, widths) {
   let perchOpacity = 1;
   let swing = 0;
   if (t >= T.lines && t < T.fly) {
-    const lines = linesPose(lineWidths);
-    birdOpacity = n2(span(t, T.lines, T.linesEnd));
+    birdOpacity = n2(span(t, T.lines + 0.03, T.linesEnd));
     bird = posePath(
-      mixPose(lines, TAKEOFF, (part) => morphEase(span(t, T.bird + MORPH_DELAY[part], T.bird + MORPH_DELAY[part] + MORPH_TIME))),
+      mixPose(LINES_POSE, TAKEOFF, (part) => morphEase(span(t, T.bird + MORPH_DELAY[part], T.bird + MORPH_DELAY[part] + MORPH_TIME))),
     );
     birdWidth = n2(lerp(BIRD_WIDTH, strokeFor(ROUTE[0][3]), span(t, T.bird, T.fly)));
   } else if (t >= T.fly && t < T.land) {
@@ -701,26 +855,36 @@ export function frameAt(time, widths) {
     // Chegando ao galho, o traco ganha o mesmo peso dele.
     birdWidth = n2(lerp(strokeFor(routeAt(t).scale), PERCH_STROKE, smoothstep(span(t, 9.3, T.land))) * Math.sqrt(Math.max(0.05, facing)));
   } else if (t >= T.land) {
-    // Pousa e vira de costas num giro no lugar: o desenho do voo estreita ate
-    // quase sumir de perfil, e o desenho de costas abre no mesmo ponto.
+    // Pousa de perfil recolhendo as asas; depois gira o corpo ate dar as costas.
     swing = branchSwing(t);
-    // (Pousado, ele balanca junto com o galho.)
-    const sway = (pose) => {
-      if (!swing) return pose;
-      const out = {};
-      PARTS.forEach((part) => { out[part] = pose[part].map((point) => rotate(point, BRANCH_PIVOT, swing)); });
-      return out;
-    };
-    const closing = easeInQuad(span(t, T.land, T.turnBack + 0.06));
-    if (closing < 1) {
-      bird = posePath(sway(squeeze(LANDING, lerp(1, 0.25, closing))));
-      birdOpacity = n2(1 - span(t, T.turnBack - 0.02, T.turnBack + 0.06));
-    }
+    const fold = easeOut(span(t, T.land, T.perched));
+    const turn = easeInOutSine(span(t, T.turn3d, T.folded));
     birdWidth = PERCH_STROKE;
-    if (t >= T.turnBack) {
-      const opening = easeOut(span(t, T.turnBack, T.folded));
-      perch = opening >= 1 && !swing ? PERCHED_PATH : posePath(sway(squeeze(PERCHED, lerp(0.25, 1, opening))));
-      perchOpacity = n2(span(t, T.turnBack, T.turnBack + 0.08));
+    if (turn >= 1 && !swing) {
+      perch = PERCHED_PATH;
+    } else {
+      let pose = PROFILE_B;
+      if (fold < 1) {
+        pose = mixPose(LANDING, PROFILE_A, fold);
+      } else if (turn > 0) {
+        // No meio do giro o corpo e visto em tres quartos: um pouco mais
+        // estreito. E ele da um pequeno impulso para se virar.
+        const mid = Math.sin(Math.PI * turn);
+        pose = mixPose(PROFILE_B, PERCHED, turn);
+        PARTS.forEach((part) => {
+          pose[part] = pose[part].map(([x, y]) => [
+            PERCH_AT[0] + (x - PERCH_AT[0]) * (1 - 0.1 * mid),
+            y - 1.2 * mid * clamp01((PERCH_AT[1] - y) / 30),
+          ]);
+        });
+      }
+      // (Pousado, ele balanca junto com o galho.)
+      if (swing) {
+        const swayed = {};
+        PARTS.forEach((part) => { swayed[part] = pose[part].map((point) => rotate(point, BRANCH_PIVOT, swing)); });
+        pose = swayed;
+      }
+      bird = posePath(pose);
     }
   }
 

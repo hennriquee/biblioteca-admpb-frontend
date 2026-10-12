@@ -1,19 +1,19 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { IconPause, IconPlay } from "./Icons.jsx";
 import {
   BRANCH_PARTS,
   BRANCH_PIVOT_POINT,
-  CLOSING,
+  CLOSING_LINES,
+  FIRST_PAGE,
   GOLD_LEAF,
-  LEFT_CENTER,
   LOGO,
   PAGE,
   PAGE_LEFT_PATH,
   PAGE_RIGHT_PATH,
-  RIGHT_CENTER,
-  SPINE_PATH,
   SCENE,
+  SPINE_PATH,
   SPREADS,
+  TEXT,
   frameAt,
 } from "../utils/welcomeAnimation.js";
 import {
@@ -24,10 +24,10 @@ import {
 
 /**
  * Animacao de boas-vindas ("da pagina ao galho"): a logo sobe, o livro dela
- * se abre em paginas brancas, letras surgem e as paginas sao folheadas cada
- * vez mais rapido; as ultimas linhas de texto viram um passaro de traco
- * unico, que voa para longe e pousa de costas num galho, de onde uma folha
- * cai devagar. Fica repetindo enquanto estiver na tela.
+ * se abre e vem ate a tela; de perto, o texto surge na pagina e as folhas sao
+ * viradas cada vez mais rapido; as linhas do texto viram um passaro de traco
+ * unico, que voa para longe e pousa num galho, gira ate dar as costas, e uma
+ * folha cai devagar. Fica repetindo enquanto estiver na tela.
  *
  * O roteiro (o que desenhar em cada instante, e o texto das paginas) esta em
  * utils/welcomeAnimation.js; aqui so se aplica cada quadro no SVG, direto nos
@@ -47,96 +47,78 @@ const LOGO_TRANSFORM =
 const PIVOT = BRANCH_PIVOT_POINT[0] + " " + BRANCH_PIVOT_POINT[1];
 const MIDDLE_Y = (PAGE.top + PAGE.bottom) / 2;
 const LEAVES = [0, 1, 2]; // ate tres folhas no ar ao mesmo tempo
-const TITLE = SPREADS[0].right.title;
-const TITLE_LETTERS = TITLE.join("").length;
+const LAST = SPREADS.length - 1;
 
-// O conteudo de uma pagina. "bind" guarda os elementos que a animacao mexe
-// (as letras do titulo, a folhinha e as linhas que viram o passaro).
-function PageContent({ content, side, bind }) {
-  const center = side === "left" ? LEFT_CENTER : RIGHT_CENTER;
-  const margin = (side === "left" ? PAGE.left : PAGE.middle) + 15;
-  let letter = 0;
+// O conteudo de uma pagina. "bind" guarda os elementos que a animacao mexe:
+// na primeira pagina ("first"), a capitular, as linhas e os grifos, que
+// surgem um a um; na ultima ("last"), as linhas que viram o passaro.
+function PageContent({ content, side, bind, first, last }) {
+  const edge = side === "left" ? PAGE.left : PAGE.middle;
+  if (content.sprig) {
+    const center = edge + (PAGE.right - PAGE.middle) / 2;
+    return (
+      <path
+        ref={bind("sprig")}
+        className="welcome-scene__sprig"
+        d={"M" + (center - 8) + " " + (MIDDLE_Y + 3) + "q7 -9 16 -6q-7 9 -16 6m3 -1.6l9 -3"}
+        pathLength="1"
+        strokeDasharray="1"
+        strokeDashoffset="1"
+      />
+    );
+  }
+  if (!content.page) return null;
+
+  const { head, cap, lines, color, marks } = content.page;
+  const left = edge + TEXT.margin;
+  const top = PAGE.top + TEXT.first;
+  // As tres primeiras linhas dao lugar a capitular.
+  const startOf = (row) => left + (row < 3 ? TEXT.indent : 0);
   return (
     <>
-      {content.sprig ? (
-        <path
-          ref={bind("sprig")}
-          className="welcome-scene__sprig"
-          d={"M" + (center - 8) + " " + (MIDDLE_Y + 3) + "q7 -9 16 -6q-7 9 -16 6m3 -1.6l9 -3"}
-          pathLength="1"
-          strokeDasharray="1"
-          strokeDashoffset="1"
-        />
-      ) : null}
-      {content.title
-        ? content.title.map((line, row) => (
-            <text key={line} className="welcome-scene__title" x={center} y={MIDDLE_Y - 6 + row * 29} textAnchor="middle">
-              {[...line].map((char, index) => {
-                const name = "title-" + letter;
-                letter += 1;
-                return (
-                  <tspan key={index} ref={bind(name)} fillOpacity="0">
-                    {char === " " ? " " : char}
-                  </tspan>
-                );
-              })}
-            </text>
-          ))
-        : null}
-      {content.word ? (
-        <text className="welcome-scene__word" x={center} y={MIDDLE_Y + 9} textAnchor="middle">
-          {content.word}
+      <text ref={first ? bind("head") : undefined} className="welcome-scene__head" x={left} y={PAGE.top + TEXT.head}>
+        {head}
+      </text>
+      <path
+        ref={first ? bind("rule") : undefined}
+        className="welcome-scene__rule"
+        d={"M" + left + " " + (PAGE.top + TEXT.head + 4.5) + "h" + TEXT.width}
+      />
+      {/* Os grifos ficam por baixo do texto, como marca-texto no papel. */}
+      {marks.map(([row, from, to], index) => {
+        const y = top + row * TEXT.leading - 2.2;
+        // Cada faixa sai um pouco torta, como grifo feito a mao.
+        const tilt = index % 2 ? 0.35 : -0.3;
+        return (
+          <path
+            key={index}
+            ref={first ? bind("mark" + index) : undefined}
+            className="welcome-scene__mark"
+            stroke={color}
+            d={"M" + (startOf(row) + from).toFixed(1) + " " + (y - tilt).toFixed(2) +
+              "L" + (startOf(row) + to).toFixed(1) + " " + (y + tilt).toFixed(2)}
+            pathLength="1"
+            strokeDasharray="1"
+            strokeDashoffset={first ? 1 : 0}
+          />
+        );
+      })}
+      <text ref={first ? bind("cap") : undefined} className="welcome-scene__cap" x={left - 1.5} y={top + 2 * TEXT.leading + 0.6}>
+        {cap}
+      </text>
+      {lines.map(([line, gap], row) => (
+        <text
+          key={row}
+          ref={first ? bind("line" + row) : last && row < CLOSING_LINES ? bind("closing" + row) : undefined}
+          className="welcome-scene__body"
+          x={startOf(row)}
+          y={top + row * TEXT.leading}
+          // Justificado so pelo espaco entre as palavras, como em livro.
+          style={gap ? { wordSpacing: gap + "px" } : undefined}
+        >
+          {line}
         </text>
-      ) : null}
-      {content.glyph ? (
-        <text className="welcome-scene__glyph" x={center} y={MIDDLE_Y + 32} textAnchor="middle">
-          {content.glyph}
-        </text>
-      ) : null}
-      {content.cap ? (
-        <>
-          <text className="welcome-scene__cap" x={margin - 2} y={PAGE.top + 74}>
-            {content.cap}
-          </text>
-          {content.beside.map((line, row) => (
-            <text key={line} className="welcome-scene__small" x={margin + 33} y={PAGE.top + 49 + row * 10.5}>
-              {line}
-            </text>
-          ))}
-          {content.text.map((line, row) => (
-            <text key={line} className="welcome-scene__small" x={margin} y={PAGE.top + 95 + row * 10.5}>
-              {line}
-            </text>
-          ))}
-        </>
-      ) : null}
-      {!content.cap && content.text
-        ? content.text.map((line, row) => (
-            <text
-              key={line}
-              className="welcome-scene__small"
-              x={margin}
-              y={MIDDLE_Y - ((content.text.length - 1) * 10.5) / 2 + 2 + row * 10.5}
-            >
-              {line}
-            </text>
-          ))
-        : null}
-      {content.lines
-        ? content.lines.map((line, row) => (
-            <text
-              key={line}
-              ref={bind("closing" + (side === "left" ? row : row + 3))}
-              className="welcome-scene__closing"
-              x={center}
-              y={CLOSING.baselines[row]}
-              fontSize={CLOSING.size}
-              textAnchor="middle"
-            >
-              {line}
-            </text>
-          ))
-        : null}
+      ))}
     </>
   );
 }
@@ -147,32 +129,11 @@ export default function WelcomeScene({ time = null }) {
   // Em que ponto do roteiro a animacao esta (segundos). Fica fora do efeito
   // para o "pausar" continuar de onde parou.
   const elapsedRef = useRef(0);
-  // Larguras medidas das linhas que viram o passaro (dependem da fonte).
-  const widths = useRef(null);
-  const redraw = useRef(null);
   const id = useId();
 
   const bind = (name) => (element) => {
     nodes.current[name] = element;
   };
-
-  // Mede as seis linhas da ultima abertura: cada traco do passaro nasce com o
-  // comprimento exato da sua linha de texto. Repete quando a fonte carrega.
-  useEffect(() => {
-    let alive = true;
-    function measure() {
-      const el = nodes.current;
-      if (!alive || !el.closing0) return;
-      const measured = [0, 1, 2, 3, 4, 5].map((index) => el["closing" + index].getComputedTextLength());
-      if (measured.every((value) => value > 0)) widths.current = measured;
-      if (redraw.current) redraw.current();
-    }
-    measure();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useLayoutEffect(() => {
     const el = nodes.current;
@@ -196,7 +157,7 @@ export default function WelcomeScene({ time = null }) {
     }
 
     function draw(seconds) {
-      const frame = frameAt(seconds, widths.current);
+      const frame = frameAt(seconds);
       const { logo, book, nature } = frame;
 
       set("logo", "transform", "translate(0 " + logo.lift + ")");
@@ -205,20 +166,41 @@ export default function WelcomeScene({ time = null }) {
 
       show("book", book.visible);
       if (book.visible) {
-        set("book", "transform", "translate(0 " + book.drop + ")");
+        const { camera } = book;
+        // A camera: aproxima o livro ate a pagina cobrir o palco.
+        set(
+          "book",
+          "transform",
+          "translate(" + SCENE.width / 2 + " " + SCENE.height / 2 + ") rotate(" + camera.turn + ") scale(" +
+            camera.zoom + ") translate(" + -camera.x + " " + -camera.y + ")",
+        );
         set("book", "opacity", book.opacity);
         set("ink", "d", book.ink);
         set("outline", "d", book.outline);
-        set("outline", "stroke-width", book.outlineWidth);
+        // (Os tracos nao engrossam com a aproximacao.)
+        set("outline", "stroke-width", (book.outlineWidth / camera.zoom).toFixed(3));
+        set("spine", "stroke-width", (1.5 / camera.zoom).toFixed(3));
         set("spine", "opacity", book.spine);
         set("paper", "opacity", book.paper);
         set("leftPage", "href", "#" + id + "L" + book.left);
         set("rightPage", "href", "#" + id + "R" + book.right);
-        for (let i = 0; i < TITLE_LETTERS; i += 1) {
-          set("title-" + i, "fill-opacity", Math.min(1, Math.max(0, (book.written * (TITLE_LETTERS + 5) - i) / 5)).toFixed(2));
-        }
         trace("sprig", book.sprig);
-        for (let i = 0; i < 6; i += 1) set("closing" + i, "opacity", book.closing);
+
+        // Primeira pagina: o titulo, a capitular e as linhas surgem em
+        // sequencia; por ultimo, o marca-texto passa sobre os trechos.
+        const w = book.written;
+        const fade = (from, to) => Math.min(1, Math.max(0, (w - from) / (to - from))).toFixed(2);
+        set("head", "opacity", fade(0, 0.13));
+        set("rule", "opacity", fade(0, 0.13));
+        set("cap", "opacity", fade(0.04, 0.2));
+        for (let i = 0; i < FIRST_PAGE.lines; i += 1) {
+          set("line" + i, "opacity", fade(0.18 + i * 0.04, 0.32 + i * 0.04));
+        }
+        for (let i = 0; i < FIRST_PAGE.marks; i += 1) {
+          set("mark" + i, "stroke-dashoffset", (1 - fade(0.66 + i * 0.07, 0.84 + i * 0.07)).toFixed(2));
+        }
+        for (let i = 0; i < CLOSING_LINES; i += 1) set("closing" + i, "opacity", book.closing);
+
         LEAVES.forEach((slot) => {
           const leaf = book.leaves[slot];
           show("leaf" + slot, Boolean(leaf));
@@ -230,6 +212,7 @@ export default function WelcomeScene({ time = null }) {
               leaf.height + ") translate(" + -PAGE.middle + " " + -MIDDLE_Y + ")",
           );
           set("leafPaper" + slot, "fill", leaf.fill);
+          set("leafPaper" + slot, "stroke-width", (1 / camera.zoom).toFixed(3));
           set("leafFront" + slot, "href", "#" + id + "R" + leaf.front);
           set("leafBack" + slot, "href", "#" + id + "L" + leaf.back);
           set("leafFront" + slot, "opacity", leaf.frontOpacity);
@@ -267,14 +250,9 @@ export default function WelcomeScene({ time = null }) {
     }
 
     if (time !== null) {
-      redraw.current = () => {
-        Object.keys(written).forEach((key) => delete written[key]);
-        draw(time);
-      };
       draw(time);
       return undefined;
     }
-    redraw.current = () => draw(elapsedRef.current);
     draw(elapsedRef.current);
     if (!playing) return undefined;
 
@@ -318,7 +296,7 @@ export default function WelcomeScene({ time = null }) {
         className="welcome-scene"
         viewBox={"0 0 " + SCENE.width + " " + SCENE.height}
         role="img"
-        aria-label="A logo da Biblioteca ADMP Brasil se abre num livro; as páginas são folheadas cada vez mais rápido, com as palavras “uma vida de leitura”, “edificar”, “alcançar” e “louvar”; as últimas linhas viram um pássaro em traço único, que voa para longe e pousa num galho, de onde cai uma folha."
+        aria-label="A logo da Biblioteca ADMP Brasil se abre num livro, que vem até a tela; as páginas, com trechos grifados sobre uma vida de leitura, são folheadas cada vez mais rápido; as linhas do texto viram um pássaro em traço único, que voa para longe e pousa num galho, de onde cai uma folha."
         fill="none"
       >
         <defs>
@@ -330,7 +308,13 @@ export default function WelcomeScene({ time = null }) {
                 <PageContent content={spread.left} side="left" bind={bind} />
               </g>
               <g id={id + "R" + index}>
-                <PageContent content={spread.right} side="right" bind={bind} />
+                <PageContent
+                  content={spread.right}
+                  side="right"
+                  bind={bind}
+                  first={index === 0}
+                  last={index === LAST}
+                />
               </g>
             </g>
           ))}

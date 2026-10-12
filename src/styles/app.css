@@ -2400,7 +2400,6 @@ a.stat:active {
 .welcome-scene__leaf {
   fill: #fff;
   stroke: var(--ink);
-  stroke-width: 1;
   stroke-linejoin: round;
 }
 /* O miolo do livro: bordas claras deslocadas, por tras das paginas. */
@@ -2409,40 +2408,35 @@ a.stat:active {
   stroke: var(--line);
   stroke-width: 0.9;
 }
-/* (Pelas classes, e nao por ".welcome-scene__book text": o texto e desenhado
-   uma vez e mostrado por referencia, e ali o seletor de ancestral nao vale.) */
-.welcome-scene__title,
-.welcome-scene__word,
-.welcome-scene__cap,
-.welcome-scene__small,
-.welcome-scene__glyph,
-.welcome-scene__closing {
+/* O texto das paginas: serifado, preto no branco, como pagina de livro.
+   (Pelas classes, e nao por um seletor de ancestral: o texto e desenhado uma
+   vez e mostrado por referencia, e ali o seletor de ancestral nao vale.) */
+.welcome-scene__body,
+.welcome-scene__head,
+.welcome-scene__cap {
   font-family: var(--font-display);
   fill: var(--ink);
 }
-.welcome-scene__title {
-  font-size: 25px;
-  font-style: italic;
-  font-weight: 400;
-}
-.welcome-scene__word {
-  font-size: 28px;
-  font-style: italic;
-  font-weight: 400;
-}
-.welcome-scene__cap {
-  font-size: 54px;
-  font-weight: 600;
-}
-/* Paragrafo miudo: e textura de livro, nao texto para ler. */
-.welcome-scene__small {
+.welcome-scene__body {
   font-size: 6.4px;
 }
-/* Letra gigante e clara das paginas que passam rapido (clara para o folhear
-   rapido nao piscar). */
-.welcome-scene__glyph {
-  font-size: 96px;
-  fill-opacity: 0.5;
+.welcome-scene__head {
+  font-size: 7.4px;
+  font-weight: 600;
+}
+/* A capitular: a primeira letra do paragrafo, com tres linhas de altura. */
+.welcome-scene__cap {
+  font-size: 37px;
+  font-weight: 600;
+}
+.welcome-scene__rule {
+  stroke: var(--ink);
+  stroke-width: 0.35;
+}
+/* Trecho grifado com marca-texto (a cor vem do roteiro). */
+.welcome-scene__mark {
+  stroke-width: 7.2;
+  stroke-opacity: 0.6;
 }
 .welcome-scene__sprig {
   stroke: var(--ink-soft);
