@@ -2190,46 +2190,64 @@ a.stat:active {
   gap: 14px;
 }
 
-/* So quem esta logado no painel ve esta linha ("Voltar ao painel"); ela fica
-   acima da logo para nao tirar a logo do centro. */
-.pub__top {
+/* Barra do topo: logo pequena a esquerda e, quando a pessoa esta logada no
+   painel, "Voltar ao painel" a direita. Os dois tem a mesma altura
+   (--pub-bar-h) e ficam sem destaque; um fio embaixo separa a barra do
+   titulo. */
+.pub {
+  --pub-bar-h: 48px;
+}
+.pub__bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  min-height: 44px;
+  justify-content: space-between;
+  gap: 12px;
+  height: var(--pub-bar-h);
+  box-sizing: content-box;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 .pub__admin {
   flex-shrink: 0;
-  min-height: 44px;
-  padding: 8px 14px;
+  height: var(--pub-bar-h);
+  min-height: 0;
+  padding: 0 16px;
 }
 
-/* Abertura da pagina: logo, titulo e resumo, centralizados no mesmo eixo. As
-   margens negativas descontam o respiro do proprio desenho da logo (ela tem
-   cerca de 17% de vazio em cima e 15% embaixo), para ela ficar proxima do
-   titulo e nao parecer solta. */
-.pub__mast {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+/* A logo ocupa a altura da barra com o DESENHO, nao com a imagem: ela tem
+   cerca de 17% de vazio em cima, 15% embaixo e 7,5% de cada lado, que sao
+   cortados aqui (o botao esconde o que passa). Assim o desenho fica com a
+   mesma altura do botao ao lado. */
+.pub__logobtn {
+  --pub-logo-h: calc(var(--pub-bar-h) / 0.672);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: var(--pub-bar-h);
+  overflow: hidden;
 }
 .pub__logo {
   display: block;
-  width: 148px;
-  height: auto;
-  margin: -14px 0 -10px;
+  flex-shrink: 0;
+  width: auto;
+  height: var(--pub-logo-h);
+  margin: calc(var(--pub-logo-h) * -0.174) calc(var(--pub-logo-h) * -0.098) 0;
 }
+
+/* Titulo alinhado a esquerda, no mesmo eixo da logo; o resumo traz os numeros
+   em destaque. */
 .pub__title h1 {
-  margin-top: 12px;
-  font-size: clamp(1.85rem, 1.5rem + 1.6vw, 2.4rem);
+  font-size: clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 .pub__title .page__sub {
   margin-top: 6px;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   line-height: 1.4;
+}
+.pub__title .page__sub strong {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .pub__filters {
@@ -2382,15 +2400,52 @@ a.stat:active {
     padding: 28px 24px 56px;
     gap: 18px;
   }
-  .pub__logo {
-    width: 176px;
-    margin: -20px 0 -14px;
-  }
 }
 
 /* ---------- Boas-vindas do catalogo ---------- */
+/* Logo da ADMPB, no topo do texto (fora do palco da animacao). Como a logo da
+   barra, so o desenho conta: a imagem tem ~6% de vazio em cima, 15% embaixo e
+   cerca de 20% de cada lado, cortados pelo quadro. */
+.welcome__brand {
+  --welcome-brand-h: 56px;
+  /* 0.82 (e nao 0.79, a altura real do desenho) deixa uma folga de ~3% para
+     o serrilhado da base do desenho nao ser cortado. */
+  --welcome-brand-img: calc(var(--welcome-brand-h) / 0.82);
+  display: flex;
+  justify-content: center;
+  height: var(--welcome-brand-h);
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+.welcome__brandmark {
+  display: block;
+  flex-shrink: 0;
+  width: var(--welcome-brand-img);
+  height: var(--welcome-brand-img);
+  margin: calc(var(--welcome-brand-img) * -0.059) calc(var(--welcome-brand-img) * -0.2) 0;
+}
+/* Celular em pe e baixo (ex.: 360x640): a logo empilhada faria o modal rolar.
+   Ela vai para o canto do texto, na linha do titulo, sem gastar altura. */
+@media (orientation: portrait) and (max-height: 720px) {
+  .modal--hero .welcome__text {
+    position: relative;
+  }
+  .modal--hero .welcome__brand {
+    --welcome-brand-h: 36px;
+    position: absolute;
+    top: 18px;
+    left: 20px;
+    margin: 0;
+  }
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  .modal--hero .welcome__brand {
+    --welcome-brand-h: 40px;
+    justify-content: flex-start;
+  }
+}
+
 .pub__logobtn {
-  min-height: 44px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
@@ -2679,21 +2734,8 @@ a.stat:active {
     padding-bottom: 10px;
   }
 
-  /* Logo, titulo e resumo lado a lado, com um fio entre eles. */
-  .pub__mast {
-    flex-direction: row;
-    gap: 14px;
-    text-align: left;
-  }
-  .pub__logo {
-    width: 112px;
-    margin: -12px -6px -10px -8px;
-  }
-  .pub__title {
-    padding-left: 14px;
-    border-left: 1px solid var(--line);
-  }
-  .pub__title h1 {
-    margin-top: 0;
+  /* Tela baixa: a barra do topo fica mais fina. */
+  .pub {
+    --pub-bar-h: 40px;
   }
 }

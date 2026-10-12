@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -47,6 +47,19 @@ function groupByLetter(books) {
 
 const PAGE_SIZE = 10;
 const MAX_COPIES = 999;
+
+// "Carregar mais" so existe quando ainda restam PAGE_SIZE livros ou mais. Se
+// sobrar menos que isso (ex.: mais 2 livros), eles vem junto com o bloco
+// anterior: nao vale um botao para duas linhas.
+function booksUrl(pageNumber, term, category) {
+  const params = new URLSearchParams({
+    page: String(pageNumber),
+    limit: String(PAGE_SIZE),
+  });
+  if (term.trim()) params.set("search", term.trim());
+  if (category) params.set("category", category);
+  return "/api/books?" + params.toString();
+}
 
 // Texto da situação do livro, considerando todas as unidades.
 function loanStatusText(book) {
@@ -105,33 +118,50 @@ export default function Books() {
   const [duplicateBook, setDuplicateBook] = useState(null);
   const minCopies = Math.max(1, loanedNow);
 
+  // So a resposta da ultima chamada vale: com a busca em andamento, respostas
+  // antigas que chegam atrasadas (e os dois pedidos do "resto") sao descartadas.
+  const requestRef = useRef(0);
+
   const loadPage = useCallback(
     async (pageToLoad, term, category) => {
+      const requestId = ++requestRef.current;
       const isFirstPage = pageToLoad === 1;
       if (isFirstPage) setLoading(true);
       else setLoadingMore(true);
 
       try {
-        const params = new URLSearchParams({
-          page: String(pageToLoad),
-          limit: String(PAGE_SIZE),
-        });
-        if (term.trim()) params.set("search", term.trim());
-        if (category) params.set("category", category);
+        let data = await api(booksUrl(pageToLoad, term, category));
+        if (requestId !== requestRef.current) return;
+        let received = data.items;
 
-        const data = await api("/api/books?" + params.toString());
+        // Restam menos que uma pagina inteira: busca o resto ja, para a lista
+        // aparecer completa de uma vez, sem botao.
+        const left = data.total - pageToLoad * PAGE_SIZE;
+        if (left > 0 && left < PAGE_SIZE) {
+          try {
+            const rest = await api(booksUrl(pageToLoad + 1, term, category));
+            if (requestId !== requestRef.current) return;
+            received = [...received, ...rest.items];
+            data = rest;
+          } catch {
+            // Os primeiros ja chegaram: se o resto falhar, o botao
+            // "Carregar mais" tenta de novo.
+            if (requestId !== requestRef.current) return;
+          }
+        }
 
-        setItems((prev) =>
-          isFirstPage ? data.items : [...prev, ...data.items],
-        );
+        setItems((prev) => (isFirstPage ? received : [...prev, ...received]));
         setTotal(data.total);
         setPage(data.page);
         setHasMore(data.hasMore);
       } catch (error) {
+        if (requestId !== requestRef.current) return;
         notify(error.message, "error");
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (requestId === requestRef.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     },
     [notify],
@@ -175,6 +205,11 @@ export default function Books() {
 
   const groups = useMemo(() => groupByLetter(items), [items]);
   const isFiltering = Boolean(search.trim() || categoryFilter);
+
+  // Quantos vem no proximo clique: um bloco de PAGE_SIZE ou, se o que sobra
+  // cabe em menos de dois blocos, tudo (ver booksUrl/loadPage).
+  const remaining = Math.max(0, total - items.length);
+  const nextCount = remaining < PAGE_SIZE * 2 ? remaining : PAGE_SIZE;
 
   function openCreate() {
     setForm(emptyForm);
@@ -461,7 +496,7 @@ export default function Books() {
             onClick={loadMore}
             disabled={loadingMore}
           >
-            {loadingMore ? "Carregando…" : "Carregar mais 10"}
+            {loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
           </button>
         </div>
       ) : null}

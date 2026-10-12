@@ -1,7 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { IconPause, IconPlay } from "./Icons.jsx";
 import {
-  BRANCH_PARTS,
   BRANCH_PIVOT_POINT,
   CLOSING_LINES,
   FIRST_PAGE,
@@ -15,6 +14,8 @@ import {
   SPREADS,
   TEXT,
   frameAt,
+  markPath,
+  rulePath,
 } from "../utils/welcomeAnimation.js";
 import {
   LOGO_BOOK,
@@ -25,9 +26,14 @@ import {
 /**
  * Animacao de boas-vindas ("da pagina ao galho"): a logo sobe, o livro dela
  * se abre e vem ate a tela; de perto, o texto surge na pagina e as folhas sao
- * viradas cada vez mais rapido; as linhas do texto viram um passaro de traco
- * unico, que voa para longe e pousa num galho, gira ate dar as costas, e uma
- * folha cai devagar. Fica repetindo enquanto estiver na tela.
+ * viradas cada vez mais rapido; as linhas do texto viram uma pomba esbocada a
+ * mao, que voa para longe, faz uma curva inclinada e pousa de costas num
+ * galho, e uma folha cai devagar. Fica repetindo enquanto estiver na tela.
+ *
+ * Tudo o que e "desenhado" (contorno do livro, galho, passaro) tem traco de
+ * esboco: tinta que afina nas pontas, segunda passada de lapis, linhas de
+ * construcao. (A versao anterior, com o passaro antigo, esta guardada em
+ * WelcomeSceneClassic.jsx.)
  *
  * O roteiro (o que desenhar em cada instante, e o texto das paginas) esta em
  * utils/welcomeAnimation.js; aqui so se aplica cada quadro no SVG, direto nos
@@ -48,6 +54,10 @@ const PIVOT = BRANCH_PIVOT_POINT[0] + " " + BRANCH_PIVOT_POINT[1];
 const MIDDLE_Y = (PAGE.top + PAGE.bottom) / 2;
 const LEAVES = [0, 1, 2]; // ate tres folhas no ar ao mesmo tempo
 const LAST = SPREADS.length - 1;
+// O marca-texto: ponta mais fina que a faixa (ela passa duas vezes).
+const MARK_STYLE = { strokeWidth: 4.9, strokeLinecap: "round", strokeLinejoin: "round" };
+// O lapis: linha fina e clara, por baixo da tinta.
+const PENCIL = { strokeWidth: 0.7, strokeLinecap: "round", strokeLinejoin: "round" };
 
 // O conteudo de uma pagina. "bind" guarda os elementos que a animacao mexe:
 // na primeira pagina ("first"), a capitular, as linhas e os grifos, que
@@ -82,21 +92,21 @@ function PageContent({ content, side, bind, first, last }) {
       <path
         ref={first ? bind("rule") : undefined}
         className="welcome-scene__rule"
-        d={"M" + left + " " + (PAGE.top + TEXT.head + 4.5) + "h" + TEXT.width}
+        strokeLinecap="round"
+        d={rulePath(left, PAGE.top + TEXT.head + 4.5, TEXT.width)}
       />
       {/* Os grifos ficam por baixo do texto, como marca-texto no papel. */}
       {marks.map(([row, from, to], index) => {
         const y = top + row * TEXT.leading - 2.2;
-        // Cada faixa sai um pouco torta, como grifo feito a mao.
-        const tilt = index % 2 ? 0.35 : -0.3;
+        // Grifo feito a mao: o marca-texto vai e volta, um pouco torto.
         return (
           <path
             key={index}
             ref={first ? bind("mark" + index) : undefined}
             className="welcome-scene__mark"
             stroke={color}
-            d={"M" + (startOf(row) + from).toFixed(1) + " " + (y - tilt).toFixed(2) +
-              "L" + (startOf(row) + to).toFixed(1) + " " + (y + tilt).toFixed(2)}
+            style={MARK_STYLE}
+            d={markPath(startOf(row) + from, startOf(row) + to, y, index)}
             pathLength="1"
             strokeDasharray="1"
             strokeDashoffset={first ? 1 : 0}
@@ -179,6 +189,9 @@ export default function WelcomeScene({ time = null }) {
         set("outline", "d", book.outline);
         // (Os tracos nao engrossam com a aproximacao.)
         set("outline", "stroke-width", (book.outlineWidth / camera.zoom).toFixed(3));
+        set("bookPencil", "d", book.pencil);
+        set("bookPencil", "opacity", book.pencilOpacity);
+        set("bookPencil", "stroke-width", (0.7 / camera.zoom).toFixed(3));
         set("spine", "stroke-width", (1.5 / camera.zoom).toFixed(3));
         set("spine", "opacity", book.spine);
         set("paper", "opacity", book.paper);
@@ -197,7 +210,11 @@ export default function WelcomeScene({ time = null }) {
           set("line" + i, "opacity", fade(0.18 + i * 0.04, 0.32 + i * 0.04));
         }
         for (let i = 0; i < FIRST_PAGE.marks; i += 1) {
-          set("mark" + i, "stroke-dashoffset", (1 - fade(0.66 + i * 0.07, 0.84 + i * 0.07)).toFixed(2));
+          // (Ainda nao comecado, o grifo fica escondido: com a ponta redonda,
+          // apareceria como uma bolinha.)
+          const marked = Number(fade(0.66 + i * 0.07, 0.84 + i * 0.07));
+          show("mark" + i, marked > 0);
+          set("mark" + i, "stroke-dashoffset", (1 - marked).toFixed(2));
         }
         for (let i = 0; i < CLOSING_LINES; i += 1) set("closing" + i, "opacity", book.closing);
 
@@ -220,17 +237,31 @@ export default function WelcomeScene({ time = null }) {
         });
       }
 
-      set("bird", "d", frame.bird);
-      set("bird", "stroke-width", frame.birdWidth);
-      set("bird", "opacity", frame.birdOpacity);
-      set("perch", "d", frame.perch);
-      set("perch", "opacity", frame.perchOpacity);
+      // O passaro: tinta (preenchida), lapis por baixo e, perto do galho, uma
+      // mancha da cor do papel que tapa o que esta atras do corpo.
+      const { bird, sketch } = frame;
+      set("birdInk", "d", bird.ink);
+      set("birdPencil", "d", bird.pencil);
+      set("birdPencil", "opacity", bird.pencilOpacity);
+      set("birdCover", "d", bird.coverOpacity > 0 ? bird.cover : "");
+      set("birdCover", "opacity", bird.coverOpacity);
+      set("bird", "opacity", bird.opacity);
+      // (Pousado, ele balanca junto com o galho.)
+      set("bird", "transform", "rotate(" + bird.swing + " " + PIVOT + ")");
+      set("guides", "d", sketch.guides);
+      set("guides", "opacity", sketch.guidesOpacity);
+      set("marks", "d", sketch.marks);
+      set("marks", "opacity", sketch.marksOpacity);
+      set("trail", "d", sketch.trail);
+      set("trail", "opacity", sketch.trailOpacity);
 
       show("nature", nature.visible);
       set("sky", "transform", "translate(0 " + nature.lift + ")");
       if (nature.visible) {
         set("branch", "transform", "rotate(" + nature.swing + " " + PIVOT + ")");
-        nature.parts.forEach((drawn, index) => trace("branch" + index, drawn));
+        set("branchInk", "d", nature.ink);
+        set("branchLines", "d", nature.lines);
+        set("branchPencil", "d", nature.pencil);
         const gold = nature.gold;
         trace("gold", gold.drawn);
         set("gold", "opacity", gold.opacity);
@@ -296,7 +327,7 @@ export default function WelcomeScene({ time = null }) {
         className="welcome-scene"
         viewBox={"0 0 " + SCENE.width + " " + SCENE.height}
         role="img"
-        aria-label="A logo da Biblioteca ADMP Brasil se abre num livro, que vem até a tela; as páginas, com trechos grifados sobre uma vida de leitura, são folheadas cada vez mais rápido; as linhas do texto viram um pássaro em traço único, que voa para longe e pousa num galho, de onde cai uma folha."
+        aria-label="A logo da Biblioteca ADMP Brasil se abre num livro, que vem até a tela; as páginas, com trechos grifados sobre uma vida de leitura, são folheadas cada vez mais rápido; as linhas do texto viram uma pomba desenhada a lápis, que voa para longe, faz uma curva e pousa num galho, de onde cai uma folha."
         fill="none"
       >
         <defs>
@@ -353,6 +384,7 @@ export default function WelcomeScene({ time = null }) {
               </g>
             ))}
           </g>
+          <path ref={bind("bookPencil")} className="welcome-scene__stroke" opacity="0" />
           <path ref={bind("outline")} className="welcome-scene__stroke" />
           <path ref={bind("spine")} className="welcome-scene__stroke" d={SPINE_PATH} strokeWidth="1.5" opacity="0" />
         </g>
@@ -360,30 +392,31 @@ export default function WelcomeScene({ time = null }) {
         {/* O "la fora": o galho, a folha e o passaro. Sobem juntos quando a
             logo do ciclo seguinte empurra a cena. */}
         <g ref={bind("sky")} className="welcome-scene__stroke">
+          {/* O que o lapis deixou no papel: as linhas de construcao do
+              passaro, os riscos de movimento e o rastro do voo. */}
+          <path ref={bind("guides")} {...PENCIL} opacity="0" />
+          <path ref={bind("marks")} {...PENCIL} strokeWidth="0.9" opacity="0" />
+          <path ref={bind("trail")} {...PENCIL} strokeDasharray="2.2 4.2" opacity="0" />
           <g ref={bind("nature")} display="none">
-          <g ref={bind("branch")} strokeWidth="1.7">
-            {BRANCH_PARTS.map((part, index) => (
-              <path
-                key={index}
-                ref={bind("branch" + index)}
-                d={part.d}
-                pathLength="1"
-                strokeDasharray="1"
-                strokeDashoffset="1"
-              />
-            ))}
+            <g ref={bind("branch")}>
+              <path ref={bind("branchPencil")} {...PENCIL} opacity="0.42" />
+              <path ref={bind("branchInk")} fill="currentColor" stroke="none" />
+              <path ref={bind("branchLines")} strokeWidth="1.1" />
+            </g>
+            <path
+              ref={bind("gold")}
+              className="welcome-scene__gold"
+              d={GOLD_LEAF.d}
+              pathLength="1"
+              strokeDasharray="1"
+              strokeDashoffset="1"
+            />
           </g>
-          <path
-            ref={bind("gold")}
-            className="welcome-scene__gold"
-            d={GOLD_LEAF.d}
-            pathLength="1"
-            strokeDasharray="1"
-            strokeDashoffset="1"
-          />
+          <g ref={bind("bird")}>
+            <path ref={bind("birdCover")} fill="var(--paper)" stroke="none" opacity="0" />
+            <path ref={bind("birdPencil")} {...PENCIL} />
+            <path ref={bind("birdInk")} fill="currentColor" stroke="none" />
           </g>
-          <path ref={bind("bird")} />
-          <path ref={bind("perch")} strokeWidth="1.7" />
         </g>
       </svg>
     </div>

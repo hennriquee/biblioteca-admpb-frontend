@@ -18,6 +18,21 @@ import { IconCheck, IconLoans, IconSearch } from "../components/Icons.jsx";
  */
 
 const PAGE_SIZE = 10;
+
+// "Carregar mais" so existe quando ainda restam PAGE_SIZE livros ou mais. Se
+// sobrar menos que isso (ex.: mais 2 livros), eles vem junto com o bloco
+// anterior: nao vale um botao para duas linhas.
+function booksUrl(pageNumber, term, categoryName, statusKey) {
+  const params = new URLSearchParams({
+    page: String(pageNumber),
+    limit: String(PAGE_SIZE),
+  });
+  if (term.trim()) params.set("search", term.trim());
+  if (categoryName) params.set("category", categoryName);
+  if (statusKey) params.set("status", statusKey);
+  return "/api/public/books?" + params.toString();
+}
+
 // Voltando para a aba depois deste tempo, a situacao dos livros e recarregada.
 const STALE_AFTER_MS = 60 * 1000;
 
@@ -205,20 +220,31 @@ export default function Catalog() {
       }
 
       try {
-        const params = new URLSearchParams({
-          page: String(pageToLoad),
-          limit: String(PAGE_SIZE),
-        });
-        if (term.trim()) params.set("search", term.trim());
-        if (categoryName) params.set("category", categoryName);
-        if (statusKey) params.set("status", statusKey);
-
-        const data = await publicApi("/api/public/books?" + params.toString());
-        if (requestId !== requestRef.current) return;
-
-        setItems((prev) =>
-          isFirstPage ? data.items : [...prev, ...data.items],
+        let data = await publicApi(
+          booksUrl(pageToLoad, term, categoryName, statusKey),
         );
+        if (requestId !== requestRef.current) return;
+        let received = data.items;
+
+        // Restam menos que uma pagina inteira: busca o resto ja, para a lista
+        // aparecer completa de uma vez, sem botao.
+        const left = data.total - pageToLoad * PAGE_SIZE;
+        if (left > 0 && left < PAGE_SIZE) {
+          try {
+            const rest = await publicApi(
+              booksUrl(pageToLoad + 1, term, categoryName, statusKey),
+            );
+            if (requestId !== requestRef.current) return;
+            received = [...received, ...rest.items];
+            data = rest;
+          } catch {
+            // Os primeiros ja chegaram: se o resto falhar, o botao
+            // "Carregar mais" tenta de novo.
+            if (requestId !== requestRef.current) return;
+          }
+        }
+
+        setItems((prev) => (isFirstPage ? received : [...prev, ...received]));
         setTotal(data.total);
         setPage(data.page);
         setHasMore(data.hasMore);
@@ -312,34 +338,36 @@ export default function Catalog() {
     setStatus("");
   }
 
-  let summary = "";
+  // Quantos vem no proximo clique: um bloco de PAGE_SIZE ou, se o que sobra
+  // cabe em menos de dois blocos, tudo (ver booksUrl/loadPage).
+  const remaining = Math.max(0, total - items.length);
+  const nextCount = remaining < PAGE_SIZE * 2 ? remaining : PAGE_SIZE;
+
+  // Os numeros do resumo vao em destaque; o resto fica em tom suave.
+  let summary = null;
   if (overview === undefined) {
     summary = "Carregando…";
   } else if (overview) {
     summary =
-      overview.titles === 0
-        ? "Nenhum livro cadastrado ainda"
-        : overview.titles +
-          (overview.titles === 1 ? " livro" : " livros") +
-          " · " +
-          overview.available +
-          (overview.available === 1 ? " disponível" : " disponíveis") +
-          " agora";
+      overview.titles === 0 ? (
+        "Nenhum livro cadastrado ainda"
+      ) : (
+        <>
+          <strong>{overview.titles}</strong>
+          {overview.titles === 1 ? " livro" : " livros"} ·{" "}
+          <strong>{overview.available}</strong>
+          {overview.available === 1 ? " disponível" : " disponíveis"} agora
+        </>
+      );
   }
 
   return (
     <div className="pub">
       <div className="pub__inner page">
-        {user ? (
-          <div className="pub__top">
-            <Link to="/" className="btn btn--ghost pub__admin">
-              Voltar ao painel
-            </Link>
-          </div>
-        ) : null}
-
-        {/* Logo centralizada sobre o titulo: a abertura da pagina. */}
-        <header className="pub__mast">
+        {/* Barra do topo: a logo pequena a esquerda (reabre as boas-vindas) e,
+            so para quem esta logado no painel, "Voltar ao painel" a direita.
+            Os dois tem a mesma altura e nenhum ganha destaque. */}
+        <div className="pub__bar">
           <button
             type="button"
             className="pub__logobtn"
@@ -352,10 +380,16 @@ export default function Catalog() {
               alt="Biblioteca ADMP Brasil: sobre a biblioteca"
             />
           </button>
-          <div className="pub__title">
-            <h1>Nossos livros</h1>
-            {summary ? <p className="page__sub">{summary}</p> : null}
-          </div>
+          {user ? (
+            <Link to="/" className="btn btn--ghost pub__admin">
+              Voltar ao painel
+            </Link>
+          ) : null}
+        </div>
+
+        <header className="pub__title">
+          <h1>Nossos livros</h1>
+          {summary ? <p className="page__sub">{summary}</p> : null}
         </header>
 
         <div className="pub__filters">
@@ -528,7 +562,7 @@ export default function Catalog() {
               }}
               disabled={loadingMore || loading}
             >
-              {loadingMore ? "Carregando…" : "Carregar mais " + PAGE_SIZE}
+              {loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
             </button>
           </div>
         ) : null}
