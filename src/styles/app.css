@@ -880,6 +880,31 @@ html[data-app="catalogo"] #root:empty {
   overflow-wrap: anywhere;
 }
 
+/* Botao de acao dentro do grid de dados (ex.: "Avisar no WhatsApp" na celula
+   que sobra ao lado de "Situacao"): alinhado pelo pe da linha. */
+.detail__data .detail__action {
+  align-self: end;
+}
+/* A celula e metade da largura do modal: padding lateral menor para o texto
+   caber em uma linha no celular (em telas muito estreitas ele quebra). */
+.detail__action .btn {
+  padding-inline: 8px;
+}
+
+/* Rodape do modal de emprestimo: "Fechar" de um lado, a acao principal do
+   outro. Sozinho (emprestimo devolvido), o "Fechar" fica na direita, como nos
+   outros modais. */
+.detail__foot {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.detail__foot > :only-child {
+  margin-left: auto;
+}
+
 .detail__synopsis {
   width: 100%;
   display: flex;

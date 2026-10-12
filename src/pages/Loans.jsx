@@ -270,7 +270,7 @@ export default function Loans() {
         onClose={() => setSelected(null)}
         title="Detalhes do empréstimo"
         footer={
-          <>
+          <div className="detail__foot">
             <button
               type="button"
               className="btn btn--ghost"
@@ -278,15 +278,6 @@ export default function Loans() {
             >
               Fechar
             </button>
-            {selected?.status === "ativo" && selected?.personPhone ? (
-              <button
-                type="button"
-                className="btn btn--whatsapp"
-                onClick={openWhatsapp}
-              >
-                Avisar no WhatsApp
-              </button>
-            ) : null}
             {selected?.status === "ativo" ? (
               <button
                 type="button"
@@ -298,7 +289,7 @@ export default function Loans() {
                 {returning ? "Confirmando…" : "Confirmar devolução"}
               </button>
             ) : null}
-          </>
+          </div>
         }
       >
         {selected ? (
@@ -354,6 +345,21 @@ export default function Loans() {
                       : "Em dia"}
                 </dd>
               </div>
+              {/* Ocupa a celula que sobra ao lado de "Situacao". */}
+              {selected.status === "ativo" && selected.personPhone ? (
+                <div className="detail__action">
+                  <dt className="sr-only">Aviso</dt>
+                  <dd>
+                    <button
+                      type="button"
+                      className="btn btn--whatsapp btn--block"
+                      onClick={openWhatsapp}
+                    >
+                      Avisar no WhatsApp
+                    </button>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
             {selected.notes ? (
               <div className="detail__synopsis">
