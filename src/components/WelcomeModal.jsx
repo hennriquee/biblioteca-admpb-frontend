@@ -16,6 +16,7 @@ export default function WelcomeModal({ open, onClose }) {
       onClose={onClose}
       title="Boas-vindas!"
       closeOnBackdrop={false}
+      variant="hero"
       footer={
         <button
           type="button"
@@ -31,6 +32,7 @@ export default function WelcomeModal({ open, onClose }) {
           <WelcomeScene />
         </div>
         <div className="welcome__text">
+          <h2 className="welcome__title">Boas-vindas!</h2>
           <p className="welcome__lead">Esta é a biblioteca da ADMP Brasil.</p>
           <p>
             Nosso propósito é que cada membro cultive uma vida de leitura:

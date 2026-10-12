@@ -330,7 +330,16 @@ export default function Catalog() {
   return (
     <div className="pub">
       <div className="pub__inner page">
-        <header className="pub__top">
+        {user ? (
+          <div className="pub__top">
+            <Link to="/" className="btn btn--ghost pub__admin">
+              Voltar ao painel
+            </Link>
+          </div>
+        ) : null}
+
+        {/* Logo centralizada sobre o titulo: a abertura da pagina. */}
+        <header className="pub__mast">
           <button
             type="button"
             className="pub__logobtn"
@@ -343,19 +352,11 @@ export default function Catalog() {
               alt="Biblioteca ADMP Brasil: sobre a biblioteca"
             />
           </button>
-          {user ? (
-            <Link to="/" className="btn btn--ghost pub__admin">
-              Voltar ao painel
-            </Link>
-          ) : null}
-        </header>
-
-        <div className="page__head">
-          <div>
-            <h1>Acervo da biblioteca</h1>
+          <div className="pub__title">
+            <h1>Nossos livros</h1>
             {summary ? <p className="page__sub">{summary}</p> : null}
           </div>
-        </div>
+        </header>
 
         <div className="pub__filters">
           <div className="searchbar">
@@ -552,6 +553,7 @@ export default function Catalog() {
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         title={selected?.title || ""}
+        variant="pub"
       >
         {selected ? (
           <div className="detail">

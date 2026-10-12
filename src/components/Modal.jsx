@@ -13,6 +13,9 @@ export default function Modal({
   footer,
   size = "md",
   closeOnBackdrop = true,
+  // "pub": titulo maior, para os modais do acervo publico. "hero": sem
+  // cabecalho; o titulo fica no conteudo e o "x" flutua sobre o topo.
+  variant = "default",
 }) {
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -85,24 +88,48 @@ export default function Modal({
       }
     >
       <div
-        className={"modal modal--" + size}
+        className={
+          "modal modal--" + size + (variant === "default" ? "" : " modal--" + variant)
+        }
         role="dialog"
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
         ref={panelRef}
       >
-        <header className="modal__head">
-          <h2>{title}</h2>
+        {variant === "hero" ? (
+          // Primeiro filho do painel: continua sendo o primeiro do Tab.
           <button
             type="button"
-            className="icon-button"
+            className="icon-button modal__close"
             onClick={onClose}
             aria-label="Fechar"
           >
             <IconClose width={20} height={20} />
           </button>
-        </header>
+        ) : (
+          <header className="modal__head">
+            {/* Titulo longo (nome de livro) ganha um tamanho menor, para nao
+                tomar o modal inteiro. */}
+            <h2
+              className={
+                variant === "pub" && String(title).length > 60
+                  ? "is-long"
+                  : undefined
+              }
+            >
+              {title}
+            </h2>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onClose}
+              aria-label="Fechar"
+            >
+              <IconClose width={20} height={20} />
+            </button>
+          </header>
+        )}
         <div className="modal__body">{children}</div>
         {footer ? <footer className="modal__foot">{footer}</footer> : null}
       </div>
