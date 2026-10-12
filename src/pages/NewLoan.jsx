@@ -5,9 +5,22 @@ import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
 import { IconSearch, IconClose } from "../components/Icons.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import { isValidPhoneNumber } from "libphonenumber-js";
+
+// O servidor monta o aviso ("Fulana ja esta com Tal Livro.") com o titulo como
+// foi salvo; aqui cada titulo e trocado pela versao no padrao do app.
+function warningText(warning) {
+  let text = warning?.error || "";
+  (warning?.activeLoans || []).forEach((loan) => {
+    if (loan.bookTitle) {
+      text = text.replace(loan.bookTitle, () => formatBookTitle(loan.bookTitle));
+    }
+  });
+  return text;
+}
 
 export default function NewLoan() {
   const navigate = useNavigate();
@@ -143,7 +156,9 @@ export default function NewLoan() {
             <div className="picked">
               <BookCover src={book.cover} alt="" className="cover--sm" />
               <div>
-                <strong>{book.title}</strong>
+                <strong title={formatBookTitle(book.title)}>
+                  {formatBookTitle(book.title)}
+                </strong>
                 <small title={(book.authors || []).join(", ") || undefined}>
                   {book.isbn || (book.authors || []).join(", ")}
                 </small>
@@ -191,7 +206,9 @@ export default function NewLoan() {
                           className="cover--xs"
                         />
                         <span>
-                          <strong>{item.title}</strong>
+                          <strong title={formatBookTitle(item.title)}>
+                            {formatBookTitle(item.title)}
+                          </strong>
                           <small title={(item.authors || []).join(", ") || undefined}>
                             {(item.authors || []).join(", ") ||
                               item.isbn ||
@@ -334,9 +351,7 @@ export default function NewLoan() {
       <Confirm
         open={Boolean(warning)}
         title="Essa pessoa já tem um livro"
-        message={
-          (warning?.error || "") + " Tem certeza que quer emprestar outro?"
-        }
+        message={warningText(warning) + " Tem certeza que quer emprestar outro?"}
         confirmLabel="Sim, emprestar"
         onCancel={() => setWarning(null)}
         onConfirm={() => {

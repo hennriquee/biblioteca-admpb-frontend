@@ -8,6 +8,7 @@ import CategoryPicker from "../components/CategoryPicker.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import { IconCheck, IconLoans, IconSearch } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
 
 /**
  * Acervo PUBLICO (/catalogo): a unica tela que abre sem login.
@@ -505,6 +506,7 @@ export default function Catalog() {
                   {letterItems.map((book) => {
                     const info = availabilityOf(book);
                     const authors = book.authors.join(", ");
+                    const bookTitle = formatBookTitle(book.title);
                     return (
                       <li key={book.id}>
                         <button
@@ -514,11 +516,11 @@ export default function Catalog() {
                         >
                           <BookCover
                             src={book.cover}
-                            alt={"Capa de " + book.title}
+                            alt={"Capa de " + bookTitle}
                             className="cover--sm"
                           />
                           <span className="bookrow__text">
-                            <strong title={book.title}>{book.title}</strong>
+                            <strong title={bookTitle}>{bookTitle}</strong>
                             <small className="bookrow__meta">
                               <span
                                 className="bookrow__authors"
@@ -590,14 +592,14 @@ export default function Catalog() {
       <Modal
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected?.title || ""}
+        title={formatBookTitle(selected?.title)}
         variant="pub"
       >
         {selected ? (
           <div className="detail">
             <BookCover
               src={selected.cover}
-              alt={"Capa de " + selected.title}
+              alt={"Capa de " + formatBookTitle(selected.title)}
               className="cover--lg"
             />
             <dl className="detail__data">

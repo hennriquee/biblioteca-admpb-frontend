@@ -1,5 +1,6 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { formatLongDate, loanProgress } from "./dates.js";
+import { formatBookTitle } from "./bookTitle.js";
 
 // Mostra o numero salvo (so digitos com DDI) de forma legivel:
 // 5534997885466 -> +55 34 99788-5466
@@ -20,7 +21,7 @@ export function reminderKind(loan) {
 
 export function buildMessage(loan) {
   const first = String(loan.personName || "").split(" ")[0];
-  const book = '"' + loan.bookTitle + '"';
+  const book = '"' + formatBookTitle(loan.bookTitle) + '"';
   const kind = reminderKind(loan);
 
   if (kind === "late") {

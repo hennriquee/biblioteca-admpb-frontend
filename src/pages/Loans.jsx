@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
 import { IconPlus, IconSearch, IconCheck } from "../components/Icons.jsx";
 import {
   formatStoredPhone,
@@ -14,6 +15,7 @@ import {
 
 function LoanCard({ loan, onOpen }) {
   const isReturned = loan.status === "devolvido";
+  const bookTitle = formatBookTitle(loan.bookTitle);
   const { percent, daysWith, daysLeft, overdue, openEnded } = loanProgress(
     loan.startDate,
     loan.dueDate,
@@ -42,13 +44,13 @@ function LoanCard({ loan, onOpen }) {
 
         <BookCover
           src={loan.bookCover}
-          alt={"Capa de " + loan.bookTitle}
+          alt={"Capa de " + bookTitle}
           className="cover--sm"
         />
 
         <div className="loancard__body">
           <div className="loancard__top">
-            <strong>{loan.bookTitle}</strong>
+            <strong title={bookTitle}>{bookTitle}</strong>
           </div>
 
           <p className="loancard__person">
@@ -303,10 +305,12 @@ export default function Loans() {
           <div className="detail">
             <BookCover
               src={selected.bookCover}
-              alt={"Capa de " + selected.bookTitle}
+              alt={"Capa de " + formatBookTitle(selected.bookTitle)}
               className="cover--lg"
             />
-            <h3 className="detail__title">{selected.bookTitle}</h3>
+            <h3 className="detail__title">
+              {formatBookTitle(selected.bookTitle)}
+            </h3>
             <dl className="detail__data">
               <div>
                 <dt>Com quem está</dt>

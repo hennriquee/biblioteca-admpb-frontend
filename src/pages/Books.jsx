@@ -8,6 +8,7 @@ import CoverSearchModal from "../components/CoverSearchModal.jsx";
 import CoverPicker from "../components/CoverPicker.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import { findCategory } from "../utils/categories.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
   IconPlus,
@@ -451,11 +452,13 @@ export default function Books() {
                 >
                   <BookCover
                     src={book.cover}
-                    alt={"Capa de " + book.title}
+                    alt={"Capa de " + formatBookTitle(book.title)}
                     className="cover--sm"
                   />
                   <span className="bookrow__text">
-                    <strong title={book.title}>{book.title}</strong>
+                    <strong title={formatBookTitle(book.title)}>
+                      {formatBookTitle(book.title)}
+                    </strong>
                     <small className="bookrow__meta">
                       <span
                         className="bookrow__authors"
@@ -505,7 +508,7 @@ export default function Books() {
       <Modal
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected?.title || ""}
+        title={formatBookTitle(selected?.title)}
         footer={
           <>
             <button
@@ -531,7 +534,7 @@ export default function Books() {
           <div className="detail">
             <BookCover
               src={selected.cover}
-              alt={"Capa de " + selected.title}
+              alt={"Capa de " + formatBookTitle(selected.title)}
               className="cover--lg"
             />
             <dl className="detail__data">
@@ -854,7 +857,7 @@ export default function Books() {
         title="Esse livro já está no acervo"
         message={
           '"' +
-          (duplicateBook?.title || "") +
+          formatBookTitle(duplicateBook?.title) +
           '" já está cadastrado (quantidade: ' +
           (duplicateBook?.copies || 1) +
           "). Quer alterar a quantidade?"
@@ -873,7 +876,7 @@ export default function Books() {
         title="Excluir livro"
         message={
           'Excluir "' +
-          (confirmDelete?.title || "") +
+          formatBookTitle(confirmDelete?.title) +
           '" do acervo? Essa ação não tem volta.'
         }
         confirmLabel="Excluir"
