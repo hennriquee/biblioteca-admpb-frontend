@@ -1029,8 +1029,28 @@ select {
   border-radius: inherit;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
   background-image:
-    linear-gradient(to right, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.35) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.35) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px), transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.35) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.35) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
-    linear-gradient(to bottom, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.35) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.35) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px), transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.35) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.35) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
+    linear-gradient(
+      to right,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.35) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    );
 }
 .cropper__zoom {
   display: flex;
@@ -1553,7 +1573,7 @@ select {
     display: block;
   }
 
-        .content {
+  .content {
     padding: 32px 24px 60px;
   }
 
@@ -1584,7 +1604,6 @@ select {
     bottom: 24px;
   }
 }
-
 
 /* ---------- WhatsApp ---------- */
 .field__hint {
@@ -1700,7 +1719,6 @@ select {
   font-size: 0.88rem;
 }
 
-
 /* ---------- Navegacao estilo app (sem barra de menu) ---------- */
 .backlink {
   display: inline-flex;
@@ -1713,7 +1731,9 @@ select {
   font-size: 0.92rem;
   font-weight: 500;
   color: var(--ink-soft);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .backlink:hover {
   background: var(--surface-sunk);
@@ -1800,7 +1820,6 @@ select {
   }
 }
 
-
 /* ---------- Barra de abas (so no celular) ---------- */
 .tabbar {
   position: fixed;
@@ -1843,7 +1862,9 @@ select {
 a.stat {
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 a.stat:hover {
   border-color: var(--clay);
@@ -1892,7 +1913,6 @@ a.stat:active {
     grid-area: text;
   }
 }
-
 
 /* ---------- Campos de busca: "x" para limpar no estilo do app ---------- */
 /* Troca o "x" padrao do navegador por um fino e marrom (cor --clay). */
@@ -1986,7 +2006,6 @@ a.stat:active {
     transform: scale(0.985);
   }
 }
-
 
 /* ---------- Selo "parcial" (algumas unidades emprestadas) ---------- */
 .chip--part {
@@ -2540,6 +2559,7 @@ a.stat:active {
   color: var(--ink-soft);
   font-size: 0.95rem;
   line-height: 1.6;
+  justify-content: start;
 }
 .welcome__title {
   font-size: clamp(1.9rem, 1.45rem + 2vw, 2.5rem);
