@@ -675,24 +675,10 @@ html[data-app="catalogo"] #root:empty {
 /* Tagzinha de status no canto superior direito do card.
    Tamanho fixo em px/rem: nao cresce nem quebra em telas grandes ou pequenas,
    o titulo e que reserva espaco pra ela (ver .loancard__top). */
-/* O grupo do canto: a tag de situacao e, quando a pessoa e da equipe, o selo
-   "admin". Os dois ficam na mesma altura, lado a lado. */
-.loancard__tags {
+.loancard__tag {
   position: absolute;
   top: 10px;
   right: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-/* O selo "admin" entra no grupo com a mesma medida da tag de situacao. */
-.loancard__tags .chip {
-  font-size: 0.62rem;
-  letter-spacing: 0.03em;
-  line-height: 1;
-  padding: 4px 8px;
-}
-.loancard__tag {
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -724,11 +710,6 @@ html[data-app="catalogo"] #root:empty {
   /* Espaco reservado pra tagzinha nao ficar por cima do titulo,
      em nenhuma largura de tela. */
   padding-right: 92px;
-}
-/* Com o selo "admin" ao lado da tag de situacao, o canto ocupa mais: o titulo
-   recua na mesma medida (e vira "..." antes de encostar nos selos). */
-.loancard__top--two-tags {
-  padding-right: 152px;
 }
 /* Titulo numa linha so; o que nao cabe vira "...". O min-width: 0 deixa o
    texto encolher dentro do flex em vez de empurrar o card para os lados. */

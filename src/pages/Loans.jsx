@@ -63,20 +63,13 @@ function LoanCard({ loan, onOpen }) {
         }
         onClick={() => onOpen(loan)}
       >
-        {/* Canto superior direito: a situacao do emprestimo e, quando for o
-            caso, o selo de quem pegou o livro ser da equipe. */}
-        <span className="loancard__tags">
-          {loan.personIsAdmin ? (
-            <span className="chip chip--admin">admin</span>
-          ) : null}
-          <span
-            className={
-              "loancard__tag " +
-              (isReturned ? "loancard__tag--returned" : "loancard__tag--active")
-            }
-          >
-            {isReturned ? "Devolvido" : "Em andamento"}
-          </span>
+        <span
+          className={
+            "loancard__tag " +
+            (isReturned ? "loancard__tag--returned" : "loancard__tag--active")
+          }
+        >
+          {isReturned ? "Devolvido" : "Em andamento"}
         </span>
 
         <BookCover
@@ -86,12 +79,7 @@ function LoanCard({ loan, onOpen }) {
         />
 
         <div className="loancard__body">
-          <div
-            className={
-              "loancard__top" +
-              (loan.personIsAdmin ? " loancard__top--two-tags" : "")
-            }
-          >
+          <div className="loancard__top">
             <strong title={bookTitle}>{bookTitle}</strong>
           </div>
 
