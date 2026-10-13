@@ -11,18 +11,35 @@ import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
 import Admins from './pages/Admins.jsx';
 import People from './pages/People.jsx';
+import DevConsole from './pages/DevConsole.jsx';
 
+function Booting() {
+  return (
+    <div className="boot">
+      <img src="/img/logo-admpb-fire.png" alt="" width="52" height="52" />
+      <span>Abrindo a biblioteca…</span>
+    </div>
+  );
+}
+
+// Painel da biblioteca: so para quem entrou com conta de administrador. Quem
+// entrou pelo login de manutencao nao administra o acervo - vai direto para a
+// tela dele (ver pages/DevConsole.jsx).
 function Protected({ children }) {
   const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="boot">
-        <img src="/img/logo-admpb-fire.png" alt="" width="52" height="52" />
-        <span>Abrindo a biblioteca…</span>
-      </div>
-    );
-  }
+  if (loading) return <Booting />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'dev') return <Navigate to="/manutencao" replace />;
+  return children;
+}
+
+// Tela de manutencao: so a sessao do login reservado. Administrador que
+// digitar o endereco na mao volta para o painel.
+function DevOnly({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <Booting />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'dev') return <Navigate to="/" replace />;
   return children;
 }
 
@@ -41,6 +58,16 @@ export default function App() {
       {/* Unica tela aberta ao publico: fica de fora do Protected e do Layout
           do admin. Toda rota nova de admin deve ficar DENTRO do Protected. */}
       <Route path="/catalogo" element={<Catalog />} />
+      {/* Manutencao: fora do Layout do painel (sem abas nem engrenagem), porque
+          esta sessao nao cuida de livro nem de emprestimo. */}
+      <Route
+        path="/manutencao"
+        element={
+          <DevOnly>
+            <DevConsole />
+          </DevOnly>
+        }
+      />
       <Route
         element={
           <Protected>

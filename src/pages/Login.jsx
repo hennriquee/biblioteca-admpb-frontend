@@ -13,18 +13,30 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // A partir da 3a tentativa errada, a tela sugere falar com o suporte: pode
+  // ser senha esquecida, caps lock, conta desativada etc.
+  const [failCount, setFailCount] = useState(0);
 
-  if (!loading && user) return <Navigate to="/" replace />;
+  // Para onde a sessao leva: o painel da biblioteca ou, no caso do login
+  // reservado, a tela de manutencao (ver backend/src/services/devAccess.js).
+  const homeFor = (session) =>
+    session?.role === "dev" ? "/manutencao" : "/";
+
+  if (!loading && user) return <Navigate to={homeFor(user)} replace />;
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
     setSubmitting(true);
     try {
-      await login(username.trim(), password);
-      navigate("/", { replace: true });
+      const session = await login(username.trim(), password);
+      navigate(homeFor(session), { replace: true });
     } catch (err) {
       setError(err.message || "Não foi possível entrar.");
+      // So conta como tentativa de senha errada quando o servidor realmente
+      // recusou as credenciais (401) - falha de rede/servidor acordando nao
+      // deve empurrar a pessoa para o aviso de "fale com o desenvolvedor".
+      if (err.status === 401) setFailCount((count) => count + 1);
     } finally {
       setSubmitting(false);
     }
@@ -81,6 +93,12 @@ export default function Login() {
                 )}
               </button>
             </div>
+            {failCount >= 3 ? (
+              <small className="field__hint">
+                Em caso de problemas com senha, contate um de nossos
+                desenvolvedores.
+              </small>
+            ) : null}
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}

@@ -14,6 +14,7 @@ import { useBookList } from "../hooks/useBookList.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
+  IconCrown,
   IconPlus,
   IconSearch,
   IconEdit,
@@ -412,11 +413,28 @@ export default function Books() {
                       className="bookrow"
                       onClick={() => setSelected(book)}
                     >
-                      <BookCover
-                        src={book.cover}
-                        alt={"Capa de " + formatBookTitle(book.title)}
-                        className="cover--sm"
-                      />
+                      {/* A coroinha do livro mais emprestado fica em cima
+                          da capa. Sai de "mostLoanedId", que olha o acervo
+                          inteiro: com empate no primeiro lugar, ninguem a
+                          recebe. */}
+                      <span className="crowned">
+                        <BookCover
+                          src={book.cover}
+                          alt={"Capa de " + formatBookTitle(book.title)}
+                          className="cover--sm"
+                        />
+                        {list.mostLoanedId === book._id ? (
+                          <span
+                            className="crowned__crown"
+                            title="O livro mais emprestado do acervo"
+                          >
+                            <IconCrown width={15} height={15} />
+                            <span className="sr-only">
+                              O livro mais emprestado do acervo
+                            </span>
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="bookrow__text">
                         <strong title={formatBookTitle(book.title)}>
                           {formatBookTitle(book.title)}
@@ -539,6 +557,18 @@ export default function Books() {
               <div>
                 <dt>Situação</dt>
                 <dd>{loanStatusText(selected)}</dd>
+              </div>
+              <div>
+                <dt>Vezes emprestado</dt>
+                <dd>
+                  {selected.loansTotal || 0}
+                  {list.mostLoanedId === selected._id ? (
+                    <span className="detail__crown">
+                      <IconCrown width={15} height={15} />
+                      mais emprestado
+                    </span>
+                  ) : null}
+                </dd>
               </div>
             </dl>
             {selected.synopsis ? (

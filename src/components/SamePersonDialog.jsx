@@ -1,4 +1,5 @@
 import Modal from "./Modal.jsx";
+import Avatar from "./Avatar.jsx";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 
 /**
@@ -8,8 +9,11 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  * e quem no sistema e o REGISTRO da pessoa (o numero #1, #2, #3...), nunca o
  * nome: por isso a escolha e explicita aqui, em vez de o sistema adivinhar.
  *
+ * Cada candidata aparece com a foto de perfil (ou as iniciais do nome): numa
+ * escolha entre duas pessoas de nome igual, o rosto e o que resolve.
+ *
  * Props:
- *  - warning: { error, people: [{ _id, code, fullName, phone }] } (do servidor)
+ *  - warning: { error, people: [{ _id, code, fullName, phone, photo }] }
  *  - onUsePerson(person): e essa pessoa mesmo
  *  - onCreateNew(): e outra pessoa, de nome igual - cadastrar separada
  *  - onCancel(): voltar e corrigir o nome
@@ -54,6 +58,7 @@ export default function SamePersonDialog({
               className="combo__item pickperson__item"
               onClick={() => onUsePerson(person)}
             >
+              <Avatar src={person.photo} name={person.fullName} size={36} />
               <span>
                 <strong>
                   {(person.code ? "#" + person.code + " " : "") +

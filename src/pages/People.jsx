@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import Avatar from "../components/Avatar.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
+import PhotoPicker from "../components/PhotoPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import { IconEdit, IconPlus, IconSearch, IconTrash } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
@@ -12,7 +14,7 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
- * Usuarios: quem pega livros emprestados (Configuracoes > Usuarios).
+ * Usuarios: as pessoas do cadastro (Configuracoes > Usuarios).
  *
  * Cada pessoa tem um NUMERO (#1, #2, #3...) que e o que a identifica no
  * sistema - nao o nome nem o telefone, que podem repetir e podem mudar. E por
@@ -21,9 +23,30 @@ import { isValidPhoneNumber } from "libphonenumber-js";
  *    andamento passa a avisar no numero novo);
  *  - duas pessoas de nome igual convivem, cada uma com o seu numero;
  *  - duas pessoas podem dividir o mesmo WhatsApp (familia), com aviso.
+ *
+ * A lista vem na ordem do numero (#1, #2, #3...), que e a ordem em que as
+ * pessoas entraram no cadastro.
+ *
+ * TODA pessoa tem os mesmos campos de um administrador, foto de perfil
+ * inclusive: administrador e so uma pessoa que tambem tem login e senha. Sem
+ * foto, o app mostra as iniciais do nome.
+ *
+ * Quem tem o selo "admin" aqui so e editado pela propria pessoa, em
+ * Configuracoes > Administradores (o servidor recusa o resto). Dar ou tirar o
+ * acesso ao painel e so na tela de manutencao.
  */
 
-const emptyForm = { fullName: "", phone: "" };
+// Quanto a tela baixa de uma vez (o servidor nao manda mais que isso num
+// pedido). A busca roda aqui no navegador, sobre essa lista.
+const PAGE_LIMIT = 1000;
+
+const emptyForm = {
+  fullName: "",
+  phone: "",
+  photo: "", // data URI de uma foto nova, ainda nao enviada
+  savedPhoto: "", // foto que ja esta salva
+  removePhoto: false,
+};
 
 function matchesPerson(person, term) {
   if (!term) return true;
@@ -39,6 +62,7 @@ function matchesPerson(person, term) {
 
 export default function People() {
   const { notify } = useToast();
+  const { user } = useAuth();
 
   // null = ainda carregando a lista (a tela mostra o esqueleto).
   const [people, setPeople] = useState(null);
@@ -62,7 +86,8 @@ export default function People() {
     const requestId = ++requestRef.current;
     setRefreshing(true);
     try {
-      const data = await api("/api/people?limit=500");
+      // sort=code: a lista sai na ordem dos numeros (#1, #2, #3...).
+      const data = await api("/api/people?limit=" + PAGE_LIMIT + "&sort=code");
       if (requestId !== requestRef.current) return;
       setPeople(data);
       setError("");
@@ -84,16 +109,24 @@ export default function People() {
     [people, term],
   );
 
+  // Ficha de outro administrador: quem edita e a propria pessoa, na tela de
+  // administradores. (A trava de verdade esta no servidor; aqui e so para nao
+  // oferecer um botao que vai dar erro.)
+  const isLocked = (person) =>
+    person.isAdmin && String(person._id) !== String(user?.id);
+
   function openCreate() {
     setForm({ ...emptyForm });
   }
 
   function openEdit(person) {
     setForm({
+      ...emptyForm,
       _id: person._id,
       code: person.code,
       fullName: person.fullName,
       phone: person.phone || "",
+      savedPhoto: person.photo || "",
     });
   }
 
@@ -117,6 +150,9 @@ export default function People() {
         phone: form.phone,
         force: Boolean(force),
       };
+      if (form.photo) body.photo = form.photo;
+      if (form.removePhoto) body.removePhoto = true;
+
       if (form._id) {
         await api("/api/people/" + form._id, { method: "PUT", body });
         notify("Cadastro atualizado.", "success");
@@ -156,6 +192,12 @@ export default function People() {
     }
   }
 
+  const photoNow = form
+    ? form.removePhoto
+      ? ""
+      : form.photo || form.savedPhoto
+    : "";
+
   return (
     <div className="page">
       <div className="page__head">
@@ -182,7 +224,7 @@ export default function People() {
       <p className="muted">
         Quem pega livros emprestados. O número (#1, #2…) é o que identifica cada
         pessoa: dois nomes iguais podem existir, e trocar de WhatsApp é só
-        editar aqui.
+        editar aqui. A lista segue a ordem dos números.
       </p>
 
       <div className="searchbar">
@@ -211,6 +253,16 @@ export default function People() {
       {people !== null && error ? (
         <p className="form-error" role="alert">
           {error}
+        </p>
+      ) : null}
+
+      {/* Cadastro maior que o que cabe num pedido: melhor dizer do que deixar
+          a conta da tela mentir. (Com o acervo de uma biblioteca de igreja
+          isso nao deve acontecer.) */}
+      {people !== null && people.length >= PAGE_LIMIT ? (
+        <p className="muted" role="status">
+          Mostrando as primeiras {PAGE_LIMIT} pessoas, na ordem dos números. Use
+          a busca para encontrar quem está depois delas.
         </p>
       ) : null}
 
@@ -249,24 +301,32 @@ export default function People() {
                 </small>
               </span>
               <span className="personrow__actions">
-                <button
-                  type="button"
-                  className="icon-button"
-                  title={"Editar " + person.fullName}
-                  onClick={() => openEdit(person)}
-                >
-                  <IconEdit width={18} height={18} />
-                  <span className="sr-only">Editar</span>
-                </button>
-                <button
-                  type="button"
-                  className="icon-button icon-button--danger"
-                  title={"Excluir " + person.fullName}
-                  onClick={() => setConfirmDelete(person)}
-                >
-                  <IconTrash width={18} height={18} />
-                  <span className="sr-only">Excluir</span>
-                </button>
+                {isLocked(person) ? (
+                  <small className="personrow__locked">
+                    só a própria pessoa edita
+                  </small>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title={"Editar " + person.fullName}
+                      onClick={() => openEdit(person)}
+                    >
+                      <IconEdit width={18} height={18} />
+                      <span className="sr-only">Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--danger"
+                      title={"Excluir " + person.fullName}
+                      onClick={() => setConfirmDelete(person)}
+                    >
+                      <IconTrash width={18} height={18} />
+                      <span className="sr-only">Excluir</span>
+                    </button>
+                  </>
+                )}
               </span>
             </li>
           ))}
@@ -294,7 +354,7 @@ export default function People() {
               className="btn btn--primary"
               disabled={saving}
             >
-              {saving ? "Salvando…" : "Salvar"}
+              {saving ? (form?.photo ? "Enviando foto…" : "Salvando…") : "Salvar"}
             </button>
           </>
         }
@@ -308,6 +368,18 @@ export default function People() {
               save(false);
             }}
           >
+            <PhotoPicker
+              src={photoNow}
+              name={form.fullName}
+              notify={notify}
+              onPhoto={(dataUri) =>
+                setForm((f) => ({ ...f, photo: dataUri, removePhoto: false }))
+              }
+              onRemove={() =>
+                setForm((f) => ({ ...f, photo: "", removePhoto: true }))
+              }
+            />
+
             <label className="field">
               <span>Nome completo</span>
               <input

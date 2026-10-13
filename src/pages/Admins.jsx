@@ -7,44 +7,26 @@ import Confirm from "../components/Confirm.jsx";
 import Avatar from "../components/Avatar.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import PhotoPicker from "../components/PhotoPicker.jsx";
-import SamePersonDialog from "../components/SamePersonDialog.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
-import {
-  IconEdit,
-  IconEye,
-  IconEyeOff,
-  IconPlus,
-  IconTrash,
-} from "../components/Icons.jsx";
+import { IconEdit, IconEye, IconEyeOff } from "../components/Icons.jsx";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
  * Administradores: quem entra no painel (Configuracoes > Administradores).
  *
- * O nome e o telefone do administrador sao os da PESSOA ligada a conta - a
- * mesma pessoa que pode pegar um livro emprestado. Por isso o numero que
- * aparece aqui (#1, #2...) e o mesmo da tela Usuarios, e um emprestimo feito
- * para ela ganha o selo "admin".
+ * AQUI SO SE EDITA A PROPRIA CONTA: nome, WhatsApp, foto, usuario e senha. A
+ * lista dos outros e so para ver quem e a equipe.
  *
- * Todo administrador pode cadastrar, editar e excluir administradores (numa
- * biblioteca de igreja sao poucas pessoas, todas de confianca, e alguem precisa
- * poder socorrer quem esqueceu a senha). Ninguem exclui a propria conta e a
- * ultima conta nao pode ser excluida.
+ * Criar administrador, desfazer administrador e trocar a senha de outra pessoa
+ * nao se faz no painel, de proposito: isso e da tela de manutencao, aberta
+ * pelo login reservado. Assim nenhum administrador pode se promover, se
+ * blindar ou tirar o acesso de outro.
  *
- * A foto fica no Cloudinary pelo mesmo caminho da capa de livro: ao trocar ou
- * remover, o servidor apaga a antiga de la.
+ * Administrador e so uma pessoa do cadastro que tambem tem login e senha: o
+ * numero que aparece aqui (#1, #2...) e o mesmo da tela Usuarios, e um
+ * emprestimo feito para ela ganha o selo "admin".
  */
-
-const emptyForm = {
-  fullName: "",
-  phone: "",
-  username: "",
-  password: "",
-  photo: "", // data URI de uma foto nova, ainda nao enviada
-  savedPhoto: "", // foto que ja esta salva
-  removePhoto: false,
-};
 
 export default function Admins() {
   const { notify } = useToast();
@@ -58,11 +40,9 @@ export default function Admins() {
   const [form, setForm] = useState(null); // null = modal fechado
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  // Nome repetido: o servidor devolve as pessoas candidatas e o app pergunta
-  // se e a mesma pessoa (ver SamePersonDialog).
-  const [samePerson, setSamePerson] = useState(null);
-  const [phoneWarning, setPhoneWarning] = useState(null);
+  // Aviso de nome/WhatsApp repetido vindo do servidor; "Confirmar" reenvia
+  // com force = true.
+  const [warning, setWarning] = useState(null);
 
   const requestRef = useRef(0);
   // Trava contra o clique duplo (ver People.jsx).
@@ -88,28 +68,25 @@ export default function Admins() {
     load();
   }, [load]);
 
-  function openCreate() {
-    setForm({ ...emptyForm });
-    setShowPassword(false);
-  }
+  const me = admins?.find((admin) => admin.isMe) || null;
 
-  function openEdit(admin) {
+  function openMyProfile() {
+    if (!me) return;
     setForm({
-      ...emptyForm,
-      _id: admin._id,
-      code: admin.person?.code || null,
-      fullName: admin.person?.fullName || "",
-      phone: admin.person?.phone || "",
-      username: admin.username,
-      savedPhoto: admin.photo || "",
-      isMe: admin.isMe,
+      code: me.code,
+      fullName: me.fullName,
+      phone: me.phone || "",
+      username: me.username || "",
+      password: "",
+      photo: "", // data URI de uma foto nova, ainda nao enviada
+      savedPhoto: me.photo || "",
+      removePhoto: false,
     });
     setShowPassword(false);
   }
 
-  // extra: { force } quando a pessoa confirmou um aviso, ou { personId }
-  // quando escolheu uma pessoa que ja existe no cadastro.
-  async function save(extra = {}) {
+  // force = true: a pessoa confirmou o aviso de nome/WhatsApp repetido.
+  async function save(force) {
     if (!form.fullName.trim().split(/\s+/).filter(Boolean)[1]) {
       notify("Digite o nome completo (nome e sobrenome).", "error");
       return;
@@ -118,7 +95,7 @@ export default function Admins() {
       notify("WhatsApp inválido. Confira o país, o DDD e o número.", "error");
       return;
     }
-    if (!form._id && form.password.length < 6) {
+    if (form.password && form.password.length < 6) {
       notify("A senha precisa ter pelo menos 6 caracteres.", "error");
       return;
     }
@@ -131,31 +108,26 @@ export default function Admins() {
         fullName: form.fullName,
         phone: form.phone,
         username: form.username,
-        ...extra,
+        force: Boolean(force),
       };
       if (form.password) body.password = form.password;
       if (form.photo) body.photo = form.photo;
       if (form.removePhoto) body.removePhoto = true;
 
-      if (form._id) {
-        await api("/api/admins/" + form._id, { method: "PUT", body });
-        notify("Administrador atualizado.", "success");
-        // Editou a si mesmo: o menu de configuracoes mostra o nome/foto novos.
-        if (form.isMe) await refreshUser();
-      } else {
-        await api("/api/admins", { method: "POST", body });
-        notify("Administrador cadastrado.", "success");
-      }
+      await api("/api/admins/me", { method: "PUT", body });
+      notify(
+        form.password ? "Perfil e senha atualizados." : "Perfil atualizado.",
+        "success",
+      );
       setForm(null);
-      setSamePerson(null);
-      setPhoneWarning(null);
+      setWarning(null);
+      // O menu de configuracoes passa a mostrar o nome e a foto novos.
+      await refreshUser();
       await load();
     } catch (err) {
       const code = err instanceof ApiError ? err.payload?.code : null;
-      if (code === "PERSON_NAME_EXISTS") {
-        setSamePerson(err.payload);
-      } else if (code === "PERSON_PHONE_EXISTS") {
-        setPhoneWarning(err.payload);
+      if (["PERSON_NAME_EXISTS", "PERSON_PHONE_EXISTS"].includes(code)) {
+        setWarning(err.payload);
       } else {
         notify(err.message, "error");
       }
@@ -165,19 +137,11 @@ export default function Admins() {
     }
   }
 
-  async function handleDelete() {
-    const admin = confirmDelete;
-    setConfirmDelete(null);
-    try {
-      await api("/api/admins/" + admin._id, { method: "DELETE" });
-      notify("Conta de administrador excluída.", "success");
-      await load();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  }
-
-  const photoNow = form ? (form.removePhoto ? "" : form.photo || form.savedPhoto) : "";
+  const photoNow = form
+    ? form.removePhoto
+      ? ""
+      : form.photo || form.savedPhoto
+    : "";
 
   return (
     <div className="page">
@@ -192,16 +156,27 @@ export default function Admins() {
                 : admins.length + " conta(s) com acesso ao painel"}
           </p>
         </div>
-        <button type="button" className="btn btn--primary" onClick={openCreate}>
-          <IconPlus width={18} height={18} />
-          Novo administrador
-        </button>
+        {me ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={openMyProfile}
+          >
+            <IconEdit width={18} height={18} />
+            Editar meu perfil
+          </button>
+        ) : null}
       </div>
 
       <p className="muted">
-        Quem entra no painel com usuário e senha. O nome, o WhatsApp e a foto
-        aparecem no acervo público, em “Com quem falar?”, para a pessoa saber
-        quem procurar na igreja — o WhatsApp não é mostrado lá.
+        Quem entra no painel com usuário e senha. O nome e a foto aparecem no
+        acervo público, em “Com quem falar?”, para a pessoa saber quem procurar
+        na igreja — o WhatsApp não é mostrado lá.
+      </p>
+
+      <p className="muted">
+        Cada um edita só a própria conta. Incluir um novo administrador, desfazer
+        um administrador ou trocar a senha de outra pessoa não se faz por aqui.
       </p>
 
       {admins === null && !error ? (
@@ -227,16 +202,12 @@ export default function Admins() {
         <ul className={"adminlist" + (refreshing ? " is-refreshing" : "")}>
           {admins.map((admin) => (
             <li key={admin._id} className="admincard">
-              <Avatar
-                src={admin.photo}
-                name={admin.person?.fullName || admin.username}
-                size={56}
-              />
+              <Avatar src={admin.photo} name={admin.fullName} size={56} />
               <span className="admincard__text">
                 <strong>
                   <span className="personrow__name">
-                    {admin.person?.code ? "#" + admin.person.code + " " : ""}
-                    {admin.person?.fullName || admin.username}
+                    {admin.code ? "#" + admin.code + " " : ""}
+                    {admin.fullName}
                   </span>
                   {admin.isMe ? (
                     <span className="chip chip--me">você</span>
@@ -244,46 +215,34 @@ export default function Admins() {
                 </strong>
                 <small>@{admin.username}</small>
                 <small>
-                  {admin.person?.phone
-                    ? formatStoredPhone(admin.person.phone)
+                  {admin.phone
+                    ? formatStoredPhone(admin.phone)
                     : "sem WhatsApp"}
                 </small>
               </span>
-              <span className="personrow__actions">
-                <button
-                  type="button"
-                  className="icon-button"
-                  title={"Editar " + (admin.person?.fullName || admin.username)}
-                  onClick={() => openEdit(admin)}
-                >
-                  <IconEdit width={18} height={18} />
-                  <span className="sr-only">Editar</span>
-                </button>
-                {!admin.isMe ? (
+              {admin.isMe ? (
+                <span className="personrow__actions">
                   <button
                     type="button"
-                    className="icon-button icon-button--danger"
-                    title={
-                      "Excluir a conta de " +
-                      (admin.person?.fullName || admin.username)
-                    }
-                    onClick={() => setConfirmDelete(admin)}
+                    className="icon-button"
+                    title="Editar meu perfil"
+                    onClick={openMyProfile}
                   >
-                    <IconTrash width={18} height={18} />
-                    <span className="sr-only">Excluir conta</span>
+                    <IconEdit width={18} height={18} />
+                    <span className="sr-only">Editar meu perfil</span>
                   </button>
-                ) : null}
-              </span>
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : null}
 
-      {/* Cadastro / edicao */}
+      {/* Meu perfil */}
       <Modal
         open={Boolean(form)}
         onClose={() => setForm(null)}
-        title={form?._id ? "Editar administrador" : "Novo administrador"}
+        title="Meu perfil"
         size="sm"
         footer={
           <>
@@ -317,7 +276,7 @@ export default function Admins() {
             className="form"
             onSubmit={(e) => {
               e.preventDefault();
-              save();
+              save(false);
             }}
           >
             <PhotoPicker
@@ -378,19 +337,16 @@ export default function Admins() {
             </label>
 
             <label className="field">
-              <span>{form._id ? "Nova senha (opcional)" : "Senha"}</span>
+              <span>Nova senha (opcional)</span>
               <div className="field__input-wrap">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={form.password}
                   autoComplete="new-password"
-                  placeholder={
-                    form._id ? "Deixe em branco para manter a atual" : ""
-                  }
+                  placeholder="Deixe em branco para manter a atual"
                   onChange={(e) =>
                     setForm((f) => ({ ...f, password: e.target.value }))
                   }
-                  required={!form._id}
                 />
                 <button
                   type="button"
@@ -405,51 +361,26 @@ export default function Admins() {
                   )}
                 </button>
               </div>
-              <small className="field__hint">
-                Pelo menos 6 caracteres.
-              </small>
+              <small className="field__hint">Pelo menos 6 caracteres.</small>
             </label>
           </form>
         ) : null}
       </Modal>
 
-      <SamePersonDialog
-        open={Boolean(samePerson)}
-        warning={samePerson}
-        onCancel={() => setSamePerson(null)}
-        onUsePerson={(person) => {
-          setSamePerson(null);
-          save({ personId: person._id });
-        }}
-        onCreateNew={() => {
-          setSamePerson(null);
-          save({ force: true });
-        }}
-      />
-
       <Confirm
-        open={Boolean(phoneWarning)}
-        title="Esse WhatsApp já está em uso"
-        message={phoneWarning?.error || ""}
-        confirmLabel="Salvar assim mesmo"
-        onCancel={() => setPhoneWarning(null)}
-        onConfirm={() => {
-          setPhoneWarning(null);
-          save({ force: true });
-        }}
-      />
-
-      <Confirm
-        open={Boolean(confirmDelete)}
-        title="Excluir conta de administrador"
-        message={
-          (confirmDelete?.person?.fullName || confirmDelete?.username || "") +
-          " perde o acesso ao painel. A pessoa continua no cadastro, com o histórico de empréstimos, e a foto de perfil é apagada."
+        open={Boolean(warning)}
+        title={
+          warning?.code === "PERSON_PHONE_EXISTS"
+            ? "Esse WhatsApp já está em uso"
+            : "Esse nome já está no cadastro"
         }
-        confirmLabel="Excluir conta"
-        tone="danger"
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={handleDelete}
+        message={warning?.error || ""}
+        confirmLabel="Salvar assim mesmo"
+        onCancel={() => setWarning(null)}
+        onConfirm={() => {
+          setWarning(null);
+          save(true);
+        }}
       />
     </div>
   );

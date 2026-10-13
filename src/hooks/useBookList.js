@@ -74,6 +74,10 @@ export function useBookList({ load, filters, matches }) {
   const [shown, setShown] = useState({ key: "", count: PAGE_SIZE });
   // Modo servidor: a lista carregada e o filtro (key) a que ela responde.
   const [server, setServer] = useState(NO_SERVER_LIST);
+  // Qual livro do acervo leva a coroinha de mais emprestado (quem responde e
+  // o servidor, olhando o acervo inteiro; null quando ha empate no primeiro
+  // lugar). Vem em toda pagina de resultado, entao acompanha a lista.
+  const [mostLoanedId, setMostLoanedId] = useState(null);
   const [serverBusy, setServerBusy] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -97,6 +101,7 @@ export function useBookList({ load, filters, matches }) {
         const first = await load(1, SNAPSHOT_PAGE, null);
         if (requestId !== snapshotRequest.current) return;
         let books = first.items;
+        setMostLoanedId(first.mostLoanedId || null);
 
         if (first.total > books.length && books.length > 0) {
           if (first.total > LOCAL_MAX) {
@@ -182,6 +187,7 @@ export function useBookList({ load, filters, matches }) {
           }
         }
 
+        setMostLoanedId(data.mostLoanedId || null);
         setServer((prev) => ({
           key: listKey,
           items: isFirstPage ? received : [...prev.items, ...received],
@@ -324,6 +330,7 @@ export function useBookList({ load, filters, matches }) {
     total,
     hasMore,
     nextCount,
+    mostLoanedId,
     // waiting: ainda nao ha lista para o filtro atual (mostrar o esqueleto).
     waiting,
     error: shownError,

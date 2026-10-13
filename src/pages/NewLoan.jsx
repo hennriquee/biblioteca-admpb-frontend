@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
 import SamePersonDialog from "../components/SamePersonDialog.jsx";
 import BookCover from "../components/BookCover.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
@@ -45,6 +46,9 @@ export default function NewLoan() {
   // a pessoa e escolhida na lista de sugestoes; digitar o nome nele mesmo
   // limpa (um nome igual pode ser de outra pessoa - ver models/Person.js).
   const [personId, setPersonId] = useState(null);
+  // A ficha de quem foi escolhido na lista, para a tela mostrar a foto (ou as
+  // iniciais) de quem ja esta cadastrado. null = ainda digitando um nome.
+  const [pickedPerson, setPickedPerson] = useState(null);
   const [phone, setPhone] = useState("");
   const [personSuggestions, setPersonSuggestions] = useState({
     term: "",
@@ -325,68 +329,123 @@ export default function NewLoan() {
           <span className="field__label">
             Nome completo de quem está levando
           </span>
-          <div className="combo">
-            <input
-              type="text"
-              value={personName}
-              placeholder="Ex.: Maria Eduarda Nogueira"
-              maxLength={80}
-              onChange={(e) => {
-                setPersonName(e.target.value);
-                setPersonId(null);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => {
-                personBlurTimer.current = setTimeout(
-                  () => setShowSuggestions(false),
-                  150,
-                );
-              }}
-              autoComplete="off"
-              required
-            />
+          {/* Escolhida na lista: a ficha dela aparece com a foto de perfil
+              (ou as iniciais do nome), do mesmo jeito que o livro escolhido.
+              E o sinal de que o emprestimo vai para ESTE cadastro, e nao para
+              um nome novo igual ao dele. */}
+          {pickedPerson ? (
+            <div className="picked">
+              <Avatar
+                src={pickedPerson.photo}
+                name={pickedPerson.fullName}
+                size={44}
+              />
+              <div>
+                <strong title={pickedPerson.fullName}>
+                  {(pickedPerson.code ? "#" + pickedPerson.code + " " : "") +
+                    pickedPerson.fullName}
+                </strong>
+                <small>
+                  {pickedPerson.phone
+                    ? formatStoredPhone(pickedPerson.phone)
+                    : "sem WhatsApp"}
+                  {" · "}
+                  {pickedPerson.activeLoans?.length > 0
+                    ? "está com " + pickedPerson.activeLoans.join(", ")
+                    : pickedPerson.loansCount + " empréstimo(s) no histórico"}
+                </small>
+              </div>
+              {pickedPerson.isAdmin ? (
+                <span className="chip chip--admin">admin</span>
+              ) : null}
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  setPickedPerson(null);
+                  setPersonId(null);
+                  setPersonName("");
+                  setPhone("");
+                }}
+                aria-label="Trocar pessoa"
+              >
+                <IconClose width={18} height={18} />
+              </button>
+            </div>
+          ) : (
+            <div className="combo">
+              <input
+                type="text"
+                value={personName}
+                placeholder="Ex.: Maria Eduarda Nogueira"
+                maxLength={80}
+                onChange={(e) => {
+                  setPersonName(e.target.value);
+                  setPersonId(null);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  personBlurTimer.current = setTimeout(
+                    () => setShowSuggestions(false),
+                    150,
+                  );
+                }}
+                autoComplete="off"
+                required
+              />
 
-            {personItems.length > 0 ? (
-              <ul className="combo__list">
-                {personItems.map((person) => (
-                  <li key={person._id}>
-                    <button
-                      type="button"
-                      className="combo__item combo__item--person"
-                      onMouseDown={() => clearTimeout(personBlurTimer.current)}
-                      onClick={() => {
-                        setPersonName(person.fullName);
-                        setPersonId(person._id);
-                        setPhone(person.phone || "");
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      <span>
-                        <strong>
-                          {(person.code ? "#" + person.code + " " : "") +
-                            person.fullName}
-                          {person.isAdmin ? (
-                            <span className="chip chip--admin">admin</span>
-                          ) : null}
-                        </strong>
-                        <small>
-                          {person.phone
-                            ? formatStoredPhone(person.phone)
-                            : "sem WhatsApp"}
-                        </small>
-                        <small>
-                          {person.activeLoans.length > 0
-                            ? "está com " + person.activeLoans.join(", ")
-                            : person.loansCount + " empréstimo(s) no histórico"}
-                        </small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+              {personItems.length > 0 ? (
+                <ul className="combo__list">
+                  {personItems.map((person) => (
+                    <li key={person._id}>
+                      <button
+                        type="button"
+                        className="combo__item combo__item--person"
+                        onMouseDown={() => clearTimeout(personBlurTimer.current)}
+                        onClick={() => {
+                          setPersonName(person.fullName);
+                          setPersonId(person._id);
+                          setPickedPerson(person);
+                          setPhone(person.phone || "");
+                          setShowSuggestions(false);
+                        }}
+                      >
+                        {/* A foto (ou as iniciais) de quem ja esta cadastrado:
+                            e o que diferencia duas pessoas de nome parecido na
+                            hora de escolher. */}
+                        <Avatar
+                          src={person.photo}
+                          name={person.fullName}
+                          size={36}
+                        />
+                        <span>
+                          <strong>
+                            {(person.code ? "#" + person.code + " " : "") +
+                              person.fullName}
+                            {person.isAdmin ? (
+                              <span className="chip chip--admin">admin</span>
+                            ) : null}
+                          </strong>
+                          <small>
+                            {person.phone
+                              ? formatStoredPhone(person.phone)
+                              : "sem WhatsApp"}
+                          </small>
+                          <small>
+                            {person.activeLoans.length > 0
+                              ? "está com " + person.activeLoans.join(", ")
+                              : person.loansCount +
+                                " empréstimo(s) no histórico"}
+                          </small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="field">

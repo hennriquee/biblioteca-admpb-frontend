@@ -46,8 +46,7 @@ function fallbackMessage(status) {
   if (status === 404) return "Não encontramos o que você procurou.";
   if (status === 429)
     return "Muitas tentativas em pouco tempo. Aguarde um pouco e tente de novo.";
-  if (status >= 500)
-    return "O servidor está com problemas ou ainda iniciando. Tente novamente em instantes.";
+  if (status >= 500) return "Aguarde um tempo e tente novamente.";
   return "Não foi possível concluir a ação.";
 }
 
@@ -79,7 +78,7 @@ export async function api(path, options = {}) {
     // servidor fora do ar/acordando ou bloqueio de CORS. O navegador mostraria
     // apenas "Failed to fetch", entao trocamos por algo que o usuario entenda.
     throw new ApiError(
-      "Não foi possível conectar ao servidor. Verifique sua internet e tente de novo; se o servidor estava parado, pode levar cerca de 1 minuto para acordar.",
+      "Não foi possível conectar ao servidor. Verifique sua internet. Aguarde um tempo e tente novamente.",
       0,
       { code: "NETWORK_ERROR" },
     );

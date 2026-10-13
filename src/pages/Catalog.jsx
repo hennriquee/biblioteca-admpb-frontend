@@ -11,6 +11,7 @@ import StaffModal from "../components/StaffModal.jsx";
 import {
   IconChat,
   IconCheck,
+  IconCrown,
   IconLoans,
   IconSearch,
 } from "../components/Icons.jsx";
@@ -364,9 +365,7 @@ export default function Catalog() {
 
         {showSkeleton ? (
           <ListSkeleton>
-            {slow
-              ? "O servidor estava em repouso e está acordando. Na primeira abertura isso pode levar até 1 minuto."
-              : "Carregando o acervo…"}
+            {slow ? "Aguarde um tempo…" : "Carregando o acervo…"}
           </ListSkeleton>
         ) : null}
 
@@ -423,11 +422,27 @@ export default function Catalog() {
                           className="bookrow"
                           onClick={() => setSelected(book)}
                         >
-                          <BookCover
-                            src={book.cover}
-                            alt={"Capa de " + bookTitle}
-                            className="cover--sm"
-                          />
+                          {/* A coroinha do livro mais emprestado fica em
+                              cima da capa (ninguem a recebe se houver empate
+                              no primeiro lugar). */}
+                          <span className="crowned">
+                            <BookCover
+                              src={book.cover}
+                              alt={"Capa de " + bookTitle}
+                              className="cover--sm"
+                            />
+                            {list.mostLoanedId === book.id ? (
+                              <span
+                                className="crowned__crown"
+                                title="O livro mais emprestado do acervo"
+                              >
+                                <IconCrown width={15} height={15} />
+                                <span className="sr-only">
+                                  O livro mais emprestado do acervo
+                                </span>
+                              </span>
+                            ) : null}
+                          </span>
                           <span className="bookrow__text">
                             <strong title={bookTitle}>{bookTitle}</strong>
                             <small className="bookrow__meta">
@@ -546,6 +561,18 @@ export default function Catalog() {
               <div>
                 <dt>Quantidade</dt>
                 <dd>{selected.copies}</dd>
+              </div>
+              <div>
+                <dt>Vezes emprestado</dt>
+                <dd>
+                  {selected.loansTotal || 0}
+                  {list.mostLoanedId === selected.id ? (
+                    <span className="detail__crown">
+                      <IconCrown width={15} height={15} />
+                      mais emprestado
+                    </span>
+                  ) : null}
+                </dd>
               </div>
             </dl>
             {selected.synopsis ? (

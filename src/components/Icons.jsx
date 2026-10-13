@@ -178,9 +178,35 @@ export const IconChat = (props) => (
   </svg>
 );
 
+export const IconCrown = (props) => (
+  <svg {...base} {...props}>
+    <path d="M5.6 16.6 4.3 7.5l4.3 3.4L12 5.3l3.4 5.6 4.3-3.4-1.3 9.1z" />
+    <path d="M5.8 19.6h12.4" />
+  </svg>
+);
+
 export const IconUser = (props) => (
   <svg {...base} {...props}>
     <circle cx="12" cy="8" r="3.6" />
     <path d="M4.8 20v-1a4.2 4.2 0 0 1 4.2-4.2h6a4.2 4.2 0 0 1 4.2 4.2v1" />
+  </svg>
+);
+
+export const IconWhatsapp = (props) => (
+  <svg
+    viewBox="0 0 400 400"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={16}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M84.7925 257.334C1.81069 106.044 237.525 -11.6463 321.16 119.453C396.366 237.339 251.357 391.573 150.736 312.145" />
+    <path d="M89.5909 265.912C34.5405 357.344 49.8143 347.445 133.267 311.303" />
+    <path d="M170.381 113.42C60.1005 141.74 240.793 341.184 288.582 236.047" />
+    <path d="M177.338 175.365C186.032 197.073 208.905 214.528 227.906 227.195" />
+    <path d="M177.338 126.062C187.693 143.231 203.319 159.586 178.602 168.412" />
+    <path d="M285.431 228.46C262.184 210.573 250.584 200.134 232.965 225.301" />
   </svg>
 );

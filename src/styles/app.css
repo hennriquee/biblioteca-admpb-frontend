@@ -675,10 +675,24 @@ html[data-app="catalogo"] #root:empty {
 /* Tagzinha de status no canto superior direito do card.
    Tamanho fixo em px/rem: nao cresce nem quebra em telas grandes ou pequenas,
    o titulo e que reserva espaco pra ela (ver .loancard__top). */
-.loancard__tag {
+/* O grupo do canto: a tag de situacao e, quando a pessoa e da equipe, o selo
+   "admin". Os dois ficam na mesma altura, lado a lado. */
+.loancard__tags {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* O selo "admin" entra no grupo com a mesma medida da tag de situacao. */
+.loancard__tags .chip {
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.loancard__tag {
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -711,6 +725,11 @@ html[data-app="catalogo"] #root:empty {
      em nenhuma largura de tela. */
   padding-right: 92px;
 }
+/* Com o selo "admin" ao lado da tag de situacao, o canto ocupa mais: o titulo
+   recua na mesma medida (e vira "..." antes de encostar nos selos). */
+.loancard__top--two-tags {
+  padding-right: 152px;
+}
 /* Titulo numa linha so; o que nao cabe vira "...". O min-width: 0 deixa o
    texto encolher dentro do flex em vez de empurrar o card para os lados. */
 .loancard__top strong {
@@ -727,6 +746,11 @@ html[data-app="catalogo"] #root:empty {
 }
 .loancard__person {
   font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+/* Quem aprovou o emprestimo: informacao de registro, discreta. */
+.loancard__approved {
+  font-size: 0.75rem;
   color: var(--ink-soft);
 }
 
@@ -880,17 +904,6 @@ html[data-app="catalogo"] #root:empty {
   overflow-wrap: anywhere;
 }
 
-/* Botao de acao dentro do grid de dados (ex.: "Avisar no WhatsApp" na celula
-   que sobra ao lado de "Situacao"): alinhado pelo pe da linha. */
-.detail__data .detail__action {
-  align-self: end;
-}
-/* A celula e metade da largura do modal: padding lateral menor para o texto
-   caber em uma linha no celular (em telas muito estreitas ele quebra). */
-.detail__action .btn {
-  padding-inline: 8px;
-}
-
 /* Rodape do modal de emprestimo: "Fechar" de um lado, a acao principal do
    outro. Sozinho (emprestimo devolvido), o "Fechar" fica na direita, como nos
    outros modais. */
@@ -915,6 +928,57 @@ html[data-app="catalogo"] #root:empty {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.65;
+}
+
+/* Observacoes editaveis (emprestimo em andamento): mesmo espaco do bloco so
+   leitura acima, com o campo e o botao de salvar. Sempre aparece (mesmo
+   vazio) para dar para anotar a qualquer momento, nao so na criacao. */
+.detail__notes {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detail__notes-save {
+  align-self: flex-end;
+}
+
+/* Bolinha de WhatsApp no canto da capa (emprestimo em andamento, com
+   telefone salvo): mesmo padrao da bolinha de camera da capa de livro, sem
+   depender de posicao fixa/absoluta sobre o conteudo que rola (por isso nao
+   disputa espaco com as Observacoes, por maior que fiquem). */
+.detail__cover {
+  position: relative;
+  display: inline-flex;
+}
+.detail__whatsapp {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+.detail__whatsapp:hover {
+  background: #1fb858;
+}
+.detail__whatsapp:active {
+  transform: scale(0.94);
+}
+.detail__whatsapp:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* ---------- Formulario de livro ---------- */
@@ -1237,6 +1301,17 @@ html[data-app="catalogo"] #root:empty {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Sugestao de pessoa: o selo "admin" fica dentro do <strong> (junto do nome).
+   A regra ".combo__item span" acima poe os spans em coluna, e isso jogaria o
+   selo para uma linha propria dentro de um texto que nao quebra linha; aqui
+   ele volta a ser um selo do lado do nome. */
+.combo__item--person strong .chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
 .combo__item .combo__status {
   margin-top: 2px;
   font-weight: 500;
@@ -1267,6 +1342,11 @@ html[data-app="catalogo"] #root:empty {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* O selo "admin" e um item da linha, nao parte do nome: fica inteiro mesmo
+   quando o nome e comprido e vira "...". */
+.picked > .chip {
+  flex-shrink: 0;
 }
 .picked small {
   color: var(--ink-soft);
@@ -1656,14 +1736,6 @@ html[data-app="catalogo"] #root:empty {
   color: var(--ink-soft);
   font-size: 0.8rem;
   font-weight: 400;
-}
-.btn--whatsapp {
-  background: #1f9d57;
-  color: #fff;
-  border: 1px solid #1f9d57;
-}
-.btn--whatsapp:hover:not(:disabled) {
-  background: #178048;
 }
 .loancard__notice {
   margin: 6px 0 0;
@@ -2822,7 +2894,10 @@ a.stat:active {
   object-fit: cover;
   background: var(--surface-sunk);
 }
-.avatar--empty {
+/* O seletor leva o "span" de proposito: assim estas regras ganham de um
+   ".bloco span" por onde a bolinha das iniciais passar (ex.: as sugestoes de
+   pessoa do novo emprestimo), e ela continua redonda e centralizada. */
+span.avatar--empty {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2946,10 +3021,18 @@ a.stat:active {
   background: var(--surface-sunk);
   color: var(--ink-soft);
 }
-.loancard__person .chip,
 .detail__data dd .chip {
   margin-left: 6px;
   vertical-align: 1px;
+}
+
+/* Ficha de outro administrador: no lugar dos botoes, o porque. */
+.personrow__locked {
+  max-width: 7.5rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-align: right;
 }
 .detail__code {
   margin-left: 6px;
@@ -3125,4 +3208,123 @@ a.stat:active {
 }
 .drawer__item--exit:hover {
   background: var(--danger-wash);
+}
+
+/* ---------- Coroa do livro mais emprestado ---------- */
+/* Fica em cima da capa, no alto do card. So um livro a recebe (com empate no
+   primeiro lugar, ninguem recebe - ver mostLoanedBookId no backend). */
+.crowned {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.crowned__crown {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 999px;
+  background: var(--gold-wash);
+  border: 1px solid var(--gold);
+  color: var(--gold-strong);
+  box-shadow: var(--shadow-card);
+}
+/* Nos detalhes do livro, do lado do numero de vezes que ele saiu. */
+.detail__crown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  background: var(--gold-wash);
+  color: var(--gold-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Tela de manutencao (login reservado) ---------- */
+/* Fica fora do Layout do painel: nao tem abas embaixo nem engrenagem, porque
+   esta sessao nao cuida de livro nem de emprestimo. Por isso o espacamento
+   de pagina e dado aqui, e nao pela .content. */
+.devshell {
+  min-height: 100%;
+  padding: 20px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+.devpage {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+.devpage__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* Selo que deixa claro, de olho, que esta sessao nao e a de um administrador. */
+.devpage__badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--gold-wash);
+  color: var(--gold-strong);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.devgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.devgroup h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.devgroup h2 svg {
+  color: var(--ink-soft);
+}
+.devgroup h2 small {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+/* Os botoes de acao da linha. No celular a linha fica estreita, entao eles
+   descem para baixo do nome em vez de espremer o texto. */
+.devrow__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.btn--sm {
+  padding: 7px 12px;
+  font-size: 0.78rem;
+}
+@media (max-width: 560px) {
+  .devgroup .personrow {
+    flex-wrap: wrap;
+  }
+  .devrow__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }

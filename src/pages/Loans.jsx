@@ -8,7 +8,12 @@ import ListSkeleton from "../components/ListSkeleton.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { normalizeText } from "../utils/bookFilter.js";
-import { IconPlus, IconSearch, IconCheck } from "../components/Icons.jsx";
+import {
+  IconPlus,
+  IconSearch,
+  IconCheck,
+  IconWhatsapp,
+} from "../components/Icons.jsx";
 import {
   formatStoredPhone,
   reminderKind,
@@ -58,13 +63,20 @@ function LoanCard({ loan, onOpen }) {
         }
         onClick={() => onOpen(loan)}
       >
-        <span
-          className={
-            "loancard__tag " +
-            (isReturned ? "loancard__tag--returned" : "loancard__tag--active")
-          }
-        >
-          {isReturned ? "Devolvido" : "Em andamento"}
+        {/* Canto superior direito: a situacao do emprestimo e, quando for o
+            caso, o selo de quem pegou o livro ser da equipe. */}
+        <span className="loancard__tags">
+          {loan.personIsAdmin ? (
+            <span className="chip chip--admin">admin</span>
+          ) : null}
+          <span
+            className={
+              "loancard__tag " +
+              (isReturned ? "loancard__tag--returned" : "loancard__tag--active")
+            }
+          >
+            {isReturned ? "Devolvido" : "Em andamento"}
+          </span>
         </span>
 
         <BookCover
@@ -74,15 +86,17 @@ function LoanCard({ loan, onOpen }) {
         />
 
         <div className="loancard__body">
-          <div className="loancard__top">
+          <div
+            className={
+              "loancard__top" +
+              (loan.personIsAdmin ? " loancard__top--two-tags" : "")
+            }
+          >
             <strong title={bookTitle}>{bookTitle}</strong>
           </div>
 
           <p className="loancard__person">
             {loan.personName}
-            {loan.personIsAdmin ? (
-              <span className="chip chip--admin">admin</span>
-            ) : null}
             <span className="loancard__days">
               {" · "}
               {daysWith === 0
@@ -114,6 +128,14 @@ function LoanCard({ loan, onOpen }) {
                 : reminderKind(loan) === "late"
                   ? "Avisar atraso no WhatsApp"
                   : "Avisar devolução no WhatsApp"}
+            </p>
+          ) : null}
+
+          {/* Quem aprovou: o administrador que registrou o emprestimo.
+              Registro antigo (de antes deste campo) nao tem nome guardado. */}
+          {loan.approvedByName ? (
+            <p className="loancard__approved">
+              aprovado por {loan.approvedByName}
             </p>
           ) : null}
 
@@ -160,6 +182,14 @@ export default function Loans() {
   const [personFilter, setPersonFilter] = useState("");
   const [selected, setSelected] = useState(null);
   const [returning, setReturning] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  // O rascunho acompanha o emprestimo aberto; troca de emprestimo (ou fecha o
+  // modal) descarta o que nao foi salvo.
+  useEffect(() => {
+    setNotesDraft(selected?.notes || "");
+  }, [selected?._id]);
 
   // silent: sem esmaecer a lista e sem avisar se falhar (a lista continua).
   const load = useCallback(
@@ -255,6 +285,25 @@ export default function Loans() {
       );
     } catch {
       /* o aviso ja foi aberto; falhar em registrar nao atrapalha */
+    }
+  }
+
+  async function saveNotes() {
+    setSavingNotes(true);
+    try {
+      const updated = await api("/api/loans/" + selected._id + "/notes", {
+        method: "PATCH",
+        body: { notes: notesDraft },
+      });
+      setSelected(updated);
+      setLoans((list) =>
+        (list || []).map((item) => (item._id === updated._id ? updated : item)),
+      );
+      notify("Observação salva.", "success");
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setSavingNotes(false);
     }
   }
 
@@ -396,11 +445,23 @@ export default function Loans() {
       >
         {selected ? (
           <div className="detail">
-            <BookCover
-              src={selected.bookCover}
-              alt={"Capa de " + formatBookTitle(selected.bookTitle)}
-              className="cover--lg"
-            />
+            <div className="detail__cover">
+              <BookCover
+                src={selected.bookCover}
+                alt={"Capa de " + formatBookTitle(selected.bookTitle)}
+                className="cover--lg"
+              />
+              {selected.status === "ativo" && selected.personPhone ? (
+                <button
+                  type="button"
+                  className="detail__whatsapp"
+                  onClick={openWhatsapp}
+                  aria-label="Avisar no WhatsApp"
+                >
+                  <IconWhatsapp width={20} height={20} />
+                </button>
+              ) : null}
+            </div>
             <h3 className="detail__title">
               {formatBookTitle(selected.bookTitle)}
             </h3>
@@ -426,6 +487,10 @@ export default function Loans() {
                     ? formatStoredPhone(selected.personPhone)
                     : "não informado"}
                 </dd>
+              </div>
+              <div>
+                <dt>Aprovado por</dt>
+                <dd>{selected.approvedByName || "não registrado"}</dd>
               </div>
               <div>
                 <dt>Retirada</dt>
@@ -457,23 +522,28 @@ export default function Loans() {
                       : "Em dia"}
                 </dd>
               </div>
-              {/* Ocupa a celula que sobra ao lado de "Situacao". */}
-              {selected.status === "ativo" && selected.personPhone ? (
-                <div className="detail__action">
-                  <dt className="sr-only">Aviso</dt>
-                  <dd>
-                    <button
-                      type="button"
-                      className="btn btn--whatsapp btn--block"
-                      onClick={openWhatsapp}
-                    >
-                      Avisar no WhatsApp
-                    </button>
-                  </dd>
-                </div>
-              ) : null}
             </dl>
-            {selected.notes ? (
+            {selected.status === "ativo" ? (
+              <div className="detail__notes">
+                <label className="field">
+                  <span>Observações</span>
+                  <textarea
+                    rows={3}
+                    placeholder="Anote algo sobre esse empréstimo…"
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm detail__notes-save"
+                  onClick={saveNotes}
+                  disabled={savingNotes || notesDraft === (selected.notes || "")}
+                >
+                  {savingNotes ? "Salvando…" : "Salvar observação"}
+                </button>
+              </div>
+            ) : selected.notes ? (
               <div className="detail__synopsis">
                 <h3>Observações</h3>
                 <p>{selected.notes}</p>
