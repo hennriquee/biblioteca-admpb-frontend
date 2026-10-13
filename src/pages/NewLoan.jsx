@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
@@ -6,6 +6,7 @@ import Confirm from "../components/Confirm.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
+import { matchesBook } from "../utils/bookFilter.js";
 import { IconSearch, IconClose } from "../components/Icons.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -26,13 +27,23 @@ export default function NewLoan() {
   const navigate = useNavigate();
   const { notify } = useToast();
 
+  // Resultados guardam o texto a que respondem ("term"): so aparecem quando
+  // batem com o que esta digitado agora. Assim, ao digitar mais uma letra, as
+  // sugestoes da busca anterior somem na hora (entra "Buscando…").
   const [bookQuery, setBookQuery] = useState("");
-  const [bookResults, setBookResults] = useState([]);
+  const [bookResults, setBookResults] = useState({ term: "", items: [] });
   const [book, setBook] = useState(null);
+  // O acervo inteiro, baixado ao abrir a tela: com ele a busca de livro
+  // responde na hora, sem ir ao servidor a cada letra. null = ainda nao chegou
+  // (ou falhou): ai a busca continua sendo feita no servidor.
+  const [allBooks, setAllBooks] = useState(null);
 
   const [personName, setPersonName] = useState("");
   const [phone, setPhone] = useState("");
-  const [personSuggestions, setPersonSuggestions] = useState([]);
+  const [personSuggestions, setPersonSuggestions] = useState({
+    term: "",
+    items: [],
+  });
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [startDate, setStartDate] = useState(todayInputValue());
@@ -44,47 +55,92 @@ export default function NewLoan() {
 
   const personBlurTimer = useRef(null);
 
-  // Busca de livros conforme digita
-  useEffect(() => {
-    if (book || bookQuery.trim().length < 2) {
-      setBookResults([]);
-      return undefined;
-    }
+  const bookTerm = bookQuery.trim();
+  const personTerm = personName.trim();
 
+  useEffect(() => {
+    let active = true;
+    api("/api/books")
+      .then((data) => {
+        if (active) setAllBooks(data);
+      })
+      .catch(() => {
+        /* sem o acervo na memoria, a busca abaixo usa o servidor */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Busca de livros conforme digita (so enquanto o acervo nao esta na memoria)
+  useEffect(() => {
+    if (allBooks || book || bookTerm.length < 2) return undefined;
+
+    let active = true;
     const timer = setTimeout(async () => {
+      let items = [];
       try {
         const data = await api(
-          "/api/books?search=" + encodeURIComponent(bookQuery.trim()),
+          "/api/books?search=" + encodeURIComponent(bookTerm),
         );
-        setBookResults(data.slice(0, 8));
+        items = data.slice(0, 8);
       } catch {
-        setBookResults([]);
+        items = [];
       }
+      if (active) setBookResults({ term: bookTerm, items });
     }, 250);
 
-    return () => clearTimeout(timer);
-  }, [bookQuery, book]);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [bookTerm, book, allBooks]);
 
   // Sugestao de nomes ja cadastrados
   useEffect(() => {
-    if (personName.trim().length < 2) {
-      setPersonSuggestions([]);
-      return undefined;
-    }
+    if (personTerm.length < 2) return undefined;
 
+    let active = true;
     const timer = setTimeout(async () => {
+      let items = [];
       try {
-        const data = await api(
-          "/api/people?search=" + encodeURIComponent(personName.trim()),
+        items = await api(
+          "/api/people?search=" + encodeURIComponent(personTerm),
         );
-        setPersonSuggestions(data);
       } catch {
-        setPersonSuggestions([]);
+        items = [];
       }
+      if (active) setPersonSuggestions({ term: personTerm, items });
     }, 250);
 
-    return () => clearTimeout(timer);
-  }, [personName]);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [personTerm]);
+
+  const bookSearchOn = !book && bookTerm.length >= 2;
+  const bookSearching =
+    bookSearchOn && !allBooks && bookResults.term !== bookTerm;
+  const bookItems = useMemo(() => {
+    if (!bookSearchOn) return [];
+    if (allBooks) {
+      return allBooks
+        .filter((item) => matchesBook(item, { search: bookTerm }))
+        .slice(0, 8);
+    }
+    return bookResults.term === bookTerm ? bookResults.items : [];
+  }, [bookSearchOn, allBooks, bookTerm, bookResults]);
+
+  // Sugestoes de nome so aparecem quando respondem ao que esta digitado agora
+  // (as da busca anterior somem na hora). Sem aviso de "buscando": nome novo,
+  // sem cadastro, e o caso comum, e o aviso ficaria empurrando o formulario.
+  const personItems =
+    showSuggestions &&
+    personTerm.length >= 2 &&
+    personSuggestions.term === personTerm
+      ? personSuggestions.items
+      : [];
 
   async function submitLoan(force = false) {
     setSubmitting(true);
@@ -187,9 +243,19 @@ export default function NewLoan() {
                 />
               </div>
 
-              {bookResults.length > 0 ? (
+              {bookSearching ? (
+                <p className="combo__wait" role="status">
+                  Buscando livros…
+                </p>
+              ) : null}
+
+              {bookSearchOn && !bookSearching && bookItems.length === 0 ? (
+                <p className="combo__wait">Nenhum livro encontrado.</p>
+              ) : null}
+
+              {bookItems.length > 0 ? (
                 <ul className="combo__list">
-                  {bookResults.map((item) => (
+                  {bookItems.map((item) => (
                     <li key={item._id}>
                       <button
                         type="button"
@@ -197,7 +263,7 @@ export default function NewLoan() {
                         disabled={item.available <= 0}
                         onClick={() => {
                           setBook(item);
-                          setBookResults([]);
+                          setBookResults({ term: "", items: [] });
                         }}
                       >
                         <BookCover
@@ -261,9 +327,9 @@ export default function NewLoan() {
               required
             />
 
-            {showSuggestions && personSuggestions.length > 0 ? (
+            {personItems.length > 0 ? (
               <ul className="combo__list">
-                {personSuggestions.map((person) => (
+                {personItems.map((person) => (
                   <li key={person._id}>
                     <button
                       type="button"

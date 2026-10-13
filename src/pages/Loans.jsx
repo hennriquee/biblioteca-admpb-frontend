@@ -1,17 +1,42 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import BookCover from "../components/BookCover.jsx";
+import ListSkeleton from "../components/ListSkeleton.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
+import { normalizeText } from "../utils/bookFilter.js";
 import { IconPlus, IconSearch, IconCheck } from "../components/Icons.jsx";
 import {
   formatStoredPhone,
   reminderKind,
   whatsappLink,
 } from "../utils/whatsapp.js";
+
+// Lista baixada ha mais tempo que isso e atualizada (em silencio) na proxima
+// troca de filtro.
+const STALE_AFTER_MS = 60 * 1000;
+
+// O filtro roda aqui mesmo, com as mesmas regras do servidor
+// (routes/loans.js). "atrasados" = em andamento com o prazo vencido.
+function matchesLoan(loan, status, book, person) {
+  if (status === "atrasados") {
+    if (loan.status !== "ativo" || !loan.dueDate) return false;
+    if (!loanProgress(loan.startDate, loan.dueDate).overdue) return false;
+  } else if (status !== "todos" && loan.status !== status) {
+    return false;
+  }
+  if (
+    book &&
+    !normalizeText(loan.bookTitle).includes(book) &&
+    !String(loan.bookIsbn || "").toLowerCase().includes(book)
+  ) {
+    return false;
+  }
+  return !person || normalizeText(loan.personName).includes(person);
+}
 
 function LoanCard({ loan, onOpen }) {
   const isReturned = loan.status === "devolvido";
@@ -110,8 +135,15 @@ function LoanCard({ loan, onOpen }) {
 export default function Loans() {
   const { notify } = useToast();
 
-  const [loans, setLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Todos os emprestimos (em andamento + devolvidos dos ultimos dias) sao
+  // baixados uma vez; as abas e os dois campos filtram aqui mesmo, na hora.
+  // null = ainda baixando (a tela mostra o esqueleto).
+  const [loans, setLoans] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  // So a resposta da ultima chamada vale (respostas antigas atrasadas caem fora).
+  const requestRef = useRef(0);
+  const loadedAt = useRef(0);
   // O filtro vive na URL (?filtro=atrasados): o botao "voltar" funciona e os
   // cartoes da Inicio conseguem abrir esta tela ja filtrada.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,31 +158,70 @@ export default function Loans() {
   const [selected, setSelected] = useState(null);
   const [returning, setReturning] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        status: status === "atrasados" ? "ativo" : status,
-      });
-      if (bookFilter.trim()) params.set("book", bookFilter.trim());
-      if (personFilter.trim()) params.set("person", personFilter.trim());
-      const data = await api("/api/loans?" + params.toString());
-      setLoans(
-        status === "atrasados"
-          ? data.filter((loan) => loan.dueDate && loanProgress(loan.startDate, loan.dueDate).overdue)
-          : data,
-      );
-    } catch (error) {
-      notify(error.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [status, bookFilter, personFilter, notify]);
+  // silent: sem esmaecer a lista e sem avisar se falhar (a lista continua).
+  const load = useCallback(
+    async ({ silent = false } = {}) => {
+      const requestId = ++requestRef.current;
+      if (!silent) {
+        setRefreshing(true);
+        setError("");
+      }
+      try {
+        const data = await api("/api/loans?status=todos");
+        if (requestId !== requestRef.current) return;
+        loadedAt.current = Date.now();
+        setLoans(data);
+        // Chegou lista nova: um aviso de falha anterior ja nao vale.
+        setError("");
+      } catch (err) {
+        if (requestId !== requestRef.current) return;
+        if (!silent) setError(err.message);
+      } finally {
+        if (requestId === requestRef.current) setRefreshing(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    const timer = setTimeout(load, 250);
-    return () => clearTimeout(timer);
+    load();
   }, [load]);
+
+  const book = normalizeText(bookFilter);
+  const person = normalizeText(personFilter);
+
+  // Os filtros respondem na hora com o que esta na memoria; se a lista ja
+  // esta velha, uma copia nova e buscada em silencio. O mesmo ao voltar para
+  // esta aba do navegador depois de um tempo.
+  const refreshIfStale = useCallback(() => {
+    if (loadedAt.current && Date.now() - loadedAt.current > STALE_AFTER_MS) {
+      // Marca ja, para digitar varias letras nao disparar um pedido por letra.
+      loadedAt.current = Date.now();
+      load({ silent: true });
+    }
+  }, [load]);
+
+  useEffect(() => {
+    refreshIfStale();
+  }, [status, book, person, refreshIfStale]);
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (!document.hidden) refreshIfStale();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [refreshIfStale]);
+
+  const shownLoans = useMemo(
+    () =>
+      (loans || []).filter((loan) => matchesLoan(loan, status, book, person)),
+    [loans, status, book, person],
+  );
+  // Sem lista ainda (primeira abertura): esqueleto. Com erro e sem lista: aviso.
+  const waiting = loans === null && !error;
+  const failed = loans === null && Boolean(error);
 
   async function confirmReturn() {
     setReturning(true);
@@ -177,7 +248,7 @@ export default function Loans() {
       });
       setSelected(updated);
       setLoans((list) =>
-        list.map((item) => (item._id === updated._id ? updated : item)),
+        (list || []).map((item) => (item._id === updated._id ? updated : item)),
       );
     } catch {
       /* o aviso ja foi aberto; falhar em registrar nao atrapalha */
@@ -193,7 +264,13 @@ export default function Loans() {
       <div className="page__head">
         <div>
           <h1>Empréstimos</h1>
-          <p className="page__sub">{loans.length} registro(s) nesta lista</p>
+          <p className="page__sub">
+            {waiting
+              ? "Carregando…"
+              : failed
+                ? "Não foi possível carregar"
+                : shownLoans.length + " registro(s) nesta lista"}
+          </p>
         </div>
         <Link to="/emprestimos/novo" className="btn btn--primary">
           <IconPlus width={18} height={18} />
@@ -244,9 +321,22 @@ export default function Loans() {
         ))}
       </div>
 
-      {loading ? <p className="muted">Carregando…</p> : null}
+      {waiting ? <ListSkeleton label="Carregando os empréstimos…" /> : null}
 
-      {!loading && loans.length === 0 ? (
+      {failed ? (
+        <div className="empty" role="alert">
+          <p>{error}</p>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => load()}
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
+
+      {loans !== null && shownLoans.length === 0 ? (
         <div className="empty">
           <p>
             {status === "atrasados"
@@ -259,11 +349,20 @@ export default function Loans() {
         </div>
       ) : null}
 
-      <ul className="loanlist">
-        {loans.map((loan) => (
-          <LoanCard key={loan._id} loan={loan} onOpen={setSelected} />
-        ))}
-      </ul>
+      {/* A lista continua na tela, mas a ultima atualizacao falhou. */}
+      {loans !== null && error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {shownLoans.length > 0 ? (
+        <ul className={"loanlist" + (refreshing ? " is-refreshing" : "")}>
+          {shownLoans.map((loan) => (
+            <LoanCard key={loan._id} loan={loan} onOpen={setSelected} />
+          ))}
+        </ul>
+      ) : null}
 
       <Modal
         open={Boolean(selected)}

@@ -5,10 +5,13 @@ import { useAuth } from "../context/AuthContext.jsx";
 import Modal from "../components/Modal.jsx";
 import BookCover from "../components/BookCover.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
+import ListSkeleton from "../components/ListSkeleton.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import { IconCheck, IconLoans, IconSearch } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
+import { matchesBook } from "../utils/bookFilter.js";
+import { useBookList } from "../hooks/useBookList.js";
 
 /**
  * Acervo PUBLICO (/catalogo): a unica tela que abre sem login.
@@ -19,20 +22,16 @@ import { formatBookTitle } from "../utils/bookTitle.js";
  * emprestadas. A lista e o "carregar mais" seguem o mesmo molde do Acervo.
  */
 
-const PAGE_SIZE = 10;
-
-// "Carregar mais" so existe quando ainda restam PAGE_SIZE livros ou mais. Se
-// sobrar menos que isso (ex.: mais 2 livros), eles vem junto com o bloco
-// anterior: nao vale um botao para duas linhas.
-function booksUrl(pageNumber, term, categoryName, statusKey) {
+// Uma pagina do acervo publico. filters = null traz sem filtro (ver useBookList).
+function loadBooks(pageNumber, limit, filters) {
   const params = new URLSearchParams({
     page: String(pageNumber),
-    limit: String(PAGE_SIZE),
+    limit: String(limit),
   });
-  if (term.trim()) params.set("search", term.trim());
-  if (categoryName) params.set("category", categoryName);
-  if (statusKey) params.set("status", statusKey);
-  return "/api/public/books?" + params.toString();
+  if (filters?.search) params.set("search", filters.search);
+  if (filters?.category) params.set("category", filters.category);
+  if (filters?.status) params.set("status", filters.status);
+  return publicApi("/api/public/books?" + params.toString());
 }
 
 // Voltando para a aba depois deste tempo, a situacao dos livros e recarregada.
@@ -125,35 +124,11 @@ function Availability({ book }) {
   );
 }
 
-function SkeletonList() {
-  return (
-    <ul className="booklist" aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((index) => (
-        <li key={index} className="bookrow pub__skelrow">
-          <span className="pubskel pubskel__cover" />
-          <span className="bookrow__text">
-            <span className="pubskel pubskel__line pubskel__line--lg" />
-            <span className="pubskel pubskel__line" />
-            <span className="pubskel pubskel__line pubskel__line--sm" />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export default function Catalog() {
   const { user } = useAuth();
 
   // overview: undefined = carregando | null = nao carregou | { titles, ... }
   const [overview, setOverview] = useState(undefined);
-  const [items, setItems] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState("");
   // O servidor gratuito dorme quando ninguem usa; a primeira abertura pode
   // demorar. Depois de alguns segundos explicamos isso na tela.
   const [slow, setSlow] = useState(false);
@@ -161,6 +136,16 @@ export default function Catalog() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
+
+  // O acervo e baixado uma vez e os filtros rodam aqui mesmo, na hora (ver
+  // useBookList). So existe espera na primeira abertura.
+  const list = useBookList({
+    load: loadBooks,
+    filters: { search: search.trim(), category, status },
+    matches: matchesBook,
+  });
+  const { items, total, hasMore, nextCount, waiting, error } = list;
+
   const [selected, setSelected] = useState(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
 
@@ -168,10 +153,6 @@ export default function Catalog() {
     rememberWelcomeSeen();
     setWelcomeOpen(false);
   }
-
-  // So a resposta da ultima busca vale: se a pessoa continua digitando, as
-  // respostas antigas que chegam atrasadas sao descartadas.
-  const requestRef = useRef(0);
 
   useEffect(() => {
     const previous = document.title;
@@ -200,101 +181,13 @@ export default function Catalog() {
     }
   }, []);
 
-  // Filtros da lista que esta na tela. "Carregar mais" usa estes, e nao o que
-  // esta digitado agora (a busca espera um instante antes de ser aplicada).
-  const appliedRef = useRef({ term: "", categoryName: "", statusKey: "" });
-
-  // background: recarga silenciosa (voltou para a aba): a lista continua
-  // clicavel e, se falhar, a lista antiga fica no lugar.
-  const loadPage = useCallback(
-    async (
-      pageToLoad,
-      term,
-      categoryName,
-      statusKey,
-      { background = false } = {},
-    ) => {
-      const requestId = ++requestRef.current;
-      const isFirstPage = pageToLoad === 1;
-      setError("");
-      if (isFirstPage) {
-        appliedRef.current = { term, categoryName, statusKey };
-        if (!background) setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-
-      try {
-        let data = await publicApi(
-          booksUrl(pageToLoad, term, categoryName, statusKey),
-        );
-        if (requestId !== requestRef.current) return;
-        let received = data.items;
-
-        // Restam menos que uma pagina inteira: busca o resto ja, para a lista
-        // aparecer completa de uma vez, sem botao.
-        const left = data.total - pageToLoad * PAGE_SIZE;
-        if (left > 0 && left < PAGE_SIZE) {
-          try {
-            const rest = await publicApi(
-              booksUrl(pageToLoad + 1, term, categoryName, statusKey),
-            );
-            if (requestId !== requestRef.current) return;
-            received = [...received, ...rest.items];
-            data = rest;
-          } catch {
-            // Os primeiros ja chegaram: se o resto falhar, o botao
-            // "Carregar mais" tenta de novo.
-            if (requestId !== requestRef.current) return;
-          }
-        }
-
-        setItems((prev) => (isFirstPage ? received : [...prev, ...received]));
-        setTotal(data.total);
-        setPage(data.page);
-        setHasMore(data.hasMore);
-      } catch (err) {
-        if (requestId !== requestRef.current) return;
-        if (background) return;
-        setError(err.message);
-        if (isFirstPage) {
-          setItems([]);
-          setTotal(0);
-          setHasMore(false);
-        }
-      } finally {
-        if (requestId === requestRef.current) {
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
-    },
-    [],
-  );
-
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
 
-  // Recarrega do comeco quando a busca, a categoria ou a situacao muda. So a
-  // digitacao espera um instante (para nao chamar o servidor a cada letra).
-  useEffect(() => {
-    const delay = search.trim() ? 300 : 0;
-    const timer = setTimeout(
-      () => loadPage(1, search, category, status),
-      delay,
-    );
-    return () => clearTimeout(timer);
-  }, [search, category, status, loadPage]);
-
   // Quem deixa a aba aberta e volta depois nao pode ver "disponivel" velho.
-  const latestFilters = useRef({});
-  latestFilters.current = {
-    search,
-    category,
-    status,
-    hasItems: items.length > 0,
-  };
+  const revalidateRef = useRef(list.revalidate);
+  revalidateRef.current = list.revalidate;
   useEffect(() => {
     let hiddenAt = 0;
     function onVisibilityChange() {
@@ -303,10 +196,7 @@ export default function Catalog() {
         return;
       }
       if (hiddenAt && Date.now() - hiddenAt > STALE_AFTER_MS) {
-        const filters = latestFilters.current;
-        loadPage(1, filters.search, filters.category, filters.status, {
-          background: filters.hasItems,
-        });
+        revalidateRef.current();
         loadOverview();
       }
       hiddenAt = 0;
@@ -314,9 +204,12 @@ export default function Catalog() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [loadPage, loadOverview]);
+  }, [loadOverview]);
 
-  const showSkeleton = loading && items.length === 0;
+  // Sem lista para o filtro atual (so acontece na primeira abertura, ou a
+  // cada filtro quando o acervo e grande demais para filtrar aqui): entra o
+  // esqueleto no lugar da lista.
+  const showSkeleton = waiting;
   useEffect(() => {
     if (!showSkeleton) {
       setSlow(false);
@@ -342,11 +235,6 @@ export default function Catalog() {
     setCategory("");
     setStatus("");
   }
-
-  // Quantos vem no proximo clique: um bloco de PAGE_SIZE ou, se o que sobra
-  // cabe em menos de dois blocos, tudo (ver booksUrl/loadPage).
-  const remaining = Math.max(0, total - items.length);
-  const nextCount = remaining < PAGE_SIZE * 2 ? remaining : PAGE_SIZE;
 
   // Os numeros do resumo vao em destaque; o resto fica em tom suave.
   let summary = null;
@@ -445,7 +333,7 @@ export default function Catalog() {
           ))}
         </div>
 
-        {!loading && !error && total > 0 ? (
+        {!waiting && !error && total > 0 ? (
           <p className="pub__count" aria-live="polite">
             {isFiltering
               ? total +
@@ -455,30 +343,27 @@ export default function Catalog() {
         ) : null}
 
         {showSkeleton ? (
-          <>
-            <SkeletonList />
-            <p className="muted pub__wait" role="status">
-              {slow
-                ? "O servidor estava em repouso e está acordando. Na primeira abertura isso pode levar até 1 minuto."
-                : "Carregando o acervo…"}
-            </p>
-          </>
+          <ListSkeleton>
+            {slow
+              ? "O servidor estava em repouso e está acordando. Na primeira abertura isso pode levar até 1 minuto."
+              : "Carregando o acervo…"}
+          </ListSkeleton>
         ) : null}
 
-        {!loading && error && items.length === 0 ? (
+        {error ? (
           <div className="empty" role="alert">
             <p>{error}</p>
             <button
               type="button"
               className="btn btn--ghost"
-              onClick={() => loadPage(1, search, category, status)}
+              onClick={list.reload}
             >
               Tentar de novo
             </button>
           </div>
         ) : null}
 
-        {!loading && !error && items.length === 0 ? (
+        {!waiting && !error && items.length === 0 ? (
           <div className="empty">
             <p>
               {isFiltering
@@ -498,7 +383,11 @@ export default function Catalog() {
         ) : null}
 
         {items.length > 0 ? (
-          <div className={"pub__results" + (loading ? " is-refreshing" : "")}>
+          <div
+            className={
+              "pub__results" + (list.refreshing ? " is-refreshing" : "")
+            }
+          >
             {groups.map(([letter, letterItems]) => (
               <section key={letter} className="group">
                 <h2 className="group__letter">{letter}</h2>
@@ -546,29 +435,21 @@ export default function Catalog() {
           </div>
         ) : null}
 
-        {error && items.length > 0 ? (
+        {list.notice ? (
           <p className="form-error" role="alert">
-            {error}
+            {list.notice}
           </p>
         ) : null}
 
-        {items.length > 0 && hasMore ? (
+        {hasMore ? (
           <div className="loadmore">
             <button
               type="button"
               className="btn btn--ghost"
-              onClick={() => {
-                const applied = appliedRef.current;
-                loadPage(
-                  page + 1,
-                  applied.term,
-                  applied.categoryName,
-                  applied.statusKey,
-                );
-              }}
-              disabled={loadingMore || loading}
+              onClick={list.loadMore}
+              disabled={list.loadingMore || list.refreshing}
             >
-              {loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
+              {list.loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
             </button>
           </div>
         ) : null}

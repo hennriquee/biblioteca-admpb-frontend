@@ -2319,10 +2319,34 @@ a.stat:active {
   gap: 14px;
   transition: opacity 0.15s ease;
 }
-/* Buscando de novo: a lista antiga fica esmaecida ate a nova chegar. */
-.pub__results.is-refreshing {
+/* Recarga da MESMA lista (ex.: depois de salvar): fica esmaecida ate a nova
+   chegar. Quando o filtro muda, a lista nem aparece: entra o esqueleto. */
+.pub__results.is-refreshing,
+.results.is-refreshing,
+.loanlist.is-refreshing {
   opacity: 0.55;
   pointer-events: none;
+}
+
+/* Lista do Acervo (as letras): mesmo espacamento da pagina. */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: opacity 0.15s ease;
+}
+.loanlist {
+  transition: opacity 0.15s ease;
+}
+
+/* Sugestoes (livro / pessoa) enquanto a busca nova ainda nao chegou. */
+.combo__wait {
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
 }
 
 /* Situacao do livro, na terceira linha do item da lista. */

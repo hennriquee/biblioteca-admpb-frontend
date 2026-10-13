@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -7,7 +7,10 @@ import BookCover from "../components/BookCover.jsx";
 import CoverSearchModal from "../components/CoverSearchModal.jsx";
 import CoverPicker from "../components/CoverPicker.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
+import ListSkeleton from "../components/ListSkeleton.jsx";
 import { findCategory } from "../utils/categories.js";
+import { matchesBook } from "../utils/bookFilter.js";
+import { useBookList } from "../hooks/useBookList.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
@@ -46,20 +49,17 @@ function groupByLetter(books) {
   return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-const PAGE_SIZE = 10;
 const MAX_COPIES = 999;
 
-// "Carregar mais" so existe quando ainda restam PAGE_SIZE livros ou mais. Se
-// sobrar menos que isso (ex.: mais 2 livros), eles vem junto com o bloco
-// anterior: nao vale um botao para duas linhas.
-function booksUrl(pageNumber, term, category) {
+// Uma pagina do acervo. filters = null traz sem filtro (ver useBookList).
+function loadBooks(pageNumber, limit, filters) {
   const params = new URLSearchParams({
     page: String(pageNumber),
-    limit: String(PAGE_SIZE),
+    limit: String(limit),
   });
-  if (term.trim()) params.set("search", term.trim());
-  if (category) params.set("category", category);
-  return "/api/books?" + params.toString();
+  if (filters?.search) params.set("search", filters.search);
+  if (filters?.category) params.set("category", filters.category);
+  return api("/api/books?" + params.toString());
 }
 
 // Texto da situação do livro, considerando todas as unidades.
@@ -86,20 +86,20 @@ function loanChip(book) {
 export default function Books() {
   const { notify } = useToast();
 
-  // "items" e so o que ja foi carregado na tela (10, 20, 30… conforme o
-  // usuario clica em "carregar mais"). "total" vem do servidor e reflete o
-  // acervo inteiro (ou o total de resultados da busca), entao a busca
-  // sempre encontra qualquer livro, mesmo um que nunca tenha sido carregado.
-  const [items, setItems] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   // Categorias que ja existem no acervo ([{ name, count }]) e a escolhida no filtro.
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("");
+
+  // O acervo e baixado uma vez e os filtros rodam aqui mesmo, na hora (ver
+  // useBookList). "items" e o que esta na tela (10, 20, 30… conforme o
+  // "carregar mais"); "total" e quantos livros o filtro atual encontra.
+  const list = useBookList({
+    load: loadBooks,
+    filters: { search: search.trim(), category: categoryFilter },
+    matches: matchesBook,
+  });
+  const { items, total, hasMore, nextCount, waiting, error } = list;
 
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -118,55 +118,6 @@ export default function Books() {
   const [loanedNow, setLoanedNow] = useState(0);
   const [duplicateBook, setDuplicateBook] = useState(null);
   const minCopies = Math.max(1, loanedNow);
-
-  // So a resposta da ultima chamada vale: com a busca em andamento, respostas
-  // antigas que chegam atrasadas (e os dois pedidos do "resto") sao descartadas.
-  const requestRef = useRef(0);
-
-  const loadPage = useCallback(
-    async (pageToLoad, term, category) => {
-      const requestId = ++requestRef.current;
-      const isFirstPage = pageToLoad === 1;
-      if (isFirstPage) setLoading(true);
-      else setLoadingMore(true);
-
-      try {
-        let data = await api(booksUrl(pageToLoad, term, category));
-        if (requestId !== requestRef.current) return;
-        let received = data.items;
-
-        // Restam menos que uma pagina inteira: busca o resto ja, para a lista
-        // aparecer completa de uma vez, sem botao.
-        const left = data.total - pageToLoad * PAGE_SIZE;
-        if (left > 0 && left < PAGE_SIZE) {
-          try {
-            const rest = await api(booksUrl(pageToLoad + 1, term, category));
-            if (requestId !== requestRef.current) return;
-            received = [...received, ...rest.items];
-            data = rest;
-          } catch {
-            // Os primeiros ja chegaram: se o resto falhar, o botao
-            // "Carregar mais" tenta de novo.
-            if (requestId !== requestRef.current) return;
-          }
-        }
-
-        setItems((prev) => (isFirstPage ? received : [...prev, ...received]));
-        setTotal(data.total);
-        setPage(data.page);
-        setHasMore(data.hasMore);
-      } catch (error) {
-        if (requestId !== requestRef.current) return;
-        notify(error.message, "error");
-      } finally {
-        if (requestId === requestRef.current) {
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
-    },
-    [notify],
-  );
 
   // Lista de categorias do acervo (alimenta o filtro e o campo do cadastro).
   // Se a categoria filtrada deixou de existir (ex.: o ultimo livro dela foi
@@ -188,29 +139,13 @@ export default function Books() {
     loadCategories();
   }, [loadCategories]);
 
-  // Recarrega do zero (pagina 1) sempre que a busca ou a categoria muda, com
-  // um pequeno debounce pra nao disparar uma chamada a cada tecla digitada.
-  useEffect(() => {
-    const timer = setTimeout(() => loadPage(1, search, categoryFilter), 250);
-    return () => clearTimeout(timer);
-  }, [search, categoryFilter, loadPage]);
-
-  function loadMore() {
-    loadPage(page + 1, search, categoryFilter);
-  }
-
   function reloadFromStart() {
-    loadPage(1, search, categoryFilter);
     loadCategories();
+    return list.reload();
   }
 
   const groups = useMemo(() => groupByLetter(items), [items]);
   const isFiltering = Boolean(search.trim() || categoryFilter);
-
-  // Quantos vem no proximo clique: um bloco de PAGE_SIZE ou, se o que sobra
-  // cabe em menos de dois blocos, tudo (ver booksUrl/loadPage).
-  const remaining = Math.max(0, total - items.length);
-  const nextCount = remaining < PAGE_SIZE * 2 ? remaining : PAGE_SIZE;
 
   function openCreate() {
     setForm(emptyForm);
@@ -378,15 +313,19 @@ export default function Books() {
         <div>
           <h1>Acervo</h1>
           <p className="page__sub">
-            {loading
+            {waiting
               ? "Carregando…"
-              : total === 0
-                ? "Nenhum livro cadastrado"
-                : items.length +
-                  " de " +
-                  total +
-                  " livro(s)" +
-                  (isFiltering ? " encontrados" : " cadastrados")}
+              : error
+                ? "Não foi possível carregar"
+                : total === 0
+                  ? isFiltering
+                    ? "Nenhum livro encontrado"
+                    : "Nenhum livro cadastrado"
+                  : items.length +
+                    " de " +
+                    total +
+                    " livro(s)" +
+                    (isFiltering ? " encontrados" : " cadastrados")}
           </p>
         </div>
         <button type="button" className="btn btn--primary" onClick={openCreate}>
@@ -418,9 +357,22 @@ export default function Books() {
         />
       ) : null}
 
-      {loading ? <p className="muted">Carregando o acervo…</p> : null}
+      {waiting ? <ListSkeleton label="Carregando o acervo…" /> : null}
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <div className="empty" role="alert">
+          <p>{error}</p>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={list.reload}
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
+
+      {!waiting && !error && items.length === 0 ? (
         <div className="empty">
           <p>
             {isFiltering
@@ -439,67 +391,79 @@ export default function Books() {
         </div>
       ) : null}
 
-      {groups.map(([letter, letterItems]) => (
-        <section key={letter} className="group">
-          <h2 className="group__letter">{letter}</h2>
-          <ul className="booklist">
-            {letterItems.map((book) => (
-              <li key={book._id}>
-                <button
-                  type="button"
-                  className="bookrow"
-                  onClick={() => setSelected(book)}
-                >
-                  <BookCover
-                    src={book.cover}
-                    alt={"Capa de " + formatBookTitle(book.title)}
-                    className="cover--sm"
-                  />
-                  <span className="bookrow__text">
-                    <strong title={formatBookTitle(book.title)}>
-                      {formatBookTitle(book.title)}
-                    </strong>
-                    <small className="bookrow__meta">
-                      <span
-                        className="bookrow__authors"
-                        title={(book.authors || []).join(", ") || undefined}
-                      >
-                        {(book.authors || []).join(", ") ||
-                          "Autor não informado"}
+      {groups.length > 0 ? (
+        <div
+          className={"results" + (list.refreshing ? " is-refreshing" : "")}
+        >
+          {groups.map(([letter, letterItems]) => (
+            <section key={letter} className="group">
+              <h2 className="group__letter">{letter}</h2>
+              <ul className="booklist">
+                {letterItems.map((book) => (
+                  <li key={book._id}>
+                    <button
+                      type="button"
+                      className="bookrow"
+                      onClick={() => setSelected(book)}
+                    >
+                      <BookCover
+                        src={book.cover}
+                        alt={"Capa de " + formatBookTitle(book.title)}
+                        className="cover--sm"
+                      />
+                      <span className="bookrow__text">
+                        <strong title={formatBookTitle(book.title)}>
+                          {formatBookTitle(book.title)}
+                        </strong>
+                        <small className="bookrow__meta">
+                          <span
+                            className="bookrow__authors"
+                            title={(book.authors || []).join(", ") || undefined}
+                          >
+                            {(book.authors || []).join(", ") ||
+                              "Autor não informado"}
+                          </span>
+                          {book.copies > 1 ? (
+                            <span className="bookrow__copies">
+                              {"· " + book.copies + " unidades"}
+                            </span>
+                          ) : null}
+                        </small>
                       </span>
-                      {book.copies > 1 ? (
-                        <span className="bookrow__copies">
-                          {"· " + book.copies + " unidades"}
+                      {loanChip(book) ? (
+                        <span
+                          className={
+                            "chip " +
+                            (loanChip(book).full ? "chip--out" : "chip--part")
+                          }
+                        >
+                          {loanChip(book).label}
                         </span>
                       ) : null}
-                    </small>
-                  </span>
-                  {loanChip(book) ? (
-                    <span
-                      className={
-                        "chip " +
-                        (loanChip(book).full ? "chip--out" : "chip--part")
-                      }
-                    >
-                      {loanChip(book).label}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : null}
 
-      {!loading && hasMore ? (
+      {list.notice ? (
+        <p className="form-error" role="alert">
+          {list.notice}
+        </p>
+      ) : null}
+
+      {hasMore ? (
         <div className="loadmore">
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={loadMore}
-            disabled={loadingMore}
+            onClick={list.loadMore}
+            disabled={list.loadingMore || list.refreshing}
           >
-            {loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
+            {list.loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
           </button>
         </div>
       ) : null}

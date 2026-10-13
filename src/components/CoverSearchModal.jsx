@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
 import {
@@ -22,6 +22,8 @@ export default function CoverSearchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
+  // So a resposta da ultima busca vale (a antiga que chega atrasada cai fora).
+  const requestRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -30,6 +32,9 @@ export default function CoverSearchModal({
     setResults([]);
     setError("");
     setSearched(false);
+    // Uma busca de antes de fechar/reabrir nao pode aparecer na grade nova.
+    requestRef.current += 1;
+    setLoading(false);
     if (q.trim()) runSearch(q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialQuery]);
@@ -37,10 +42,16 @@ export default function CoverSearchModal({
   async function runSearch(q) {
     const value = (q ?? query).trim();
     if (!value) return;
+    const requestId = ++requestRef.current;
+    // Busca nova: as fotos da busca anterior saem na hora (nao ficam na grade
+    // parecendo ser o resultado desta).
+    setResults([]);
+    setSearched(false);
     setLoading(true);
     setError("");
     try {
       const found = await searchCoverImages(value);
+      if (requestId !== requestRef.current) return;
       setResults(found);
       setSearched(true);
       if (!found.length) {
@@ -49,11 +60,12 @@ export default function CoverSearchModal({
         );
       }
     } catch {
+      if (requestId !== requestRef.current) return;
       setError(
         "A busca falhou. Tente de novo em instantes ou use o link do Google abaixo.",
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   }
 
@@ -89,6 +101,12 @@ export default function CoverSearchModal({
             {loading ? "Buscando…" : "Buscar"}
           </button>
         </form>
+
+        {loading ? (
+          <p className="muted coversearch__msg" role="status">
+            Buscando fotos…
+          </p>
+        ) : null}
 
         {error ? <p className="muted coversearch__msg">{error}</p> : null}
 
