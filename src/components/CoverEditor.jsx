@@ -7,12 +7,9 @@ import {
 } from "react";
 import Modal from "./Modal.jsx";
 
-// Formato padrao das capas: retrato 2:3 (largura:altura), o mesmo das capas
-// de livro de verdade. A foto final sai sempre com 600x900 px, em JPEG - fica
-// leve (~100-200 KB) e todas as capas ficam do mesmo tamanho.
-const COVER_RATIO = 2 / 3;
-const OUT_W = 600;
-const OUT_H = 900;
+// Formato padrao: capa de livro em retrato 2:3 (largura:altura), o mesmo das
+// capas de verdade, salva em 600x900 px. A foto de perfil usa o mesmo recorte
+// com ratio = 1 e 400x400 (ver PhotoPicker).
 const MAX_ZOOM = 4;
 const FRAME_MAX_W = 280;
 
@@ -41,6 +38,14 @@ export default function CoverEditor({
   onCancel,
   onConfirm,
   onLoadError,
+  // Formato do recorte: largura/altura. 2/3 = capa; 1 = foto de perfil.
+  ratio = 2 / 3,
+  // Tamanho final do arquivo, em px.
+  out = { w: 600, h: 900 },
+  // Mostra o quadro redondo (a foto de perfil aparece redonda no app).
+  round = false,
+  title = "Ajustar capa",
+  hint = "Arraste a foto para enquadrar a capa.",
 }) {
   const wrapRef = useRef(null);
   const frameRef = useRef(null);
@@ -76,9 +81,9 @@ export default function CoverEditor({
     function measure() {
       const maxHeight = Math.max(220, window.innerHeight * 0.5);
       const w = Math.floor(
-        Math.min(wrap.clientWidth, FRAME_MAX_W, maxHeight * COVER_RATIO),
+        Math.min(wrap.clientWidth, FRAME_MAX_W, maxHeight * ratio),
       );
-      setBox({ w, h: Math.round(w / COVER_RATIO) });
+      setBox({ w, h: Math.round(w / ratio) });
     }
 
     measure();
@@ -89,7 +94,7 @@ export default function CoverEditor({
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [open]);
+  }, [open, ratio]);
 
   // Escala minima: a foto sempre cobre o quadro inteiro (sem bordas vazias).
   const minScale =
@@ -205,14 +210,14 @@ export default function CoverEditor({
     const sy = clamp(natural.h / 2 - view.y / scale - sh / 2, 0, natural.h - sh);
 
     const canvas = document.createElement("canvas");
-    canvas.width = OUT_W;
-    canvas.height = OUT_H;
+    canvas.width = out.w;
+    canvas.height = out.h;
     const ctx = canvas.getContext("2d");
     // Fundo branco: PNG com transparencia nao vira preto no JPEG.
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, OUT_W, OUT_H);
+    ctx.fillRect(0, 0, out.w, out.h);
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUT_W, OUT_H);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, out.w, out.h);
 
     onConfirm(canvas.toDataURL("image/jpeg", 0.88));
   }
@@ -223,7 +228,7 @@ export default function CoverEditor({
     <Modal
       open={open}
       onClose={onCancel}
-      title="Ajustar capa"
+      title={title}
       size="sm"
       closeOnBackdrop={false}
       footer={
@@ -245,11 +250,14 @@ export default function CoverEditor({
       <div className="cropper" ref={wrapRef}>
         <div
           ref={frameRef}
-          className="cropper__frame"
+          className={"cropper__frame" + (round ? " cropper__frame--round" : "")}
           style={{ width: box.w, height: box.h }}
           tabIndex={0}
           role="group"
-          aria-label="Área da capa. Arraste para posicionar a foto; use mais e menos para ampliar."
+          aria-label={
+            title +
+            ". Arraste para posicionar a foto; use mais e menos para ampliar."
+          }
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
@@ -286,7 +294,10 @@ export default function CoverEditor({
               onError={() => onLoadError && onLoadError()}
             />
           ) : null}
-          <div className="cropper__grid" aria-hidden="true" />
+          <div
+            className={"cropper__grid" + (round ? " cropper__grid--round" : "")}
+            aria-hidden="true"
+          />
         </div>
 
         <label className="cropper__zoom">
@@ -306,9 +317,7 @@ export default function CoverEditor({
           <span aria-hidden="true">+</span>
         </label>
 
-        <p className="cropper__hint muted">
-          Arraste a foto para enquadrar a capa.
-        </p>
+        <p className="cropper__hint muted">{hint}</p>
       </div>
     </Modal>
   );

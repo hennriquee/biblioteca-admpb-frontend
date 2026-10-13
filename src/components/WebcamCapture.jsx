@@ -12,7 +12,15 @@ import { IconCamera } from "./Icons.jsx";
  *  - onClose(): fechar sem tirar foto
  *  - onError(error): nao foi possivel abrir a camera (sem permissao, sem webcam…)
  */
-export default function WebcamCapture({ open, onClose, onCapture, onError }) {
+export default function WebcamCapture({
+  open,
+  onClose,
+  onCapture,
+  onError,
+  hint = "Enquadre a capa do livro. No próximo passo você ajusta o recorte.",
+  // "user" = camera da frente (foto de perfil); "environment" = a de tras.
+  facingMode = "environment",
+}) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const onErrorRef = useRef(onError);
@@ -27,7 +35,7 @@ export default function WebcamCapture({ open, onClose, onCapture, onError }) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "environment",
+            facingMode,
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           },
@@ -58,7 +66,7 @@ export default function WebcamCapture({ open, onClose, onCapture, onError }) {
       }
       setReady(false);
     };
-  }, [open]);
+  }, [open, facingMode]);
 
   function capture() {
     const video = videoRef.current;
@@ -110,9 +118,7 @@ export default function WebcamCapture({ open, onClose, onCapture, onError }) {
         />
         {!ready ? <p className="webcam__status muted">Abrindo a câmera…</p> : null}
       </div>
-      <p className="cropper__hint muted">
-        Enquadre a capa do livro. No próximo passo você ajusta o recorte.
-      </p>
+      <p className="cropper__hint muted">{hint}</p>
     </Modal>
   );
 }

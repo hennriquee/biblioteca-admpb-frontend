@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -110,6 +110,9 @@ export default function Books() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Trava contra o clique duplo: dois toques rapidos em "Salvar livro"
+  // cadastrariam o livro duas vezes.
+  const savingRef = useRef(false);
   const [coverSearchOpen, setCoverSearchOpen] = useState(false);
   const [coverSearchQuery, setCoverSearchQuery] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -266,6 +269,8 @@ export default function Books() {
       return;
     }
 
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const { category, ...fields } = form;
@@ -290,6 +295,7 @@ export default function Books() {
     } catch (error) {
       notify(error.message, "error");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }

@@ -80,6 +80,9 @@ function LoanCard({ loan, onOpen }) {
 
           <p className="loancard__person">
             {loan.personName}
+            {loan.personIsAdmin ? (
+              <span className="chip chip--admin">admin</span>
+            ) : null}
             <span className="loancard__days">
               {" · "}
               {daysWith === 0
@@ -404,7 +407,17 @@ export default function Loans() {
             <dl className="detail__data">
               <div>
                 <dt>Com quem está</dt>
-                <dd>{selected.personName}</dd>
+                <dd>
+                  {selected.personName}
+                  {selected.personIsAdmin ? (
+                    <span className="chip chip--admin">admin</span>
+                  ) : null}
+                  {selected.personCode ? (
+                    <small className="detail__code">
+                      {"#" + selected.personCode}
+                    </small>
+                  ) : null}
+                </dd>
               </div>
               <div>
                 <dt>WhatsApp</dt>

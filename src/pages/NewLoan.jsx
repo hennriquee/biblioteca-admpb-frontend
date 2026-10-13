@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
+import SamePersonDialog from "../components/SamePersonDialog.jsx";
 import BookCover from "../components/BookCover.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { IconSearch, IconClose } from "../components/Icons.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
+import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
 // O servidor monta o aviso ("Fulana ja esta com Tal Livro.") com o titulo como
@@ -39,6 +41,10 @@ export default function NewLoan() {
   const [allBooks, setAllBooks] = useState(null);
 
   const [personName, setPersonName] = useState("");
+  // Quem e a pessoa, de verdade: o id do cadastro dela. Fica preenchido quando
+  // a pessoa e escolhida na lista de sugestoes; digitar o nome nele mesmo
+  // limpa (um nome igual pode ser de outra pessoa - ver models/Person.js).
+  const [personId, setPersonId] = useState(null);
   const [phone, setPhone] = useState("");
   const [personSuggestions, setPersonSuggestions] = useState({
     term: "",
@@ -52,8 +58,13 @@ export default function NewLoan() {
 
   const [submitting, setSubmitting] = useState(false);
   const [warning, setWarning] = useState(null);
+  // "Esse nome ja esta no cadastro. E a mesma pessoa?"
+  const [samePerson, setSamePerson] = useState(null);
 
   const personBlurTimer = useRef(null);
+  // Trava contra o clique duplo: dois toques rapidos em "Registrar" criariam
+  // dois emprestimos do mesmo livro para a mesma pessoa.
+  const submittingRef = useRef(false);
 
   const bookTerm = bookQuery.trim();
   const personTerm = personName.trim();
@@ -142,7 +153,12 @@ export default function NewLoan() {
       ? personSuggestions.items
       : [];
 
-  async function submitLoan(force = false) {
+  // extra: { force } (a pessoa confirmou que pode levar outro livro),
+  // { personId } (e esta pessoa do cadastro) ou { newPerson } (e outra pessoa,
+  // de nome igual).
+  async function submitLoan(extra = {}) {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await api("/api/loans", {
@@ -150,25 +166,27 @@ export default function NewLoan() {
         body: {
           bookId: book._id,
           personName: personName.trim(),
+          personId,
           phone,
           startDate,
           dueDate: dueDate || null,
           notes,
-          force,
+          ...extra,
         },
       });
       notify("Empréstimo registrado.", "success");
       navigate("/emprestimos");
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.payload?.code === "PERSON_HAS_ACTIVE_LOAN"
-      ) {
+      const code = error instanceof ApiError ? error.payload?.code : null;
+      if (code === "PERSON_HAS_ACTIVE_LOAN") {
         setWarning(error.payload);
+      } else if (code === "PERSON_NAME_EXISTS") {
+        setSamePerson(error.payload);
       } else {
         notify(error.message, "error");
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -191,7 +209,7 @@ export default function NewLoan() {
         "error",
       );
     }
-    return submitLoan(false);
+    return submitLoan();
   }
 
   return (
@@ -312,8 +330,10 @@ export default function NewLoan() {
               type="text"
               value={personName}
               placeholder="Ex.: Maria Eduarda Nogueira"
+              maxLength={80}
               onChange={(e) => {
                 setPersonName(e.target.value);
+                setPersonId(null);
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
@@ -337,12 +357,24 @@ export default function NewLoan() {
                       onMouseDown={() => clearTimeout(personBlurTimer.current)}
                       onClick={() => {
                         setPersonName(person.fullName);
+                        setPersonId(person._id);
                         setPhone(person.phone || "");
                         setShowSuggestions(false);
                       }}
                     >
                       <span>
-                        <strong>{person.fullName}</strong>
+                        <strong>
+                          {(person.code ? "#" + person.code + " " : "") +
+                            person.fullName}
+                          {person.isAdmin ? (
+                            <span className="chip chip--admin">admin</span>
+                          ) : null}
+                        </strong>
+                        <small>
+                          {person.phone
+                            ? formatStoredPhone(person.phone)
+                            : "sem WhatsApp"}
+                        </small>
                         <small>
                           {person.activeLoans.length > 0
                             ? "está com " + person.activeLoans.join(", ")
@@ -414,6 +446,23 @@ export default function NewLoan() {
         </div>
       </form>
 
+      <SamePersonDialog
+        open={Boolean(samePerson)}
+        warning={samePerson}
+        onCancel={() => setSamePerson(null)}
+        onUsePerson={(person) => {
+          setSamePerson(null);
+          setPersonId(person._id);
+          setPersonName(person.fullName);
+          if (person.phone && !phone) setPhone(person.phone);
+          submitLoan({ personId: person._id });
+        }}
+        onCreateNew={() => {
+          setSamePerson(null);
+          submitLoan({ newPerson: true });
+        }}
+      />
+
       <Confirm
         open={Boolean(warning)}
         title="Essa pessoa já tem um livro"
@@ -422,7 +471,7 @@ export default function NewLoan() {
         onCancel={() => setWarning(null)}
         onConfirm={() => {
           setWarning(null);
-          submitLoan(true);
+          submitLoan({ force: true });
         }}
       />
     </div>

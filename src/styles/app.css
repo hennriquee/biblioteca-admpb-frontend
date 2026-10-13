@@ -2810,3 +2810,319 @@ a.stat:active {
     --pub-bar-h: 40px;
   }
 }
+
+/* ---------- Gente: foto redonda, listas e selos ----------
+   Usado nas duas telas de Configuracoes (Administradores e Usuarios), no
+   "Com quem falar?" do acervo publico e nos selos de admin. */
+
+/* Foto redonda. Sem foto, as iniciais do nome (ver Avatar.jsx). */
+.avatar {
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-sunk);
+}
+.avatar--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--clay-wash);
+  color: var(--clay-strong);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+/* Foto de perfil com a bolinha de camera (reaproveita o menu da capa). */
+.photopicker {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+.photopicker__anchor {
+  position: relative;
+  display: inline-block;
+}
+.photopicker__camera {
+  right: -4px;
+  bottom: -4px;
+  width: 36px;
+  height: 36px;
+}
+
+/* Recorte redondo (foto de perfil): sem as guias de terco. */
+.cropper__frame--round {
+  border-radius: 50%;
+}
+.cropper__grid--round {
+  background-image: none;
+}
+
+/* Linhas das listas de gente */
+.peoplelist,
+.adminlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.15s ease;
+}
+.peoplelist.is-refreshing,
+.adminlist.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.personrow,
+.admincard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+/* O numero da pessoa (#3): e ele que identifica quem e quem. */
+.personrow__code {
+  flex-shrink: 0;
+  min-width: 2.2rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--clay);
+}
+.personrow__text,
+.admincard__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.personrow__text strong,
+.admincard__text strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-width: 0;
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+/* O nome quebra em duas linhas em vez de virar "Ana Lima Ferre...": numa
+   lista de gente, saber quem e vale mais do que a linha caber. */
+.personrow__name {
+  overflow-wrap: anywhere;
+}
+.personrow__text strong .chip,
+.admincard__text strong .chip {
+  flex-shrink: 0;
+}
+.personrow__text small,
+.admincard__text small {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.personrow__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.icon-button--danger:hover {
+  background: var(--danger-wash);
+  color: var(--danger);
+}
+
+/* Selos: quem tem conta de administrador e a sua propria conta. */
+.chip--admin {
+  background: var(--clay-wash);
+  color: var(--clay-strong);
+}
+.chip--me {
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+}
+.loancard__person .chip,
+.detail__data dd .chip {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.detail__code {
+  margin-left: 6px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+/* "E a mesma pessoa?": a escolha de qual cadastro usar. */
+.pickperson {
+  display: flex;
+  flex-direction: column;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.pickperson__item {
+  justify-content: space-between;
+}
+.pickperson__pick {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--clay);
+}
+
+/* ---------- "Com quem falar?" (acervo publico) ---------- */
+.staff {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.staffcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 8px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.staffcard strong {
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* ---------- Engrenagem de configuracoes e menu lateral ---------- */
+/* Na Inicio a engrenagem flutua no canto esquerdo, espelhando o botao de
+   sair; nas telas internas ela fica na mesma altura do "voltar". */
+.appgear {
+  position: absolute;
+  z-index: 5;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 14px;
+}
+@media (min-width: 860px) {
+  .appgear {
+    top: 20px;
+    left: 24px;
+  }
+}
+.pagetop {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -6px 0 6px -8px;
+}
+.pagetop .backlink {
+  margin: 0;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  background: rgba(43, 32, 19, 0.38);
+  animation: fade 0.15s ease;
+}
+.drawer {
+  display: flex;
+  flex-direction: column;
+  width: min(330px, 86vw);
+  height: 100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 12px
+    calc(env(safe-area-inset-bottom, 0px) + 14px);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  animation: drawer-in 0.22s ease both;
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.drawer__who strong {
+  font-weight: 500;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawer__who small {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+}
+.drawer__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+.drawer__item:hover {
+  background: var(--surface-sunk);
+}
+.drawer__item svg {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+.drawer__item span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.drawer__item strong {
+  font-weight: 500;
+}
+.drawer__item small {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.drawer__foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.drawer__item--exit,
+.drawer__item--exit svg {
+  color: var(--danger);
+}
+.drawer__item--exit:hover {
+  background: var(--danger-wash);
+}

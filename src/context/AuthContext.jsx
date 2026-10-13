@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, setToken, getToken } from '../api/client.js';
 
 const AuthContext = createContext(null);
@@ -20,8 +20,11 @@ export function AuthProvider({ children }) {
         // login so as telas privadas; o /catalogo (publico) continua abrindo.
         const data = await api('/api/auth/me', { redirectOnExpired: false });
         if (active) setUser(data.user);
-      } catch {
-        setToken(null);
+      } catch (error) {
+        // So descarta o token quando o servidor DIZ que ele nao vale mais.
+        // Falha de internet (ou servidor acordando) nao deve apagar a sessao:
+        // da proxima vez que abrir, ela ainda esta valendo.
+        if (error?.status === 401) setToken(null);
       } finally {
         if (active) setLoading(false);
       }
@@ -48,7 +51,21 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
+  // Quem editou o proprio nome ou a propria foto (em Configuracoes >
+  // Administradores) ve a mudanca na hora, sem precisar sair e entrar.
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await api('/api/auth/me', { redirectOnExpired: false });
+      setUser(data.user);
+    } catch {
+      /* se falhar, a sessao continua com o que ja estava na tela */
+    }
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, login, logout, refreshUser }),
+    [user, loading, refreshUser]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

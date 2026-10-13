@@ -7,7 +7,13 @@ import BookCover from "../components/BookCover.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
-import { IconCheck, IconLoans, IconSearch } from "../components/Icons.jsx";
+import StaffModal from "../components/StaffModal.jsx";
+import {
+  IconChat,
+  IconCheck,
+  IconLoans,
+  IconSearch,
+} from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
@@ -148,6 +154,8 @@ export default function Catalog() {
 
   const [selected, setSelected] = useState(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
+  // "Com quem falar?": os cartoes da equipe da biblioteca.
+  const [staffOpen, setStaffOpen] = useState(false);
 
   function closeWelcome() {
     rememberWelcomeSeen();
@@ -228,6 +236,7 @@ export default function Catalog() {
 
   const groups = useMemo(() => groupByLetter(items), [items]);
   const categories = overview?.categories || [];
+  const staff = overview?.staff || [];
   const isFiltering = Boolean(search.trim() || category || status);
 
   function clearFilters() {
@@ -277,6 +286,17 @@ export default function Catalog() {
             <Link to="/" className="btn btn--ghost pub__admin">
               Voltar ao painel
             </Link>
+          ) : staff.length > 0 ? (
+            // Quem nao administra o acervo ve aqui com quem falar para pegar
+            // um livro (no lugar do "Voltar ao painel").
+            <button
+              type="button"
+              className="btn btn--ghost pub__admin"
+              onClick={() => setStaffOpen(true)}
+            >
+              <IconChat width={18} height={18} />
+              Com quem falar?
+            </button>
           ) : null}
         </div>
 
@@ -467,6 +487,12 @@ export default function Catalog() {
       </div>
 
       <WelcomeModal open={welcomeOpen} onClose={closeWelcome} />
+
+      <StaffModal
+        open={staffOpen}
+        onClose={() => setStaffOpen(false)}
+        staff={staff}
+      />
 
       {/* Detalhes do livro: so leitura. Sem botoes de editar/excluir e sem
           nada sobre quem esta com o livro (o servidor nem envia). */}

@@ -9,6 +9,8 @@ import Books from './pages/Books.jsx';
 import Loans from './pages/Loans.jsx';
 import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
+import Admins from './pages/Admins.jsx';
+import People from './pages/People.jsx';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -50,6 +52,9 @@ export default function App() {
         <Route path="/livros" element={<Books />} />
         <Route path="/emprestimos" element={<Loans />} />
         <Route path="/emprestimos/novo" element={<NewLoan />} />
+        {/* Configuracoes: cadastro de gente (engrenagem do painel) */}
+        <Route path="/configuracoes/administradores" element={<Admins />} />
+        <Route path="/configuracoes/usuarios" element={<People />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
