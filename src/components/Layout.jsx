@@ -28,7 +28,7 @@ const PARENTS = {
   "/livros": { to: "/", label: "Início" },
   "/emprestimos": { to: "/", label: "Início" },
   "/emprestimos/novo": { to: "/emprestimos", label: "Empréstimos" },
-  "/configuracoes/administradores": {
+  "/configuracoes/conta": {
     to: "/",
     label: "Início",
     always: true,

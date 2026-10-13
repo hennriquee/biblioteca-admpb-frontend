@@ -9,7 +9,7 @@ import Books from './pages/Books.jsx';
 import Loans from './pages/Loans.jsx';
 import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
-import Admins from './pages/Admins.jsx';
+import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
 import DevConsole from './pages/DevConsole.jsx';
 
@@ -80,7 +80,7 @@ export default function App() {
         <Route path="/emprestimos" element={<Loans />} />
         <Route path="/emprestimos/novo" element={<NewLoan />} />
         {/* Configuracoes: cadastro de gente (engrenagem do painel) */}
-        <Route path="/configuracoes/administradores" element={<Admins />} />
+        <Route path="/configuracoes/conta" element={<Account />} />
         <Route path="/configuracoes/usuarios" element={<People />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

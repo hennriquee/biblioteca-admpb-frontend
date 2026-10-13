@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
-import { IconExit, IconShield, IconUsers } from "./Icons.jsx";
+import { IconExit, IconUser, IconUsers } from "./Icons.jsx";
 
 /**
  * Menu de configuracoes que entra pela esquerda (botao de engrenagem do
- * painel). Leva as duas telas de cadastro de gente e tem a saida do app.
+ * painel). Leva ao cadastro de gente e a conta de quem esta logado, e tem a saida do app.
  *
  * Fecha com Esc, tocando fora ou ao escolher uma opcao. Enquanto esta aberto,
  * a pagina de tras nao rola e o Tab fica dando a volta dentro do menu.
@@ -81,17 +81,6 @@ export default function SettingsDrawer({ open, onClose, user, onLogout }) {
 
         <nav className="drawer__nav" aria-label="Configurações">
           <Link
-            to="/configuracoes/administradores"
-            className="drawer__item"
-            onClick={onClose}
-          >
-            <IconShield width={20} height={20} />
-            <span>
-              <strong>Administradores</strong>
-              <small>Quem entra no painel</small>
-            </span>
-          </Link>
-          <Link
             to="/configuracoes/usuarios"
             className="drawer__item"
             onClick={onClose}
@@ -100,6 +89,17 @@ export default function SettingsDrawer({ open, onClose, user, onLogout }) {
             <span>
               <strong>Usuários</strong>
               <small>Quem pega livros emprestados</small>
+            </span>
+          </Link>
+          <Link
+            to="/configuracoes/conta"
+            className="drawer__item"
+            onClick={onClose}
+          >
+            <IconUser width={20} height={20} />
+            <span>
+              <strong>Minha conta</strong>
+              <small>Foto, nome e senha</small>
             </span>
           </Link>
         </nav>

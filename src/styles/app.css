@@ -3025,15 +3025,6 @@ span.avatar--empty {
   margin-left: 6px;
   vertical-align: 1px;
 }
-
-/* Ficha de outro administrador: no lugar dos botoes, o porque. */
-.personrow__locked {
-  max-width: 7.5rem;
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  line-height: 1.25;
-  text-align: right;
-}
 .detail__code {
   margin-left: 6px;
   color: var(--ink-soft);

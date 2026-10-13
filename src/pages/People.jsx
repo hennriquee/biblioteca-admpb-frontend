@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
@@ -31,9 +32,10 @@ import { isValidPhoneNumber } from "libphonenumber-js";
  * inclusive: administrador e so uma pessoa que tambem tem login e senha. Sem
  * foto, o app mostra as iniciais do nome.
  *
- * Quem tem o selo "admin" aqui so e editado pela propria pessoa, em
- * Configuracoes > Administradores (o servidor recusa o resto). Dar ou tirar o
- * acesso ao painel e so na tela de manutencao.
+ * Quem tem o selo "admin" aparece aqui so para ser visto: sem editar e sem
+ * excluir. A propria pessoa edita a sua ficha em Configuracoes > Minha conta
+ * (o servidor recusa o resto). Dar ou tirar o acesso ao painel e so na tela
+ * de manutencao.
  */
 
 // Quanto a tela baixa de uma vez (o servidor nao manda mais que isso num
@@ -109,11 +111,10 @@ export default function People() {
     [people, term],
   );
 
-  // Ficha de outro administrador: quem edita e a propria pessoa, na tela de
-  // administradores. (A trava de verdade esta no servidor; aqui e so para nao
-  // oferecer um botao que vai dar erro.)
-  const isLocked = (person) =>
-    person.isAdmin && String(person._id) !== String(user?.id);
+  // Administrador aparece aqui so para ser VISTO (a trava de verdade esta no
+  // servidor; aqui e so para nao oferecer botao que vai dar erro). A propria
+  // pessoa edita a sua ficha em "Minha conta".
+  const isMe = (person) => String(person._id) === String(user?.id);
 
   function openCreate() {
     setForm({ ...emptyForm });
@@ -301,10 +302,17 @@ export default function People() {
                 </small>
               </span>
               <span className="personrow__actions">
-                {isLocked(person) ? (
-                  <small className="personrow__locked">
-                    só a própria pessoa edita
-                  </small>
+                {person.isAdmin ? (
+                  isMe(person) ? (
+                    <Link
+                      to="/configuracoes/conta"
+                      className="icon-button"
+                      title="Editar a minha conta"
+                    >
+                      <IconEdit width={18} height={18} />
+                      <span className="sr-only">Editar a minha conta</span>
+                    </Link>
+                  ) : null
                 ) : (
                   <>
                     <button
