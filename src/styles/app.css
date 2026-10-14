@@ -2478,6 +2478,55 @@ a.stat:active {
   border-radius: 999px;
 }
 
+/* Esqueleto de FORMULARIO (ver components/FormSkeleton.jsx): mesmo brilho do
+   esqueleto de lista, mas com a forma de uma tela de edicao - foto redonda,
+   campos e botao. As medidas acompanham as de verdade (.photopicker, .field
+   input e .btn), para a tela nao "pular" quando o conteudo chega. */
+.formskel {
+  pointer-events: none;
+}
+.formskel__photo {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+.formskel__avatar {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+}
+.formskel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* A etiqueta e a dica acompanham a altura do texto de verdade (.field > span
+   e .field__hint, 0.83rem e 0.8rem com a entrelinha 1.55 do corpo). */
+.formskel__label {
+  width: 128px;
+  height: 18px;
+  border-radius: 6px;
+}
+/* 51px e a altura do campo de verdade: 16px de texto x 1.55 de entrelinha,
+   mais os 12px de padding de cima e de baixo e 1px de borda em cada lado
+   (.field input). Com a medida certa, o formulario entra no lugar do
+   esqueleto sem a tela dar um salto. */
+.formskel__input {
+  width: 100%;
+  height: 51px;
+  border-radius: var(--radius-sm);
+}
+.formskel__hint {
+  width: 72%;
+  height: 16px;
+  border-radius: 6px;
+}
+.formskel__button {
+  width: 100%;
+  height: 42px;
+  border-radius: 999px;
+}
+
 /* Detalhe do livro: a situacao ocupa a linha toda, no topo. */
 .detail__wide {
   grid-column: 1 / -1;
@@ -2491,6 +2540,11 @@ a.stat:active {
 .pub__situation {
   color: var(--ink-soft);
   font-size: 0.85rem;
+}
+/* Dentro do detalhe, o espaco entre a situacao e o resto ja vem do gap do dd
+   (na lista o margin-top e que separa da linha do autor). */
+.detail__wide .pub__avail {
+  margin-top: 0;
 }
 
 .pub__foot {
@@ -3206,7 +3260,8 @@ span.avatar--empty {
   color: var(--gold-strong);
   box-shadow: var(--shadow-card);
 }
-/* Nos detalhes do livro, do lado do numero de vezes que ele saiu. */
+/* Nos detalhes do livro: no acervo publico fica ao lado da situacao; no painel,
+   do lado do numero de vezes que o livro saiu. */
 .detail__crown {
   display: inline-flex;
   align-items: center;
@@ -3219,6 +3274,10 @@ span.avatar--empty {
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
+}
+/* Em linha com a situacao, o espaco entre os dois ja vem do gap. */
+.pub__avail .detail__crown {
+  margin-left: 0;
 }
 
 /* ---------- Tela de manutencao (login reservado) ---------- */
@@ -3241,6 +3300,14 @@ span.avatar--empty {
   gap: 12px;
   flex-wrap: wrap;
 }
+/* Os botoes do cabecalho (cadastrar pessoa e sair). Na tela estreita eles
+   ficam lado a lado embaixo do titulo, pelo flex-wrap do .devpage__head. */
+.devpage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Selo que deixa claro, de olho, que esta sessao nao e a de um administrador. */
 .devpage__badge {
   display: inline-block;

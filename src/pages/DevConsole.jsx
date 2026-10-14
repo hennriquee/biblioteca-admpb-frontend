@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../api/client.js";
+import { api, ApiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import Avatar from "../components/Avatar.jsx";
+import PhoneInput from "../components/PhoneInput.jsx";
+import PhotoPicker from "../components/PhotoPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import {
+  IconEdit,
   IconExit,
   IconEye,
   IconEyeOff,
+  IconPlus,
   IconSearch,
   IconShield,
   IconUser,
 } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
+import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
  * MANUTENCAO. Esta tela so abre com o login reservado (digitado na propria
@@ -28,9 +33,27 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  *    numero, a foto e o historico de emprestimos continuam intactos);
  *  - trocar o login ou a senha de um administrador.
  *
- * O que NAO se faz aqui: livro, emprestimo, nome, WhatsApp e foto. Isso e
- * trabalho do painel, com conta de administrador.
+ * E TAMBEM e a tela que cuida do CADASTRO de gente: cadastrar uma pessoa nova
+ * e editar nome, WhatsApp e foto - de usuario e de administrador. As regras
+ * sao as mesmas da tela "Usuarios" do painel (no servidor sao os MESMOS
+ * tratadores, ver backend/src/routes/dev.js), com uma diferenca: aqui a ficha
+ * de um administrador tambem pode ser corrigida, o que no painel so a propria
+ * pessoa faz.
+ *
+ * O que NAO se faz aqui: livro e emprestimo - registrar, confirmar devolucao
+ * ou apagar e trabalho do painel, com conta de administrador. (Corrigir o nome
+ * ou o WhatsApp de alguem aqui muda o que o emprestimo em andamento mostra
+ * dela, porque o emprestimo guarda uma copia dos dois.)
  */
+
+// Ficha em branco do formulario de pessoa (igual ao da tela "Usuarios").
+const emptyPerson = {
+  fullName: "",
+  phone: "",
+  photo: "", // data URI de uma foto nova, ainda nao enviada
+  savedPhoto: "", // foto que ja esta salva
+  removePhoto: false,
+};
 
 const MIN_PASSWORD = 6;
 
@@ -87,12 +110,17 @@ export default function DevConsole() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Um modal de cada vez: subir alguem a administrador, trocar login/senha de
-  // um administrador ou confirmar o desfazer.
+  // Um modal de cada vez: cadastrar/editar uma ficha, subir alguem a
+  // administrador, trocar login/senha de um administrador ou confirmar o
+  // desfazer.
+  const [personForm, setPersonForm] = useState(null);
   const [promote, setPromote] = useState(null);
   const [credentials, setCredentials] = useState(null);
   const [confirmDemote, setConfirmDemote] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Aviso de nome/WhatsApp repetido vindo do servidor; "Confirmar" reenvia
+  // com force = true.
+  const [warning, setWarning] = useState(null);
 
   const requestRef = useRef(0);
   // Trava contra o clique duplo (dois toques rapidos no "Salvar" disparam duas
@@ -143,6 +171,70 @@ export default function DevConsole() {
     } catch (err) {
       notify(err.message, "error");
       return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  function openCreatePerson() {
+    setPersonForm({ ...emptyPerson });
+  }
+
+  function openEditPerson(person) {
+    setPersonForm({
+      ...emptyPerson,
+      _id: person._id,
+      code: person.code,
+      fullName: person.fullName,
+      phone: person.phone || "",
+      savedPhoto: person.photo || "",
+    });
+  }
+
+  // Cadastra ou edita a ficha (nome, WhatsApp e foto). Nao mexe em login nem
+  // em senha: isso e dos outros dois modais.
+  // force = true: quem esta usando confirmou o aviso de nome/WhatsApp repetido.
+  async function savePerson(force) {
+    const form = personForm;
+    if (!form.fullName.trim().split(/\s+/).filter(Boolean)[1]) {
+      notify("Digite o nome completo (nome e sobrenome).", "error");
+      return;
+    }
+    if (form.phone && !isValidPhoneNumber("+" + form.phone)) {
+      notify("WhatsApp inválido. Confira o país, o DDD e o número.", "error");
+      return;
+    }
+
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const body = {
+        fullName: form.fullName,
+        phone: form.phone,
+        force: Boolean(force),
+      };
+      if (form.photo) body.photo = form.photo;
+      if (form.removePhoto) body.removePhoto = true;
+
+      if (form._id) {
+        await api("/api/dev/people/" + form._id, { method: "PUT", body });
+        notify("Ficha atualizada.", "success");
+      } else {
+        await api("/api/dev/people", { method: "POST", body });
+        notify("Pessoa cadastrada.", "success");
+      }
+      setPersonForm(null);
+      setWarning(null);
+      await load();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.payload?.code : null;
+      if (["PERSON_NAME_EXISTS", "PERSON_PHONE_EXISTS"].includes(code)) {
+        setWarning(err.payload);
+      } else {
+        notify(err.message, "error");
+      }
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -213,6 +305,11 @@ export default function DevConsole() {
   }
 
   const total = people?.length || 0;
+  const photoNow = personForm
+    ? personForm.removePhoto
+      ? ""
+      : personForm.photo || personForm.savedPhoto
+    : "";
 
   return (
     <div className="devshell">
@@ -229,17 +326,28 @@ export default function DevConsole() {
                   : total + " pessoa(s) no cadastro"}
             </p>
           </div>
-          <button type="button" className="btn btn--ghost" onClick={logout}>
-            <IconExit width={18} height={18} />
-            Sair
-          </button>
+          <div className="devpage__actions">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={openCreatePerson}
+            >
+              <IconPlus width={18} height={18} />
+              Cadastrar pessoa
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={logout}>
+              <IconExit width={18} height={18} />
+              Sair
+            </button>
+          </div>
         </header>
 
         <p className="muted">
           Esta tela é a única que mexe em quem entra no painel. Os
           administradores, na sessão deles, não conseguem tornar alguém
           administrador, desfazer isso nem trocar a senha de outra pessoa — só
-          cuidar da própria conta.
+          cuidar da própria conta. Daqui você também cadastra uma pessoa nova e
+          corrige nome, WhatsApp e foto de qualquer uma, administrador incluído.
         </p>
 
         <div className="searchbar">
@@ -315,6 +423,14 @@ export default function DevConsole() {
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm"
+                          onClick={() => openEditPerson(person)}
+                        >
+                          <IconEdit width={15} height={15} />
+                          Editar ficha
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
                           onClick={() =>
                             setCredentials({
                               person,
@@ -348,7 +464,9 @@ export default function DevConsole() {
               <p className="muted">
                 Quem pega livros emprestados. Tornar alguém administrador não
                 cria um cadastro novo: a mesma ficha (com o mesmo número, foto e
-                histórico) passa a ter um login e uma senha.
+                histórico) passa a ter um login e uma senha. "Editar ficha"
+                muda nome, WhatsApp e foto — nunca o número, que é o que
+                identifica a pessoa.
               </p>
               {users.length === 0 ? (
                 <p className="muted">
@@ -385,6 +503,14 @@ export default function DevConsole() {
                       <span className="devrow__actions">
                         <button
                           type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => openEditPerson(person)}
+                        >
+                          <IconEdit width={15} height={15} />
+                          Editar ficha
+                        </button>
+                        <button
+                          type="button"
                           className="btn btn--primary btn--sm"
                           onClick={() =>
                             setPromote({ person, username: "", password: "" })
@@ -401,6 +527,149 @@ export default function DevConsole() {
           </>
         ) : null}
       </div>
+
+      {/* Cadastrar / editar a ficha de uma pessoa: nome, WhatsApp e foto.
+          Login e senha nao entram aqui - sao os dois modais de baixo. */}
+      <Modal
+        open={Boolean(personForm)}
+        onClose={() => setPersonForm(null)}
+        title={
+          personForm?._id
+            ? "Editar ficha" +
+              (personForm.code ? " #" + personForm.code : "")
+            : "Cadastrar pessoa"
+        }
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setPersonForm(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="dev-person-form"
+              className="btn btn--primary"
+              disabled={saving}
+            >
+              {saving
+                ? personForm?.photo
+                  ? "Enviando foto…"
+                  : "Salvando…"
+                : "Salvar"}
+            </button>
+          </>
+        }
+      >
+        {personForm ? (
+          <form
+            id="dev-person-form"
+            className="form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              savePerson(false);
+            }}
+          >
+            <PhotoPicker
+              src={photoNow}
+              name={personForm.fullName}
+              notify={notify}
+              onPhoto={(dataUri) =>
+                setPersonForm((form) => ({
+                  ...form,
+                  photo: dataUri,
+                  removePhoto: false,
+                }))
+              }
+              onRemove={() =>
+                setPersonForm((form) => ({
+                  ...form,
+                  photo: "",
+                  removePhoto: true,
+                }))
+              }
+            />
+
+            <label className="field">
+              <span>Nome completo</span>
+              <input
+                value={personForm.fullName}
+                placeholder="Ex.: Maria Eduarda Nogueira"
+                maxLength={80}
+                onChange={(event) =>
+                  setPersonForm((form) => ({
+                    ...form,
+                    fullName: event.target.value,
+                  }))
+                }
+                autoFocus
+                required
+              />
+            </label>
+
+            <div className="field">
+              <label className="field__label" htmlFor="dev-person-phone">
+                WhatsApp (opcional)
+              </label>
+              <PhoneInput
+                id="dev-person-phone"
+                value={personForm.phone}
+                onChange={(phone) =>
+                  setPersonForm((form) => ({ ...form, phone }))
+                }
+              />
+              <small className="field__hint">
+                Usado só para lembrar a pessoa da devolução do livro. O acervo
+                público não mostra o número.
+              </small>
+            </div>
+
+            {personForm._id ? (
+              <p className="field__hint">
+                Login e senha não mudam por aqui: para isso são os botões
+                "Login e senha" e "Tornar admin".
+              </p>
+            ) : (
+              <p className="field__hint">
+                A pessoa entra no cadastro como usuária da biblioteca, com um
+                número próprio. Para ela entrar no painel, use depois o
+                "Tornar admin".
+              </p>
+            )}
+          </form>
+        ) : null}
+      </Modal>
+
+      {/* Nome ou WhatsApp que ja existe no cadastro: so um aviso, porque dois
+          homonimos e um WhatsApp de familia sao normais (ver o comentario em
+          backend/src/models/Person.js). */}
+      <Confirm
+        open={Boolean(warning)}
+        title={
+          warning?.code === "PERSON_PHONE_EXISTS"
+            ? "Esse WhatsApp já está em uso"
+            : "Esse nome já está no cadastro"
+        }
+        message={
+          (warning?.error || "") +
+          (warning?.code === "PERSON_PHONE_EXISTS"
+            ? ""
+            : " Se for outra pessoa de nome igual, ela entra no cadastro com um número próprio.")
+        }
+        confirmLabel={
+          warning?.code === "PERSON_PHONE_EXISTS"
+            ? "Salvar assim mesmo"
+            : "É outra pessoa"
+        }
+        onCancel={() => setWarning(null)}
+        onConfirm={() => {
+          setWarning(null);
+          savePerson(true);
+        }}
+      />
 
       {/* Tornar administrador: login e senha sao obrigatorios */}
       <Modal

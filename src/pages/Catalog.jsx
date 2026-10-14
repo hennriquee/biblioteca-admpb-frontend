@@ -16,6 +16,7 @@ import {
   IconSearch,
 } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
+import { daysBetween, formatDate } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
@@ -25,8 +26,10 @@ import { useBookList } from "../hooks/useBookList.js";
  *
  * So le de /api/public/* (via publicApi, que nao envia token). Nao usa o
  * Layout do admin, nao tem nenhum botao de editar/excluir e nunca recebe nome
- * de quem pegou o livro: o servidor so manda a contagem de unidades
- * emprestadas. A lista e o "carregar mais" seguem o mesmo molde do Acervo.
+ * de quem pegou o livro: do emprestimo o servidor manda apenas a contagem de
+ * unidades emprestadas e a data combinada de entrega - quando o livro volta
+ * para a estante, nunca com quem ele esta. A lista e o "carregar mais" seguem
+ * o mesmo molde do Acervo.
  */
 
 // Uma pagina do acervo publico. filters = null traz sem filtro (ver useBookList).
@@ -118,6 +121,51 @@ function situationText(book) {
     (available === 1 ? "está" : "estão") +
     " na estante agora."
   );
+}
+
+/**
+ * PREVISAO DE ENTREGA: a data combinada para o exemplar emprestado voltar
+ * para a estante. Com mais de um exemplar fora, o servidor manda a data mais
+ * proxima entre elas (o que nao garante que sera o primeiro a voltar: um
+ * exemplar emprestado sem prazo pode chegar antes).
+ *
+ * Devolve null quando nada esta emprestado: ai a linha nem aparece na tela.
+ */
+function deliveryInfo(book) {
+  const loaned = book.loaned || 0;
+  if (loaned < 1) return null;
+
+  const several = loaned > 1;
+  const label = several ? "Próxima entrega combinada" : "Previsão de entrega";
+
+  // Emprestimo pode ser registrado sem prazo: melhor dizer isso do que deixar
+  // a tela com um "—" sem explicacao.
+  if (!book.dueDate) {
+    return {
+      label,
+      value: "Sem data combinada",
+      note: several
+        ? "Esses empréstimos foram feitos sem prazo de devolução."
+        : "Esse empréstimo foi feito sem prazo de devolução.",
+    };
+  }
+
+  // daysBetween(data) conta quantos dias se passaram desde ela: mais que zero
+  // significa que a data combinada ja passou.
+  const late = daysBetween(book.dueDate) > 0;
+  return {
+    label,
+    value: formatDate(book.dueDate),
+    note: late
+      ? "A data combinada já passou — procure a equipe da biblioteca."
+      : several
+        ? // Nao diz "o primeiro a voltar": um exemplar sem prazo combinado
+          // pode chegar antes desta data.
+          "É a primeira data combinada entre os " +
+          loaned +
+          " exemplares emprestados."
+        : "É a data combinada para o exemplar voltar à estante.",
+  };
 }
 
 function Availability({ book }) {
@@ -239,6 +287,7 @@ export default function Catalog() {
   const categories = overview?.categories || [];
   const staff = overview?.staff || [];
   const isFiltering = Boolean(search.trim() || category || status);
+  const delivery = selected ? deliveryInfo(selected) : null;
 
   function clearFilters() {
     setSearch("");
@@ -528,12 +577,34 @@ export default function Catalog() {
               <div className="detail__wide">
                 <dt>Situação</dt>
                 <dd>
-                  <Availability book={selected} />
+                  {/* A coroinha do mais emprestado fica aqui, ao lado da
+                      situacao: ela diz que o livro e o mais procurado do
+                      acervo, sem dizer quantas vezes ele saiu. */}
+                  <span className="pub__avail">
+                    <Availability book={selected} />
+                    {list.mostLoanedId === selected.id ? (
+                      <span className="detail__crown">
+                        <IconCrown width={15} height={15} />
+                        mais emprestado
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="pub__situation">
                     {situationText(selected)}
                   </span>
                 </dd>
               </div>
+              {/* Quando volta para a estante. So aparece com exemplar
+                  emprestado. */}
+              {delivery ? (
+                <div className="detail__wide">
+                  <dt>{delivery.label}</dt>
+                  <dd>
+                    {delivery.value}
+                    <span className="pub__situation">{delivery.note}</span>
+                  </dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Autor</dt>
                 <dd>{selected.authors.join(", ") || "—"}</dd>
@@ -561,18 +632,6 @@ export default function Catalog() {
               <div>
                 <dt>Quantidade</dt>
                 <dd>{selected.copies}</dd>
-              </div>
-              <div>
-                <dt>Vezes emprestado</dt>
-                <dd>
-                  {selected.loansTotal || 0}
-                  {list.mostLoanedId === selected.id ? (
-                    <span className="detail__crown">
-                      <IconCrown width={15} height={15} />
-                      mais emprestado
-                    </span>
-                  ) : null}
-                </dd>
               </div>
             </dl>
             {selected.synopsis ? (

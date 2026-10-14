@@ -5,7 +5,7 @@ import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import PhotoPicker from "../components/PhotoPicker.jsx";
-import ListSkeleton from "../components/ListSkeleton.jsx";
+import FormSkeleton from "../components/FormSkeleton.jsx";
 import { IconEye, IconEyeOff } from "../components/Icons.jsx";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
@@ -19,6 +19,9 @@ import { isValidPhoneNumber } from "libphonenumber-js";
  *
  * Cai direto na edicao, sem lista no meio. O numero (#code) da pessoa nao
  * aparece: aqui ela edita o que e dela, nao se identifica para ninguem.
+ *
+ * A espera usa o esqueleto de FORMULARIO (nao o de lista): o que vem depois e
+ * a foto redonda com os campos, e nao uma lista de itens.
  */
 export default function Account() {
   const { notify } = useToast();
@@ -127,7 +130,13 @@ export default function Account() {
       </div>
 
       {form === null && !error ? (
-        <ListSkeleton label="Carregando a sua conta…" />
+        // A mesma forma do formulario que entra no lugar dele: 4 campos
+        // (nome, WhatsApp, usuario e senha), com dica embaixo do 2o e do 4o.
+        <FormSkeleton
+          label="Carregando a sua conta…"
+          fields={4}
+          hints={[1, 3]}
+        />
       ) : null}
 
       {error ? (
