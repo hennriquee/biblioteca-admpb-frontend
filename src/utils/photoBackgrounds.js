@@ -14,7 +14,7 @@
  */
 export const PHOTO_BACKGROUNDS = [
   { id: "branco", label: "Branco", color: "#ffffff" },
-  { id: "marrom", label: "Marrom", color: "#6b4226" },
+  { id: "marrom", label: "Marrom", color: "#3d1e09" },
   { id: "rosa", label: "Rosa", color: "#d98fa6" },
   { id: "azul", label: "Azul", color: "#0663aa" },
   { id: "laranja", label: "Laranja", color: "#d97a35" },
