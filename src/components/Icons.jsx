@@ -149,6 +149,15 @@ export const IconTag = (props) => (
   </svg>
 );
 
+export const IconPalette = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 3.6c-4.7 0-8.4 3.7-8.4 8.4s3.7 8.4 8.4 8.4c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.1 0-.9.8-1.7 1.7-1.7h1.2a4.5 4.5 0 0 0 4.5-4.5c0-3.6-3.7-6.5-8.4-6.5z" />
+    <circle cx="8.1" cy="9.2" r="1.1" />
+    <circle cx="12" cy="7.4" r="1.1" />
+    <circle cx="15.8" cy="9.6" r="1.1" />
+  </svg>
+);
+
 export const IconSettings = (props) => (
   <svg {...base} {...props}>
     <circle cx="12" cy="12" r="3.1" />

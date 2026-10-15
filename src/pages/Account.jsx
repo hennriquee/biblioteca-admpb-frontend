@@ -160,6 +160,7 @@ export default function Account() {
             src={photoNow}
             name={form.fullName}
             notify={notify}
+            chooseBackground
             onPhoto={(dataUri) =>
               setForm((f) => ({ ...f, photo: dataUri, removePhoto: false }))
             }

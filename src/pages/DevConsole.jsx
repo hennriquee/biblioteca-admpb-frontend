@@ -577,6 +577,7 @@ export default function DevConsole() {
               src={photoNow}
               name={personForm.fullName}
               notify={notify}
+              dev
               onPhoto={(dataUri) =>
                 setPersonForm((form) => ({
                   ...form,
