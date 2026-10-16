@@ -16,10 +16,15 @@ body,
   height: 100%;
 }
 
-/* Sem "elastico" ao puxar a tela para cima/baixo: o app se comporta como app. */
+/* Sem "elastico" ao puxar a tela para cima/baixo: o app se comporta como app.
+   touch-action tira o pinça-para-zoom (e o duplo-toque-para-zoom) mesmo em
+   navegadores que ignoram o "user-scalable=no" do viewport (ex.: Firefox);
+   pan-x/pan-y mantem a rolagem normal da pagina. Telas com gesto proprio (ex.:
+   o recorte de foto) pedem o touch-action delas de volta (ver .cropper__frame). */
 html,
 body {
   overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }
 
 /* Sem barra de rolagem visivel no mobile (o scroll continua funcionando
@@ -462,6 +467,11 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface-sunk);
   border-radius: 6px;
   flex-shrink: 0;
+  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular
+     (ver .no-save, mais acima). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .cover--empty {
   display: flex;
@@ -1375,6 +1385,26 @@ html[data-app="catalogo"] #root:empty {
   color: var(--gold-strong);
 }
 
+/* "Cadastrar nova pessoa", sempre no fim da lista de sugestoes do Novo
+   emprestimo (ver NewLoan.jsx) - com ou sem gente parecida encontrada, para
+   nunca sobrar so a opcao de digitar um nome sem cadastro nenhum por tras. */
+.combo__item--create strong {
+  color: var(--clay-strong);
+}
+/* Especificidade maior que ".combo__item span" (que poe span em coluna) de
+   proposito: este span e o circulo do icone, nao o bloco de texto. */
+.combo__item--create .combo__create-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--clay-wash);
+  color: var(--clay-strong);
+}
+
 .picked {
   display: flex;
   align-items: center;
@@ -1723,6 +1753,9 @@ html[data-app="catalogo"] #root:empty {
   }
   .modal--sm {
     max-width: 420px;
+  }
+  .modal--lg {
+    max-width: 720px;
   }
   .modal__foot {
     padding-bottom: 14px;
@@ -2534,6 +2567,20 @@ a.stat:active {
   height: 66px;
   border-radius: 6px;
 }
+/* Esqueleto da tela de Usuarios: mesma foto redonda e numero do .personrow
+   de verdade (ver components/ListSkeleton.jsx, variant="people"). */
+.pubskel__avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.pubskel__code {
+  flex-shrink: 0;
+  width: 2.2rem;
+  height: 14px;
+  border-radius: 6px;
+}
 .pubskel__line {
   width: 80%;
   height: 11px;
@@ -2932,6 +2979,52 @@ a.stat:active {
   }
 }
 
+/* Foto/capa em tamanho grande (ver components/ImageLightbox.jsx): so para
+   olhar - sem botao de baixar, e o fundo escuro da enquadra como numa
+   "sala escura", igual a visualizacao de foto do WhatsApp. */
+.lightbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46vh;
+  max-height: 82vh;
+  background: var(--ink);
+}
+.lightbox__img {
+  display: block;
+  max-width: 100%;
+  max-height: 82vh;
+  object-fit: contain;
+}
+
+/* Fotos e capas de verdade (nao decorativas): sem menu de "salvar imagem" no
+   botao direito, sem arrastar para fora da janela e sem o toque longo do
+   celular oferecer salvar - igual ao WhatsApp, que tambem mostra a foto sem
+   deixar baixar. Isso NAO impede um print de tela (nenhum site impede isso). */
+.no-save {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Botao invisivel que envolve a foto/capa "zoomable": do tamanho exato da
+   foto (herda via style), sem nenhuma moldura propria - quem aparece por
+   cima e a foto mesmo (ver Avatar.jsx e BookCover.jsx). */
+.imagebtn {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  font: inherit;
+  color: inherit;
+}
+.imagebtn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 /* Celular deitado: desenho de um lado e texto do outro. O texto pode
    precisar de um pouco de rolagem, mas o desenho aparece inteiro. */
 @media (orientation: landscape) and (max-height: 480px) {
@@ -3001,6 +3094,11 @@ a.stat:active {
   border-radius: 50%;
   object-fit: cover;
   background: var(--surface-sunk);
+  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular
+     (ver .no-save, mais acima). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 /* O seletor leva o "span" de proposito: assim estas regras ganham de um
    ".bloco span" por onde a bolinha das iniciais passar (ex.: as sugestoes de
@@ -3309,26 +3407,6 @@ span.avatar--empty {
   margin-left: 6px;
   color: var(--ink-soft);
   font-size: 0.8rem;
-}
-
-/* "E a mesma pessoa?": a escolha de qual cadastro usar. */
-.pickperson {
-  display: flex;
-  flex-direction: column;
-  margin-top: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-.pickperson__item {
-  justify-content: space-between;
-}
-.pickperson__pick {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--clay);
 }
 
 /* ---------- "Com quem falar?" (acervo publico) ---------- */

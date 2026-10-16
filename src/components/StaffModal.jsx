@@ -18,7 +18,7 @@ export default function StaffModal({ open, onClose, staff = [] }) {
       <ul className="staff">
         {staff.map((person) => (
           <li key={person.id} className="staffcard">
-            <Avatar src={person.photo} name={person.name} size={80} />
+            <Avatar src={person.photo} name={person.name} size={80} zoomable />
             <strong>{person.name}</strong>
           </li>
         ))}

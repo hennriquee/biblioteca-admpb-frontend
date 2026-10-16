@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, ApiError } from "../api/client.js";
+import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
-import Modal from "../components/Modal.jsx";
 import Confirm from "../components/Confirm.jsx";
 import Avatar from "../components/Avatar.jsx";
-import PhoneInput from "../components/PhoneInput.jsx";
-import PhotoPicker from "../components/PhotoPicker.jsx";
+import PersonFormModal from "../components/PersonFormModal.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import { IconEdit, IconPlus, IconSearch } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
-import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
  * Usuarios: as pessoas do cadastro (Configuracoes > Usuarios).
@@ -36,28 +33,30 @@ import { isValidPhoneNumber } from "libphonenumber-js";
  * excluir. A propria pessoa edita a sua ficha em Configuracoes > Minha conta
  * (o servidor recusa o resto). Dar ou tirar o acesso ao painel e so na tela
  * de manutencao.
+ *
+ * O formulario de cadastrar/editar (foto, nome, WhatsApp) e o PersonFormModal -
+ * o mesmo que o "Cadastrar nova pessoa" do Novo emprestimo usa, para as duas
+ * telas pedirem os mesmos dados da mesma forma (ver components/PersonFormModal.jsx).
  */
 
 // Quanto a tela baixa de uma vez (o servidor nao manda mais que isso num
 // pedido). A busca roda aqui no navegador, sobre essa lista.
 const PAGE_LIMIT = 1000;
 
-const emptyForm = {
-  fullName: "",
-  phone: "",
-  photo: "", // data URI de uma foto nova, ainda nao enviada
-  savedPhoto: "", // foto que ja esta salva
-  removePhoto: false,
-};
-
 function matchesPerson(person, term) {
   if (!term) return true;
   if (term.startsWith("#")) {
     return String(person.code || "") === term.slice(1);
   }
+  // Os digitos do termo (se houver) sao comparados com o WhatsApp. Termo sem
+  // nenhum digito (a busca por nome, a mais comum) vira string vazia aqui -
+  // e toda string "contem" uma string vazia, o que faria esta condicao bater
+  // SEMPRE e a busca por nome nunca filtrar nada. Por isso so entra no "ou"
+  // quando sobrou pelo menos um digito para comparar.
+  const digits = term.replace(/\D/g, "");
   return (
     normalizeText(person.fullName).includes(term) ||
-    String(person.phone || "").includes(term.replace(/\D/g, "")) ||
+    (digits.length > 0 && String(person.phone || "").includes(digits)) ||
     String(person.code || "") === term
   );
 }
@@ -72,17 +71,12 @@ export default function People() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
 
-  const [form, setForm] = useState(null); // null = modal fechado
-  const [saving, setSaving] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  // null = cadastrando uma pessoa nova; objeto = editando essa pessoa.
+  const [editingPerson, setEditingPerson] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  // Aviso de nome/WhatsApp repetido vindo do servidor; "Confirmar" reenvia
-  // com force = true.
-  const [warning, setWarning] = useState(null);
 
   const requestRef = useRef(0);
-  // Trava contra o clique duplo: dois toques rapidos no "Salvar" disparam duas
-  // vezes antes do botao desabilitar, e cadastrariam a pessoa duas vezes.
-  const savingRef = useRef(false);
 
   const load = useCallback(async () => {
     const requestId = ++requestRef.current;
@@ -117,68 +111,13 @@ export default function People() {
   const isMe = (person) => String(person._id) === String(user?.id);
 
   function openCreate() {
-    setForm({ ...emptyForm });
+    setEditingPerson(null);
+    setModalOpen(true);
   }
 
   function openEdit(person) {
-    setForm({
-      ...emptyForm,
-      _id: person._id,
-      code: person.code,
-      fullName: person.fullName,
-      phone: person.phone || "",
-      savedPhoto: person.photo || "",
-    });
-  }
-
-  // force = true: a pessoa confirmou o aviso de nome/WhatsApp repetido.
-  async function save(force) {
-    if (!form.fullName.trim().split(/\s+/).filter(Boolean)[1]) {
-      notify("Digite o nome completo (nome e sobrenome).", "error");
-      return;
-    }
-    if (form.phone && !isValidPhoneNumber("+" + form.phone)) {
-      notify("WhatsApp inválido. Confira o país, o DDD e o número.", "error");
-      return;
-    }
-
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      const body = {
-        fullName: form.fullName,
-        phone: form.phone,
-        force: Boolean(force),
-      };
-      if (form.photo) body.photo = form.photo;
-      if (form.removePhoto) body.removePhoto = true;
-
-      if (form._id) {
-        await api("/api/people/" + form._id, { method: "PUT", body });
-        notify("Cadastro atualizado.", "success");
-      } else {
-        await api("/api/people", { method: "POST", body });
-        notify("Pessoa cadastrada.", "success");
-      }
-      setForm(null);
-      setWarning(null);
-      await load();
-    } catch (err) {
-      if (
-        err instanceof ApiError &&
-        ["PERSON_NAME_EXISTS", "PERSON_PHONE_EXISTS"].includes(
-          err.payload?.code,
-        )
-      ) {
-        setWarning(err.payload);
-      } else {
-        notify(err.message, "error");
-      }
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
+    setEditingPerson(person);
+    setModalOpen(true);
   }
 
   async function handleDelete() {
@@ -186,21 +125,14 @@ export default function People() {
     setConfirmDelete(null);
     try {
       await api("/api/people/" + person._id, { method: "DELETE" });
-      notify("Pessoa excluída.", "success");
-      // Pedido de dentro do proprio formulario de edicao: fecha-o tambem, a
-      // pessoa nao existe mais para continuar editando.
-      setForm((f) => (f && f._id === person._id ? null : f));
+      // Excluir so acontece de dentro do formulario de edicao: fecha-o
+      // tambem, a pessoa nao existe mais para continuar editando.
+      setModalOpen(false);
       await load();
     } catch (err) {
       notify(err.message, "error");
     }
   }
-
-  const photoNow = form
-    ? form.removePhoto
-      ? ""
-      : form.photo || form.savedPhoto
-    : "";
 
   return (
     <div className="page">
@@ -242,7 +174,7 @@ export default function People() {
       </div>
 
       {people === null && !error ? (
-        <ListSkeleton label="Carregando os cadastros…" />
+        <ListSkeleton label="Carregando os cadastros…" variant="people" />
       ) : null}
 
       {error && people === null ? (
@@ -369,120 +301,15 @@ export default function People() {
       ) : null}
 
       {/* Cadastro / edicao */}
-      <Modal
-        open={Boolean(form)}
-        onClose={() => setForm(null)}
-        title={form?._id ? "Editar pessoa #" + (form.code || "") : "Cadastrar pessoa"}
-        size="sm"
-        footer={
-          <>
-            {/* So existe para quem ja esta cadastrado (nao no "Cadastrar
-                pessoa"). Abre a mesma confirmacao do botao de excluir da
-                lista - nao exclui direto, para nao haver engano. */}
-            {form?._id ? (
-              <button
-                type="button"
-                className="btn btn--danger modal__foot-left"
-                disabled={saving}
-                onClick={() => setConfirmDelete(form)}
-              >
-                Excluir
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setForm(null)}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              form="person-form"
-              className="btn btn--primary"
-              disabled={saving}
-            >
-              {saving ? (form?.photo ? "Enviando foto…" : "Salvando…") : "Salvar"}
-            </button>
-          </>
-        }
-      >
-        {form ? (
-          <form
-            id="person-form"
-            className="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              save(false);
-            }}
-          >
-            <PhotoPicker
-              src={photoNow}
-              name={form.fullName}
-              notify={notify}
-              onPhoto={(dataUri) =>
-                setForm((f) => ({ ...f, photo: dataUri, removePhoto: false }))
-              }
-              onRemove={() =>
-                setForm((f) => ({ ...f, photo: "", removePhoto: true }))
-              }
-            />
-
-            <label className="field">
-              <span>Nome completo</span>
-              <input
-                value={form.fullName}
-                placeholder="Ex.: Maria Eduarda Nogueira"
-                maxLength={80}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, fullName: e.target.value }))
-                }
-                autoFocus
-                required
-              />
-            </label>
-
-            <div className="field">
-              <label className="field__label" htmlFor="person-phone">
-                WhatsApp (opcional)
-              </label>
-              <PhoneInput
-                id="person-phone"
-                value={form.phone}
-                onChange={(phone) => setForm((f) => ({ ...f, phone }))}
-              />
-              <small className="field__hint">
-                Usado só para lembrar a pessoa da devolução do livro. Se ela
-                trocou de número, basta corrigir aqui.
-              </small>
-            </div>
-          </form>
-        ) : null}
-      </Modal>
-
-      <Confirm
-        open={Boolean(warning)}
-        title={
-          warning?.code === "PERSON_PHONE_EXISTS"
-            ? "Esse WhatsApp já está em uso"
-            : "Esse nome já está no cadastro"
-        }
-        message={
-          (warning?.error || "") +
-          (warning?.code === "PERSON_PHONE_EXISTS"
-            ? ""
-            : " Se for outra pessoa de nome igual, ela entra no cadastro com um número próprio.")
-        }
-        confirmLabel={
-          warning?.code === "PERSON_PHONE_EXISTS"
-            ? "Salvar assim mesmo"
-            : "É outra pessoa"
-        }
-        onCancel={() => setWarning(null)}
-        onConfirm={() => {
-          setWarning(null);
-          save(true);
+      <PersonFormModal
+        open={modalOpen}
+        person={editingPerson}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => {
+          setModalOpen(false);
+          load();
         }}
+        onRequestDelete={(person) => setConfirmDelete(person)}
       />
 
       <Confirm

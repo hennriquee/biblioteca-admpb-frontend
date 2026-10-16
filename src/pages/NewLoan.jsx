@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
-import SamePersonDialog from "../components/SamePersonDialog.jsx";
+import PersonFormModal from "../components/PersonFormModal.jsx";
 import BookCover from "../components/BookCover.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { todayInputValue, addDaysInputValue } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
-import { IconSearch, IconClose } from "../components/Icons.jsx";
+import { IconSearch, IconClose, IconPlus } from "../components/Icons.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -42,9 +42,11 @@ export default function NewLoan() {
   const [allBooks, setAllBooks] = useState(null);
 
   const [personName, setPersonName] = useState("");
-  // Quem e a pessoa, de verdade: o id do cadastro dela. Fica preenchido quando
-  // a pessoa e escolhida na lista de sugestoes; digitar o nome nele mesmo
-  // limpa (um nome igual pode ser de outra pessoa - ver models/Person.js).
+  // Quem e a pessoa, de verdade: o id do cadastro dela. So fica preenchido
+  // quando a pessoa e escolhida na lista de sugestoes (ou acabou de ser
+  // cadastrada pelo "Cadastrar nova pessoa" abaixo) - digitar o nome nele
+  // mesmo NAO basta, e de proposito: sem isso, um nome sem cadastro nenhum
+  // levaria um livro sem ficha nenhuma para cobrar a devolucao depois.
   const [personId, setPersonId] = useState(null);
   // A ficha de quem foi escolhido na lista, para a tela mostrar a foto (ou as
   // iniciais) de quem ja esta cadastrado. null = ainda digitando um nome.
@@ -55,6 +57,9 @@ export default function NewLoan() {
     items: [],
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Abre o MESMO formulario de cadastrar pessoa da tela de Usuarios, aqui
+  // dentro - sem navegar para outra tela e sem perder livro, datas etc.
+  const [creatingPerson, setCreatingPerson] = useState(false);
 
   const [startDate, setStartDate] = useState(todayInputValue());
   const [dueDate, setDueDate] = useState(addDaysInputValue(21));
@@ -62,8 +67,6 @@ export default function NewLoan() {
 
   const [submitting, setSubmitting] = useState(false);
   const [warning, setWarning] = useState(null);
-  // "Esse nome ja esta no cadastro. E a mesma pessoa?"
-  const [samePerson, setSamePerson] = useState(null);
 
   const personBlurTimer = useRef(null);
   // Trava contra o clique duplo: dois toques rapidos em "Registrar" criariam
@@ -148,18 +151,20 @@ export default function NewLoan() {
   }, [bookSearchOn, allBooks, bookTerm, bookResults]);
 
   // Sugestoes de nome so aparecem quando respondem ao que esta digitado agora
-  // (as da busca anterior somem na hora). Sem aviso de "buscando": nome novo,
-  // sem cadastro, e o caso comum, e o aviso ficaria empurrando o formulario.
+  // (as da busca anterior somem na hora).
   const personItems =
     showSuggestions &&
     personTerm.length >= 2 &&
     personSuggestions.term === personTerm
       ? personSuggestions.items
       : [];
+  // "Cadastrar nova pessoa" aparece junto das sugestoes assim que a pessoa
+  // comeca a digitar um nome - ache ou nao ache alguem parecido na lista -
+  // para sempre existir um caminho de CADASTRAR quem nao esta la, em vez de
+  // so deixar o nome digitado (ver handleSubmit: sem personId nao registra).
+  const showPersonDropdown = showSuggestions && personTerm.length > 0;
 
-  // extra: { force } (a pessoa confirmou que pode levar outro livro),
-  // { personId } (e esta pessoa do cadastro) ou { newPerson } (e outra pessoa,
-  // de nome igual).
+  // extra: { force } (a pessoa confirmou que pode levar outro livro).
   async function submitLoan(extra = {}) {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -169,7 +174,6 @@ export default function NewLoan() {
         method: "POST",
         body: {
           bookId: book._id,
-          personName: personName.trim(),
           personId,
           phone,
           startDate,
@@ -184,8 +188,6 @@ export default function NewLoan() {
       const code = error instanceof ApiError ? error.payload?.code : null;
       if (code === "PERSON_HAS_ACTIVE_LOAN") {
         setWarning(error.payload);
-      } else if (code === "PERSON_NAME_EXISTS") {
-        setSamePerson(error.payload);
       } else {
         notify(error.message, "error");
       }
@@ -198,8 +200,11 @@ export default function NewLoan() {
   function handleSubmit(event) {
     event.preventDefault();
     if (!book) return notify("Escolha o livro que vai sair.", "error");
-    if (personName.trim().split(/\s+/).length < 2) {
-      return notify("Digite o nome completo da pessoa.", "error");
+    if (!personId) {
+      return notify(
+        "Selecione a pessoa na lista de sugestões ou cadastre uma nova antes de continuar.",
+        "error",
+      );
     }
     if (phone && !isValidPhoneNumber("+" + phone)) {
       return notify(
@@ -214,6 +219,17 @@ export default function NewLoan() {
       );
     }
     return submitLoan();
+  }
+
+  // A pessoa acabou de ser cadastrada pelo formulario embutido: ela passa a
+  // ser a escolhida, do mesmo jeito que escolher alguem na lista de
+  // sugestoes - sem precisar buscar de novo.
+  function handlePersonCreated(created) {
+    setCreatingPerson(false);
+    setPersonId(created._id);
+    setPickedPerson({ ...created, activeLoans: [] });
+    setPersonName(created.fullName);
+    if (created.phone && !phone) setPhone(created.phone);
   }
 
   return (
@@ -329,10 +345,10 @@ export default function NewLoan() {
           <span className="field__label">
             Nome completo de quem está levando
           </span>
-          {/* Escolhida na lista: a ficha dela aparece com a foto de perfil
-              (ou as iniciais do nome), do mesmo jeito que o livro escolhido.
-              E o sinal de que o emprestimo vai para ESTE cadastro, e nao para
-              um nome novo igual ao dele. */}
+          {/* Escolhida na lista (ou recem-cadastrada): a ficha dela aparece
+              com a foto de perfil (ou as iniciais do nome), do mesmo jeito
+              que o livro escolhido. E o sinal de que o emprestimo vai para
+              ESTE cadastro, e nao para um nome digitado sem ficha nenhuma. */}
           {pickedPerson ? (
             <div className="picked">
               <Avatar
@@ -352,7 +368,7 @@ export default function NewLoan() {
                   {" · "}
                   {pickedPerson.activeLoans?.length > 0
                     ? "está com " + pickedPerson.activeLoans.join(", ")
-                    : pickedPerson.loansCount + " empréstimo(s) no histórico"}
+                    : (pickedPerson.loansCount || 0) + " empréstimo(s) no histórico"}
                 </small>
               </div>
               {pickedPerson.isAdmin ? (
@@ -395,7 +411,7 @@ export default function NewLoan() {
                 required
               />
 
-              {personItems.length > 0 ? (
+              {showPersonDropdown ? (
                 <ul className="combo__list">
                   {personItems.map((person) => (
                     <li key={person._id}>
@@ -442,6 +458,30 @@ export default function NewLoan() {
                       </button>
                     </li>
                   ))}
+                  {/* Sempre no fim da lista, ache ou nao ache alguem parecido:
+                      quem nao esta cadastrado precisa de um caminho para
+                      entrar no sistema antes de levar um livro. */}
+                  <li>
+                    <button
+                      type="button"
+                      className="combo__item combo__item--create"
+                      onMouseDown={() => clearTimeout(personBlurTimer.current)}
+                      onClick={() => {
+                        setShowSuggestions(false);
+                        setCreatingPerson(true);
+                      }}
+                    >
+                      <span className="combo__create-icon" aria-hidden="true">
+                        <IconPlus width={18} height={18} />
+                      </span>
+                      <span>
+                        <strong>Cadastrar nova pessoa</strong>
+                        <small>
+                          {personTerm ? '"' + personTerm + '"' : "Quem não está na lista"}
+                        </small>
+                      </span>
+                    </button>
+                  </li>
                 </ul>
               ) : null}
             </div>
@@ -505,21 +545,15 @@ export default function NewLoan() {
         </div>
       </form>
 
-      <SamePersonDialog
-        open={Boolean(samePerson)}
-        warning={samePerson}
-        onCancel={() => setSamePerson(null)}
-        onUsePerson={(person) => {
-          setSamePerson(null);
-          setPersonId(person._id);
-          setPersonName(person.fullName);
-          if (person.phone && !phone) setPhone(person.phone);
-          submitLoan({ personId: person._id });
-        }}
-        onCreateNew={() => {
-          setSamePerson(null);
-          submitLoan({ newPerson: true });
-        }}
+      {/* Mesmo formulario da tela de Usuarios, aberto aqui dentro: livro,
+          datas e observacoes continuam preenchidos por baixo (ver
+          components/PersonFormModal.jsx). */}
+      <PersonFormModal
+        open={creatingPerson}
+        person={null}
+        initialFullName={personTerm}
+        onClose={() => setCreatingPerson(false)}
+        onSaved={handlePersonCreated}
       />
 
       <Confirm
