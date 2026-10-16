@@ -3291,10 +3291,6 @@ span.avatar--empty {
   flex-shrink: 0;
   gap: 2px;
 }
-.icon-button--danger:hover {
-  background: var(--danger-wash);
-  color: var(--danger);
-}
 
 /* Selos: quem tem conta de administrador e a sua propria conta. */
 .chip--admin {

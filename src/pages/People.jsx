@@ -9,7 +9,7 @@ import Avatar from "../components/Avatar.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import PhotoPicker from "../components/PhotoPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
-import { IconPlus, IconSearch, IconTrash } from "../components/Icons.jsx";
+import { IconEdit, IconPlus, IconSearch } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -348,14 +348,17 @@ export default function People() {
 
                 {!person.isAdmin ? (
                   <span className="personrow__actions">
+                    {/* So abre a edicao - excluir agora e so de dentro do
+                        modal, para um toque errado aqui nao arriscar apagar
+                        ninguem (ver botao "Excluir" no rodape do formulario). */}
                     <button
                       type="button"
-                      className="icon-button icon-button--danger"
-                      title={"Excluir " + person.fullName}
-                      onClick={() => setConfirmDelete(person)}
+                      className="icon-button"
+                      title={"Editar " + person.fullName}
+                      onClick={() => openEdit(person)}
                     >
-                      <IconTrash width={18} height={18} />
-                      <span className="sr-only">Excluir</span>
+                      <IconEdit width={18} height={18} />
+                      <span className="sr-only">Editar</span>
                     </button>
                   </span>
                 ) : null}
