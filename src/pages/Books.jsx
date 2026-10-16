@@ -100,7 +100,7 @@ export default function Books() {
     filters: { search: search.trim(), category: categoryFilter },
     matches: matchesBook,
   });
-  const { items, total, hasMore, nextCount, waiting, error } = list;
+  const { items, total, hasMore, waiting, error } = list;
 
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -399,9 +399,7 @@ export default function Books() {
       ) : null}
 
       {groups.length > 0 ? (
-        <div
-          className={"results" + (list.refreshing ? " is-refreshing" : "")}
-        >
+        <div className={"results" + (list.refreshing ? " is-refreshing" : "")}>
           {groups.map(([letter, letterItems]) => (
             <section key={letter} className="group">
               <h2 className="group__letter">{letter}</h2>
@@ -487,7 +485,7 @@ export default function Books() {
             onClick={list.loadMore}
             disabled={list.loadingMore || list.refreshing}
           >
-            {list.loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
+            {list.loadingMore ? "Carregando…" : "Carregar mais livros"}
           </button>
         </div>
       ) : null}

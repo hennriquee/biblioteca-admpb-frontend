@@ -172,7 +172,7 @@ export default function Catalog() {
     filters: { search: search.trim(), category, status },
     matches: matchesBook,
   });
-  const { items, total, hasMore, nextCount, waiting, error } = list;
+  const { items, total, hasMore, waiting, error } = list;
 
   const [selected, setSelected] = useState(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
@@ -506,7 +506,7 @@ export default function Catalog() {
               onClick={list.loadMore}
               disabled={list.loadingMore || list.refreshing}
             >
-              {list.loadingMore ? "Carregando…" : "Carregar mais " + nextCount}
+              {list.loadingMore ? "Carregando…" : "Carregar mais livros"}
             </button>
           </div>
         ) : null}

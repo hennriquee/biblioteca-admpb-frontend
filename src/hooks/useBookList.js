@@ -292,11 +292,6 @@ export function useBookList({ load, filters, matches }) {
     shownError = error;
   }
 
-  // Quantos vem no proximo clique: um bloco de PAGE_SIZE ou, se o que sobra
-  // cabe em menos de dois blocos, tudo.
-  const remaining = Math.max(0, total - items.length);
-  const nextCount = remaining < PAGE_SIZE * 2 ? remaining : PAGE_SIZE;
-
   function loadMore() {
     if (mode === "local") setShown({ key, count: visible + PAGE_SIZE });
     else if (mode === "server" && serverReady) {
@@ -329,7 +324,6 @@ export function useBookList({ load, filters, matches }) {
     items,
     total,
     hasMore,
-    nextCount,
     mostLoanedId,
     // waiting: ainda nao ha lista para o filtro atual (mostrar o esqueleto).
     waiting,

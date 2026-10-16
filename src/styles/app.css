@@ -254,7 +254,8 @@ select {
 html[data-app="catalogo"] #root:empty {
   position: fixed;
   inset: 0;
-  background: var(--paper) url("/img/logo-catalogo.svg") center / min(58vw, 260px) auto no-repeat;
+  background: var(--paper) url("/img/logo-catalogo.svg") center /
+    min(58vw, 260px) auto no-repeat;
 }
 
 .boot {
@@ -1175,7 +1176,9 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface);
   border: 2px solid var(--clay);
   box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .cropper__zoom input[type="range"]:hover::-webkit-slider-thumb {
   transform: scale(1.12);
@@ -1201,7 +1204,9 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface);
   border: 2px solid var(--clay);
   box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .cropper__zoom input[type="range"]:hover::-moz-range-thumb {
   transform: scale(1.12);
