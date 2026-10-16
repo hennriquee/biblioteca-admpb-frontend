@@ -9,7 +9,7 @@ import Avatar from "../components/Avatar.jsx";
 import PhoneInput from "../components/PhoneInput.jsx";
 import PhotoPicker from "../components/PhotoPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
-import { IconEdit, IconPlus, IconSearch, IconTrash } from "../components/Icons.jsx";
+import { IconPlus, IconSearch, IconTrash } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -279,51 +279,72 @@ export default function People() {
 
       {shown.length > 0 ? (
         <ul className={"peoplelist" + (refreshing ? " is-refreshing" : "")}>
-          {shown.map((person) => (
-            <li key={person._id} className="personrow">
-              <span className="personrow__code">
-                {person.code ? "#" + person.code : "—"}
-              </span>
-              <Avatar src={person.photo} name={person.fullName} size={40} />
-              <span className="personrow__text">
-                <strong title={person.fullName}>
-                  <span className="personrow__name">{person.fullName}</span>
-                  {person.isAdmin ? (
-                    <span className="chip chip--admin">admin</span>
-                  ) : null}
-                </strong>
-                <small>
-                  {person.phone
-                    ? formatStoredPhone(person.phone)
-                    : "sem WhatsApp"}
-                  {person.activeLoans.length
-                    ? " · está com " + person.activeLoans.join(", ")
-                    : ""}
-                </small>
-              </span>
-              <span className="personrow__actions">
+          {shown.map((person) => {
+            const mine = isMe(person);
+            // Nome + telefone em uma linha so cada: o conteudo que vai dentro
+            // da area clicavel (ou do span estatico, para admin que nao e eu).
+            const cardContent = (
+              <>
+                <span className="personrow__code">
+                  {person.code ? "#" + person.code : "—"}
+                </span>
+                <Avatar src={person.photo} name={person.fullName} size={40} />
+                <span
+                  className={
+                    "personrow__text" +
+                    (person.isAdmin ? " personrow__text--tagged" : "")
+                  }
+                >
+                  <strong title={person.fullName}>
+                    <span className="personrow__name">
+                      {person.fullName}
+                    </span>
+                  </strong>
+                  <small>
+                    {person.phone
+                      ? formatStoredPhone(person.phone)
+                      : "sem WhatsApp"}
+                    {person.activeLoans.length
+                      ? " · está com " + person.activeLoans.join(", ")
+                      : ""}
+                  </small>
+                </span>
+              </>
+            );
+
+            return (
+              <li key={person._id} className="personrow">
                 {person.isAdmin ? (
-                  isMe(person) ? (
-                    <Link
-                      to="/configuracoes/conta"
-                      className="icon-button"
-                      title="Editar a minha conta"
-                    >
-                      <IconEdit width={18} height={18} />
-                      <span className="sr-only">Editar a minha conta</span>
-                    </Link>
-                  ) : null
+                  <span className="chip chip--admin personrow__tag">
+                    admin
+                  </span>
+                ) : null}
+
+                {/* O cartao inteiro abre a edicao - so quem tem o selo admin
+                    e nao sou eu fica so para ver (o servidor recusa o resto). */}
+                {mine ? (
+                  <Link
+                    to="/configuracoes/conta"
+                    className="personrow__hit"
+                    aria-label="Editar a minha conta"
+                  >
+                    {cardContent}
+                  </Link>
+                ) : person.isAdmin ? (
+                  <span className="personrow__static">{cardContent}</span>
                 ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      title={"Editar " + person.fullName}
-                      onClick={() => openEdit(person)}
-                    >
-                      <IconEdit width={18} height={18} />
-                      <span className="sr-only">Editar</span>
-                    </button>
+                  <button
+                    type="button"
+                    className="personrow__hit"
+                    aria-label={"Editar " + person.fullName}
+                    onClick={() => openEdit(person)}
+                  >
+                    {cardContent}
+                  </button>
+                )}
+
+                {!person.isAdmin ? (
+                  <span className="personrow__actions">
                     <button
                       type="button"
                       className="icon-button icon-button--danger"
@@ -333,11 +354,11 @@ export default function People() {
                       <IconTrash width={18} height={18} />
                       <span className="sr-only">Excluir</span>
                     </button>
-                  </>
-                )}
-              </span>
-            </li>
-          ))}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 

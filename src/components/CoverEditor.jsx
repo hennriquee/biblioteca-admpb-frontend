@@ -223,6 +223,9 @@ export default function CoverEditor({
   }
 
   const ready = Boolean(natural && box.w);
+  // Preenchimento da trilha fina do zoom, em %, so para o Chrome/Edge/Safari
+  // (o Firefox preenche sozinho com ::-moz-range-progress).
+  const zoomFill = ((view.zoom - 1) / (MAX_ZOOM - 1)) * 100;
 
   return (
     <Modal
@@ -294,10 +297,7 @@ export default function CoverEditor({
               onError={() => onLoadError && onLoadError()}
             />
           ) : null}
-          <div
-            className={"cropper__grid" + (round ? " cropper__grid--round" : "")}
-            aria-hidden="true"
-          />
+          <div className="cropper__grid" aria-hidden="true" />
         </div>
 
         <label className="cropper__zoom">
@@ -310,6 +310,7 @@ export default function CoverEditor({
             value={view.zoom}
             disabled={!ready}
             aria-label="Zoom"
+            style={{ "--zoom-fill": zoomFill + "%" }}
             onChange={(e) =>
               applyView((v) => withZoom(v, Number(e.target.value)))
             }

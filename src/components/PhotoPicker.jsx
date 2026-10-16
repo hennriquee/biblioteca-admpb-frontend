@@ -47,8 +47,8 @@ function isTouchDevice() {
  * SE O RECORTE FALHAR (cota do mes no fim, chave ausente, servico fora do
  * ar), nada trava: o app avisa e segue com a foto do jeito que ela foi
  * enquadrada, com o fundo original - era assim que funcionava antes de o
- * recorte existir. A espera tambem tem saida: o passo "Tirando o fundo da
- * foto" traz "Usar com o fundo original" para quem nao quiser esperar.
+ * recorte existir. A espera tambem tem saida: o passo "Preparando a foto"
+ * traz "Usar com o fundo original" para quem nao quiser esperar.
  *
  * Props:
  *  - src: o que mostrar agora (foto recem-recortada ou a ja salva)
@@ -384,7 +384,7 @@ export default function PhotoPicker({
           <Modal
             open={cutting}
             onClose={cancelCutout}
-            title="Tirando o fundo da foto"
+            title="Preparando a foto"
             size="sm"
             closeOnBackdrop={false}
             footer={
@@ -409,8 +409,12 @@ export default function PhotoPicker({
             <div className="photocut">
               <span className="photocut__spin" aria-hidden="true" />
               <p className="muted" role="status">
-                Isso leva alguns segundos: o servidor está separando você do
-                fundo da foto.
+                Preparando a foto para editar
+                <span className="loadingdots" aria-hidden="true">
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </span>
               </p>
             </div>
           </Modal>
