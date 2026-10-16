@@ -187,6 +187,9 @@ export default function People() {
     try {
       await api("/api/people/" + person._id, { method: "DELETE" });
       notify("Pessoa excluída.", "success");
+      // Pedido de dentro do proprio formulario de edicao: fecha-o tambem, a
+      // pessoa nao existe mais para continuar editando.
+      setForm((f) => (f && f._id === person._id ? null : f));
       await load();
     } catch (err) {
       notify(err.message, "error");
@@ -370,6 +373,19 @@ export default function People() {
         size="sm"
         footer={
           <>
+            {/* So existe para quem ja esta cadastrado (nao no "Cadastrar
+                pessoa"). Abre a mesma confirmacao do botao de excluir da
+                lista - nao exclui direto, para nao haver engano. */}
+            {form?._id ? (
+              <button
+                type="button"
+                className="btn btn--danger modal__foot-left"
+                disabled={saving}
+                onClick={() => setConfirmDelete(form)}
+              >
+                Excluir
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn btn--ghost"

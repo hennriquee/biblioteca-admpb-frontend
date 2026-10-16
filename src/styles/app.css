@@ -848,6 +848,11 @@ html[data-app="catalogo"] #root:empty {
   padding: 14px 20px calc(16px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
 }
+/* Acao destrutiva separada das demais, no canto esquerdo do rodape
+   (ex.: "Excluir" dentro do formulario de edicao). */
+.modal__foot-left {
+  margin-right: auto;
+}
 
 .confirm__text {
   color: var(--ink-soft);
