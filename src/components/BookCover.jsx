@@ -1,18 +1,9 @@
 import { IconBook } from './Icons.jsx';
 import { useEffect, useRef, useState } from 'react';
-import ImageLightbox from './ImageLightbox.jsx';
 
-/**
- * Props:
- *  - zoomable: clicar na capa abre ela maior (ImageLightbox), sem opcao de
- *    baixar - so nas telas de DETALHE (cover--lg), onde o clique na capa nao
- *    ja faz outra coisa. Nas listas e nos combos o clique escolhe o livro;
- *    ali a capa continua sem zoomable, para o clique fazer so aquilo.
- */
-export default function BookCover({ src, alt, className = '', zoomable = false }) {
+export default function BookCover({ src, alt, className = '' }) {
   // loading: a foto ainda esta baixando | loaded: ja apareceu | failed: nao carregou
   const [status, setStatus] = useState('loading');
-  const [open, setOpen] = useState(false);
   const imgRef = useRef(null);
 
   // Se o link falhou e a pessoa escolhe outra capa, tenta carregar de novo.
@@ -45,14 +36,14 @@ export default function BookCover({ src, alt, className = '', zoomable = false }
     );
   }
 
-  const img = (
+  return (
     <img
       ref={imgRef}
       className={
         'cover ' + (status === 'loading' ? 'cover--loading ' : '') + className
       }
       src={src}
-      alt={zoomable ? '' : alt}
+      alt={alt}
       loading="lazy"
       aria-busy={status === 'loading'}
       draggable={false}
@@ -60,21 +51,5 @@ export default function BookCover({ src, alt, className = '', zoomable = false }
       onLoad={handleLoad}
       onError={() => setStatus('failed')}
     />
-  );
-
-  if (!zoomable) return img;
-
-  return (
-    <>
-      <button
-        type="button"
-        className="imagebtn"
-        onClick={() => setOpen(true)}
-        aria-label={(alt || 'Capa do livro') + ' — ver maior'}
-      >
-        {img}
-      </button>
-      <ImageLightbox open={open} onClose={() => setOpen(false)} src={src} alt={alt} />
-    </>
   );
 }

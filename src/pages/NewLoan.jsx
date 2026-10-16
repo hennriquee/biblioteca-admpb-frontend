@@ -150,6 +150,14 @@ export default function NewLoan() {
     return bookResults.term === bookTerm ? bookResults.items : [];
   }, [bookSearchOn, allBooks, bookTerm, bookResults]);
 
+  // Enquanto o termo digitado ainda nao tem resposta (o debounce de 250ms ou
+  // o pedido ao servidor em andamento): mostra "Buscando…" no lugar da lista,
+  // para a pessoa nunca ver (nem poder clicar) o "Cadastrar nova pessoa" ou
+  // uma lista de uma busca ANTERIOR enquanto a de agora nao chegou - era
+  // esse o risco de cadastrar alguem que, no instante seguinte, apareceria
+  // na lista (busca que so nao tinha terminado ainda).
+  const personSearching =
+    personTerm.length >= 2 && personSuggestions.term !== personTerm;
   // Sugestoes de nome so aparecem quando respondem ao que esta digitado agora
   // (as da busca anterior somem na hora).
   const personItems =
@@ -158,11 +166,7 @@ export default function NewLoan() {
     personSuggestions.term === personTerm
       ? personSuggestions.items
       : [];
-  // "Cadastrar nova pessoa" aparece junto das sugestoes assim que a pessoa
-  // comeca a digitar um nome - ache ou nao ache alguem parecido na lista -
-  // para sempre existir um caminho de CADASTRAR quem nao esta la, em vez de
-  // so deixar o nome digitado (ver handleSubmit: sem personId nao registra).
-  const showPersonDropdown = showSuggestions && personTerm.length > 0;
+  const showPersonDropdown = showSuggestions && personTerm.length >= 2;
 
   // extra: { force } (a pessoa confirmou que pode levar outro livro).
   async function submitLoan(extra = {}) {
@@ -411,7 +415,21 @@ export default function NewLoan() {
                 required
               />
 
-              {showPersonDropdown ? (
+              {showPersonDropdown && personSearching ? (
+                <p className="combo__wait" role="status">
+                  Buscando pessoas…
+                </p>
+              ) : null}
+
+              {showPersonDropdown && !personSearching && personItems.length === 0 ? (
+                <p className="combo__wait">Pessoa não encontrada.</p>
+              ) : null}
+
+              {/* So aparece com a busca ja respondida (nunca durante o
+                  "Buscando…"): clicar em "Cadastrar nova pessoa" antes de a
+                  busca terminar poderia cadastrar de novo alguem que, no
+                  instante seguinte, apareceria na propria lista. */}
+              {showPersonDropdown && !personSearching ? (
                 <ul className="combo__list">
                   {personItems.map((person) => (
                     <li key={person._id}>
@@ -458,9 +476,9 @@ export default function NewLoan() {
                       </button>
                     </li>
                   ))}
-                  {/* Sempre no fim da lista, ache ou nao ache alguem parecido:
-                      quem nao esta cadastrado precisa de um caminho para
-                      entrar no sistema antes de levar um livro. */}
+                  {/* Sempre no fim da lista (ja respondida), ache ou nao ache
+                      alguem parecido: quem nao esta cadastrado precisa de um
+                      caminho para entrar no sistema antes de levar um livro. */}
                   <li>
                     <button
                       type="button"
@@ -476,9 +494,7 @@ export default function NewLoan() {
                       </span>
                       <span>
                         <strong>Cadastrar nova pessoa</strong>
-                        <small>
-                          {personTerm ? '"' + personTerm + '"' : "Quem não está na lista"}
-                        </small>
+                        <small>{'"' + personTerm + '"'}</small>
                       </span>
                     </button>
                   </li>

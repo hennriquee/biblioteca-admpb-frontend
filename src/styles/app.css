@@ -467,8 +467,7 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface-sunk);
   border-radius: 6px;
   flex-shrink: 0;
-  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular
-     (ver .no-save, mais acima). */
+  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular. */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -1754,9 +1753,6 @@ html[data-app="catalogo"] #root:empty {
   .modal--sm {
     max-width: 420px;
   }
-  .modal--lg {
-    max-width: 720px;
-  }
   .modal__foot {
     padding-bottom: 14px;
   }
@@ -2979,52 +2975,6 @@ a.stat:active {
   }
 }
 
-/* Foto/capa em tamanho grande (ver components/ImageLightbox.jsx): so para
-   olhar - sem botao de baixar, e o fundo escuro da enquadra como numa
-   "sala escura", igual a visualizacao de foto do WhatsApp. */
-.lightbox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 46vh;
-  max-height: 82vh;
-  background: var(--ink);
-}
-.lightbox__img {
-  display: block;
-  max-width: 100%;
-  max-height: 82vh;
-  object-fit: contain;
-}
-
-/* Fotos e capas de verdade (nao decorativas): sem menu de "salvar imagem" no
-   botao direito, sem arrastar para fora da janela e sem o toque longo do
-   celular oferecer salvar - igual ao WhatsApp, que tambem mostra a foto sem
-   deixar baixar. Isso NAO impede um print de tela (nenhum site impede isso). */
-.no-save {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-/* Botao invisivel que envolve a foto/capa "zoomable": do tamanho exato da
-   foto (herda via style), sem nenhuma moldura propria - quem aparece por
-   cima e a foto mesmo (ver Avatar.jsx e BookCover.jsx). */
-.imagebtn {
-  display: inline-flex;
-  flex-shrink: 0;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-  font: inherit;
-  color: inherit;
-}
-.imagebtn:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
-}
-
 /* Celular deitado: desenho de um lado e texto do outro. O texto pode
    precisar de um pouco de rolagem, mas o desenho aparece inteiro. */
 @media (orientation: landscape) and (max-height: 480px) {
@@ -3094,8 +3044,7 @@ a.stat:active {
   border-radius: 50%;
   object-fit: cover;
   background: var(--surface-sunk);
-  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular
-     (ver .no-save, mais acima). */
+  /* Sem menu de "salvar imagem" no botao direito nem toque longo no celular. */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;

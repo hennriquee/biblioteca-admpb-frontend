@@ -522,7 +522,6 @@ export default function Books() {
               src={selected.cover}
               alt={"Capa de " + formatBookTitle(selected.title)}
               className="cover--lg"
-              zoomable
             />
             <dl className="detail__data">
               <div>

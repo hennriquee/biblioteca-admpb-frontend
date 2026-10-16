@@ -545,7 +545,6 @@ export default function Catalog() {
               src={selected.cover}
               alt={"Capa de " + formatBookTitle(selected.title)}
               className="cover--lg"
-              zoomable
             />
             <dl className="detail__data">
               <div className="detail__wide">

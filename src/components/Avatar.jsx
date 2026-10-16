@@ -7,13 +7,8 @@
  *  - src: endereco da foto (opcional)
  *  - name: nome completo, de onde saem as iniciais
  *  - size: diametro em px (padrao 44)
- *  - zoomable: clicar na foto abre ela maior (ImageLightbox), sem opcao de
- *    baixar - so faz sentido onde a foto e so para OLHAR (ex.: StaffModal).
- *    Onde o clique ja faz outra coisa (abrir a edicao, escolher na lista),
- *    nao usa: o clique continua fazendo so aquilo.
  */
 import { useEffect, useState } from "react";
-import ImageLightbox from "./ImageLightbox.jsx";
 
 function initialsOf(name) {
   const words = String(name || "")
@@ -26,52 +21,27 @@ function initialsOf(name) {
   return (first + last).toUpperCase();
 }
 
-export default function Avatar({
-  src,
-  name,
-  size = 44,
-  className = "",
-  zoomable = false,
-}) {
+export default function Avatar({ src, name, size = 44, className = "" }) {
   const [failed, setFailed] = useState(false);
-  const [open, setOpen] = useState(false);
 
   // Foto trocada: tenta carregar a nova mesmo que a anterior tenha falhado.
   useEffect(() => setFailed(false), [src]);
 
   const style = { width: size, height: size };
   const classes = "avatar" + (className ? " " + className : "");
-  const alt = name ? "Foto de " + name : "";
 
   if (src && !failed) {
-    const img = (
+    return (
       <img
         className={classes}
         style={style}
         src={src}
-        alt={zoomable ? "" : alt}
+        alt={name ? "Foto de " + name : ""}
         loading="lazy"
         draggable={false}
         onContextMenu={(e) => e.preventDefault()}
         onError={() => setFailed(true)}
       />
-    );
-
-    if (!zoomable) return img;
-
-    return (
-      <>
-        <button
-          type="button"
-          className="imagebtn"
-          style={style}
-          onClick={() => setOpen(true)}
-          aria-label={"Ver" + (name ? " a foto de " + name : " a foto") + " maior"}
-        >
-          {img}
-        </button>
-        <ImageLightbox open={open} onClose={() => setOpen(false)} src={src} alt={alt} />
-      </>
     );
   }
 
