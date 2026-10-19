@@ -6,12 +6,22 @@ import {
   useState,
 } from "react";
 import Modal from "./Modal.jsx";
+import { IconRotateLeft, IconRotateRight } from "./Icons.jsx";
+import {
+  MAX_ANGLE,
+  coverScale,
+  fitOffset,
+  rad,
+  rotatePoint,
+} from "../utils/cropGeometry.js";
 
 // Formato padrao: capa de livro em retrato 2:3 (largura:altura), o mesmo das
 // capas de verdade, salva em 600x900 px. A foto de perfil usa o mesmo recorte
 // com ratio = 1 e 400x400 (ver PhotoPicker).
 const MAX_ZOOM = 4;
 const FRAME_MAX_W = 280;
+// Passo da barra de giro, em graus.
+const ANGLE_STEP = 0.5;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -19,12 +29,39 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function withZoom(view, nextZoom) {
   const zoom = clamp(nextZoom, 1, MAX_ZOOM);
   const ratio = zoom / view.zoom;
-  return { zoom, x: view.x * ratio, y: view.y * ratio };
+  return { ...view, zoom, x: view.x * ratio, y: view.y * ratio };
+}
+
+const NO_VIEW = { zoom: 1, x: 0, y: 0, angle: 0 };
+
+// "+12,5°" / "−7°" / "0°": o sinal diz para que lado a foto esta girada.
+function angleLabel(angle) {
+  if (!angle) return "0°";
+  const digits = Math.abs(angle).toLocaleString("pt-BR", {
+    maximumFractionDigits: 1,
+  });
+  return (angle > 0 ? "+" : "−") + digits + "°";
+}
+
+function angleSide(angle) {
+  if (!angle) return "sem giro";
+  return angle > 0 ? "para a direita" : "para a esquerda";
+}
+
+// O que o leitor de tela fala na barra: "12,5 graus para a direita".
+function angleSpoken(angle) {
+  if (!angle) return angleSide(0);
+  const digits = Math.abs(angle).toLocaleString("pt-BR");
+  return digits + (Math.abs(angle) <= 1 ? " grau " : " graus ") + angleSide(angle);
 }
 
 /**
- * Tela de "Ajustar capa": a pessoa arrasta a foto e da zoom para enquadrar
- * dentro do quadro 2:3. Ao confirmar, devolve a imagem recortada como data URI.
+ * Tela de "Ajustar capa" / "Ajustar foto": a pessoa arrasta a foto, da zoom e
+ * gira para enquadrar dentro do quadro. Ao confirmar, devolve a imagem
+ * recortada como data URI.
+ *
+ * O giro vai de -45° (esquerda) a +45° (direita) e a barra comeca no meio
+ * (0°). A foto gira em torno do centro do quadro (ver utils/cropGeometry.js).
  *
  * Props:
  *  - file: File/Blob da foto (camera, galeria ou webcam)
@@ -50,13 +87,14 @@ export default function CoverEditor({
   const wrapRef = useRef(null);
   const frameRef = useRef(null);
   const imgRef = useRef(null);
+  const angleRef = useRef(null);
   const pointers = useRef(new Map());
   const pinch = useRef(null);
 
   const [url, setUrl] = useState("");
   const [natural, setNatural] = useState(null); // { w, h } da foto original
   const [box, setBox] = useState({ w: 0, h: 0 }); // tamanho do quadro na tela
-  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [view, setView] = useState(NO_VIEW);
 
   // Endereco temporario da foto, liberado ao fechar.
   useEffect(() => {
@@ -68,7 +106,7 @@ export default function CoverEditor({
     const objectUrl = URL.createObjectURL(file);
     setUrl(objectUrl);
     setNatural(null);
-    setView({ zoom: 1, x: 0, y: 0 });
+    setView(NO_VIEW);
     return () => URL.revokeObjectURL(objectUrl);
   }, [open, file]);
 
@@ -79,7 +117,10 @@ export default function CoverEditor({
     if (!wrap) return undefined;
 
     function measure() {
-      const maxHeight = Math.max(220, window.innerHeight * 0.5);
+      // Sob o quadro ficam duas barras (zoom e giro) e a dica: em tela baixa o
+      // quadro cede mais altura para elas continuarem a vista.
+      const share = window.innerHeight < 640 ? 0.4 : 0.46;
+      const maxHeight = Math.max(200, window.innerHeight * share);
       const w = Math.floor(
         Math.min(wrap.clientWidth, FRAME_MAX_W, maxHeight * ratio),
       );
@@ -96,10 +137,9 @@ export default function CoverEditor({
     };
   }, [open, ratio]);
 
-  // Escala minima: a foto sempre cobre o quadro inteiro (sem bordas vazias).
-  const minScale =
-    natural && box.w ? Math.max(box.w / natural.w, box.h / natural.h) : 1;
-  const scale = minScale * view.zoom;
+  // Escala minima: a foto, do jeito que esta girada, sempre cobre o quadro
+  // inteiro (sem bordas vazias).
+  const scale = coverScale(natural, box, view.angle) * view.zoom;
 
   // Aplica uma mudanca de enquadramento respeitando os limites.
   const applyView = useCallback(
@@ -108,18 +148,28 @@ export default function CoverEditor({
       setView((previous) => {
         const next = typeof updater === "function" ? updater(previous) : updater;
         const zoom = clamp(next.zoom, 1, MAX_ZOOM);
-        const s = minScale * zoom;
-        const maxX = Math.max(0, (natural.w * s - box.w) / 2);
-        const maxY = Math.max(0, (natural.h * s - box.h) / 2);
+        const angle = clamp(next.angle, -MAX_ANGLE, MAX_ANGLE);
+        const s = coverScale(natural, box, angle) * zoom;
         return {
           zoom,
-          x: clamp(next.x, -maxX, maxX),
-          y: clamp(next.y, -maxY, maxY),
+          angle,
+          ...fitOffset(natural, box, s, angle, next.x, next.y),
         };
       });
     },
-    [natural, box, minScale],
+    [natural, box],
   );
+
+  // Gira a foto em torno do centro do quadro: o que estava no centro continua
+  // no centro, mesmo com a foto arrastada para o lado.
+  function setAngle(nextAngle) {
+    applyView((v) => {
+      const angle = clamp(nextAngle, -MAX_ANGLE, MAX_ANGLE);
+      const grow = coverScale(natural, box, angle) / coverScale(natural, box, v.angle);
+      const moved = rotatePoint(v.x, v.y, angle - v.angle);
+      return { ...v, angle, x: moved.x * grow, y: moved.y * grow };
+    });
+  }
 
   // Se o quadro mudar de tamanho, reencaixa a foto nos novos limites.
   useEffect(() => {
@@ -203,12 +253,6 @@ export default function CoverEditor({
     const img = imgRef.current;
     if (!img || !natural || !box.w) return;
 
-    // Parte da foto original que esta dentro do quadro.
-    const sw = box.w / scale;
-    const sh = box.h / scale;
-    const sx = clamp(natural.w / 2 - view.x / scale - sw / 2, 0, natural.w - sw);
-    const sy = clamp(natural.h / 2 - view.y / scale - sh / 2, 0, natural.h - sh);
-
     const canvas = document.createElement("canvas");
     canvas.width = out.w;
     canvas.height = out.h;
@@ -217,7 +261,14 @@ export default function CoverEditor({
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, out.w, out.h);
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, out.w, out.h);
+    // Refaz no canvas o que a tela mostra: o quadro (box) vira o arquivo
+    // inteiro (out); dentro dele a foto vai para o lugar, gira e escala.
+    ctx.translate(out.w / 2, out.h / 2);
+    ctx.scale(out.w / box.w, out.h / box.h);
+    ctx.translate(view.x, view.y);
+    ctx.rotate(rad(view.angle));
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, -natural.w / 2, -natural.h / 2);
 
     onConfirm(canvas.toDataURL("image/jpeg", 0.88));
   }
@@ -226,6 +277,10 @@ export default function CoverEditor({
   // Preenchimento da trilha fina do zoom, em %, so para o Chrome/Edge/Safari
   // (o Firefox preenche sozinho com ::-moz-range-progress).
   const zoomFill = ((view.zoom - 1) / (MAX_ZOOM - 1)) * 100;
+  // A trilha do giro e preenchida a partir do meio (0°) ate a bolinha, para
+  // a direita ou para a esquerda.
+  const anglePos = ((view.angle + MAX_ANGLE) / (2 * MAX_ANGLE)) * 100;
+  const sideText = angleSide(view.angle);
 
   return (
     <Modal
@@ -284,7 +339,9 @@ export default function CoverEditor({
                         view.x +
                         "px, " +
                         view.y +
-                        "px)",
+                        "px) rotate(" +
+                        view.angle +
+                        "deg)",
                     }
                   : { visibility: "hidden" }
               }
@@ -317,6 +374,51 @@ export default function CoverEditor({
           />
           <span aria-hidden="true">+</span>
         </label>
+
+        <div className="cropper__angle">
+          <div className="cropper__angle-head">
+            {/* Quem usa leitor de tela ouve o mesmo pelo aria-valuetext da barra. */}
+            <div className="cropper__angle-value" aria-hidden="true">
+              <strong>{angleLabel(view.angle)}</strong>
+              <span className="muted">{sideText}</span>
+            </div>
+            <button
+              type="button"
+              className="cropper__angle-reset"
+              aria-label="Zerar o giro da foto"
+              onClick={() => {
+                setAngle(0);
+                // O botao some em 0°: o foco vai para a barra em vez de se perder.
+                angleRef.current?.focus();
+              }}
+              disabled={!ready || !view.angle}
+            >
+              Zerar
+            </button>
+          </div>
+          <label className="cropper__zoom cropper__zoom--angle">
+            <IconRotateLeft width={16} height={16} aria-hidden="true" />
+            <span className="cropper__rangewrap">
+              <input
+                ref={angleRef}
+                type="range"
+                min={-MAX_ANGLE}
+                max={MAX_ANGLE}
+                step={ANGLE_STEP}
+                value={view.angle}
+                disabled={!ready}
+                aria-label="Giro da foto, de menos 45 a mais 45 graus"
+                aria-valuetext={angleSpoken(view.angle)}
+                style={{
+                  "--angle-from": Math.min(anglePos, 50) + "%",
+                  "--angle-to": Math.max(anglePos, 50) + "%",
+                }}
+                onChange={(e) => setAngle(Number(e.target.value))}
+              />
+            </span>
+            <IconRotateRight width={16} height={16} aria-hidden="true" />
+          </label>
+        </div>
 
         <p className="cropper__hint muted">{hint}</p>
       </div>

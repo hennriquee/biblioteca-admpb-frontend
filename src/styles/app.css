@@ -595,14 +595,6 @@ html[data-app="catalogo"] #root:empty {
 .bookrow:hover {
   border-color: var(--clay);
 }
-/* Linha da lista sem acao nenhuma (tela de novidades): mesma cara do
-   .bookrow, mas sem sugerir que da para clicar. */
-.bookrow--static {
-  cursor: default;
-}
-.bookrow--static:hover {
-  border-color: var(--line);
-}
 .bookrow__text {
   flex: 1;
   display: flex;
@@ -1241,6 +1233,106 @@ html[data-app="catalogo"] #root:empty {
 .cropper__zoom input[type="range"]:focus-visible::-moz-range-thumb {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
+}
+/* Barra de giro: comeca no meio (0°), a trilha se preenche do meio ate a
+   bolinha. --angle-from / --angle-to vem do CoverEditor.jsx; usa-se o mesmo
+   degrade no Firefox (que preencheria da esquerda com ::-moz-range-progress). */
+.cropper__angle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(100%, 280px);
+}
+.cropper__angle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* O numero tem largura fixa (alinhado a direita) para o texto ao lado nao
+   "balancar" enquanto a barra e arrastada. */
+.cropper__angle-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cropper__angle-value strong {
+  min-width: 6.4ch;
+  text-align: right;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.cropper__angle-reset {
+  min-height: 32px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--clay);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.cropper__angle-reset:hover:not(:disabled) {
+  background: var(--clay-line);
+}
+.cropper__angle-reset:disabled {
+  visibility: hidden;
+}
+.cropper__angle-reset:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.cropper__zoom--angle svg {
+  flex-shrink: 0;
+}
+.cropper__rangewrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.cropper__rangewrap input[type="range"] {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+/* Marca do 0° no meio da trilha, por tras da bolinha (que a cobre em 0°) */
+.cropper__rangewrap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  background: var(--ink-faint);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.cropper__zoom--angle input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--ink-faint) var(--angle-from, 50%),
+    var(--clay) var(--angle-from, 50%),
+    var(--clay) var(--angle-to, 50%),
+    var(--ink-faint) var(--angle-to, 50%)
+  );
+}
+.cropper__zoom--angle input[type="range"]::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--ink-faint) var(--angle-from, 50%),
+    var(--clay) var(--angle-from, 50%),
+    var(--clay) var(--angle-to, 50%),
+    var(--ink-faint) var(--angle-to, 50%)
+  );
+}
+.cropper__zoom--angle input[type="range"]::-moz-range-progress {
+  background: transparent;
 }
 .cropper__hint {
   margin: 0;
@@ -2756,20 +2848,279 @@ a.stat:active {
 }
 
 /* ---------- Aviso de novidade (NewBooksModal) ---------- */
-.newbooks {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  text-align: center;
+/* Abre no MEIO da tela, e nao como a folha que sobe de baixo no celular (o
+   padrao das outras janelas): e um aviso, e precisa chamar a atencao. */
+.modal-backdrop--center {
+  align-items: center;
+  padding: 20px;
 }
-.newbooks__covers {
+.modal-backdrop--center .modal {
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  border-radius: var(--radius-lg);
+  animation: modal-pop 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.12) both;
+}
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O palco: as capas abertas em leque, como cartas na mao de alguem. Tudo
+   escala com --w (a largura de uma capa). A mao sai pela borda de baixo do
+   palco, entao o palco nao tem espaco embaixo. */
+.newbooks__stage {
+  --w: clamp(84px, min(34vw, 19vh), 150px);
+  position: relative;
   display: flex;
   justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  padding: 36px 16px 0;
 }
-.newbooks__lead {
-  margin: 0;
+/* Um brilho dourado atras das capas */
+.newbooks__stage::before {
+  content: "";
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  width: calc(var(--w) * 3.4);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--gold-wash) 0%, transparent 68%);
+  pointer-events: none;
+}
+.newbooks__fan {
+  position: relative;
+  isolation: isolate;
+  flex-shrink: 0;
+  width: calc(var(--w) * 2.2);
+  height: calc(var(--w) * 2.05);
+}
+/* Cada carta gira em torno de um ponto abaixo dela (onde a mao segura): as
+   de fora se abrem como um leque, e a do meio fica por cima. */
+.newbooks__card {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: var(--z);
+  width: var(--w);
+  height: calc(var(--w) * 1.5);
+  margin-left: calc(var(--w) / -2);
+  transform-origin: 50% 135%;
+  transform: rotate(var(--rot));
+  filter: drop-shadow(0 12px 10px rgba(43, 32, 19, 0.28));
+  animation: newbooks-deal 0.8s cubic-bezier(0.2, 0.85, 0.3, 1.1) var(--delay) both;
+}
+/* Borda branca, como a de uma carta: separa capas escuras umas das outras. */
+.newbooks__card .cover--fan {
+  width: 100%;
+  height: 100%;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(43, 32, 19, 0.14);
+}
+/* Sem capa: papel com o nome do livro, para a carta nao ficar em branco. */
+.newbooks__card .cover--empty {
+  gap: 8px;
+  padding: 10px 8px;
+  background: linear-gradient(160deg, var(--gold-wash), var(--clay-wash));
+}
+.cover__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+/* As de fora ficam um pouco mais escuras: dao a ideia de que estao atras. */
+.newbooks__card--side .cover {
+  filter: brightness(0.93);
+}
+.newbooks__card .cover--fan svg {
+  width: 30px;
+  height: 30px;
+}
+.newbooks__card .cover--fan .cover__label {
+  font-size: 0.72rem;
+}
+@keyframes newbooks-deal {
+  from {
+    opacity: 0;
+    transform: translateY(28px) rotate(0deg) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--rot));
+  }
+}
+
+/* A mao: a palma e a manga ficam atras das cartas; o polegar, na frente. */
+.newbooks__hand {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+  animation: newbooks-hand 0.6s cubic-bezier(0.2, 0.85, 0.3, 1) both;
+}
+.newbooks__hand--back {
+  z-index: 1;
+}
+.newbooks__hand--front {
+  z-index: 4;
+}
+@keyframes newbooks-hand {
+  from {
+    opacity: 0;
+    transform: translateY(26%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.newbooks__sleeve {
+  fill: var(--clay);
+}
+.newbooks__cuff {
+  fill: var(--clay-strong);
+}
+.newbooks__palm,
+.newbooks__tip {
+  fill: var(--clay-wash);
+  stroke: var(--clay);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.newbooks__thumb-edge,
+.newbooks__thumb {
+  fill: none;
+  stroke-linecap: round;
+}
+.newbooks__thumb-edge {
+  stroke: var(--clay);
+  stroke-width: 29;
+}
+.newbooks__thumb {
+  stroke: var(--clay-wash);
+  stroke-width: 25;
+}
+.newbooks__nail {
+  fill: var(--surface);
+  stroke: var(--clay-line);
+  stroke-width: 1.2;
+}
+
+/* A bolinha "+N": quantos livros novos existem alem das capas mostradas. */
+.newbooks__more {
+  position: absolute;
+  /* No meio da altura da carta da direita, longe do "x" que flutua no canto
+     do palco; ancorada pela direita para "+147" crescer para dentro. */
+  top: calc(var(--w) * 0.42);
+  right: calc(var(--w) * -0.04);
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 10px;
+  border: 3px solid var(--surface);
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 14px -4px rgba(43, 32, 19, 0.5);
+  animation: newbooks-pop 0.55s cubic-bezier(0.3, 1.7, 0.5, 1) 0.95s both;
+}
+@keyframes newbooks-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Brilhinhos ao redor */
+.newbooks__spark {
+  position: absolute;
+  fill: var(--gold);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: newbooks-spark 0.7s ease-out var(--delay) both;
+}
+@keyframes newbooks-spark {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(-40deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.25) rotate(8deg);
+  }
+  to {
+    opacity: 0.9;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.newbooks .welcome__title {
+  font-size: clamp(1.7rem, 1.3rem + 1.8vw, 2.1rem);
+}
+.newbooks .welcome__lead strong {
+  color: var(--clay);
+  font-size: 1.2em;
+}
+
+/* Este aviso e uma entrada curta (uma vez, ao abrir), nao um movimento que se
+   repete: roda mesmo com "menos movimento" ligado no sistema, como a animacao
+   de boas-vindas. Sem isso o Windows desta equipe (que informa "reduzir
+   movimento" sempre) nunca mostraria as cartas se abrindo. */
+@media (prefers-reduced-motion: reduce) {
+  .newbooks__card {
+    animation-duration: 0.8s !important;
+  }
+  .newbooks__hand {
+    animation-duration: 0.6s !important;
+  }
+  .newbooks__more {
+    animation-duration: 0.55s !important;
+  }
+  .newbooks__spark {
+    animation-duration: 0.7s !important;
+  }
+}
+
+/* Celular deitado: o leque encolhe e a janela fica mais larga (o palco ocupa
+   so 42% dela, ao lado do texto) para o leque e a bolinha caberem. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .modal-backdrop--center .modal--hero.modal--sm {
+    max-width: 560px;
+  }
+  .newbooks__stage {
+    --w: clamp(56px, 20vh, 84px);
+    padding-top: 16px;
+  }
 }
 
 .welcome {

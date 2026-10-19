@@ -16,6 +16,9 @@ export default function Modal({
   // "pub": titulo maior, para os modais do acervo publico. "hero": sem
   // cabecalho; o titulo fica no conteudo e o "x" flutua sobre o topo.
   variant = "default",
+  // "bottom" (padrao): no celular a janela sobe de baixo, como uma folha; "center":
+  // abre no meio da tela em qualquer tamanho (para avisos que precisam de atencao).
+  placement = "bottom",
 }) {
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -82,7 +85,9 @@ export default function Modal({
 
   return (
     <div
-      className="modal-backdrop"
+      className={
+        "modal-backdrop" + (placement === "center" ? " modal-backdrop--center" : "")
+      }
       onMouseDown={(e) =>
         closeOnBackdrop && e.target === e.currentTarget && onClose()
       }

@@ -2,23 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { publicApi } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import Modal from "../components/Modal.jsx";
-import BookCover from "../components/BookCover.jsx";
+import PublicBookModal, { PublicBookRow } from "../components/PublicBook.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import NewBooksModal from "../components/NewBooksModal.jsx";
 import StaffModal from "../components/StaffModal.jsx";
-import {
-  IconChat,
-  IconCheck,
-  IconCrown,
-  IconLoans,
-  IconSearch,
-} from "../components/Icons.jsx";
+import { IconChat, IconSearch } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
-import { formatDate } from "../utils/dates.js";
-import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
 import { getLastSeenBooksAt, markBooksSeenNow } from "../utils/newBooksSeen.js";
@@ -71,7 +62,7 @@ function rememberWelcomeSeen() {
 }
 
 // Quantas capas aparecem no aviso de novidade (ver NewBooksModal).
-const NEW_BOOKS_PREVIEW_LIMIT = 4;
+const NEW_BOOKS_PREVIEW_LIMIT = 3;
 
 const STATUS_OPTIONS = [
   { key: "", label: "Todos" },
@@ -94,68 +85,6 @@ function groupByLetter(books) {
     groups.set(key, [...(groups.get(key) || []), book]);
   });
   return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-}
-
-// "in" = tem pelo menos uma unidade na estante; "out" = todas emprestadas.
-function availabilityOf(book) {
-  const { copies, available } = book;
-  if (copies <= 1) {
-    return available > 0
-      ? { tone: "in", label: "Disponível" }
-      : { tone: "out", label: "Emprestado" };
-  }
-  return available > 0
-    ? { tone: "in", label: available + " de " + copies + " disponíveis" }
-    : { tone: "out", label: "Todos emprestados", note: copies + " exemplares" };
-}
-
-function situationText(book) {
-  const { copies, available } = book;
-  if (copies <= 1) {
-    return available > 0
-      ? "O exemplar está na estante."
-      : "O exemplar está emprestado no momento.";
-  }
-  if (available === 0) {
-    return "Os " + copies + " exemplares estão emprestados no momento.";
-  }
-  return (
-    available +
-    " de " +
-    copies +
-    " exemplares " +
-    (available === 1 ? "está" : "estão") +
-    " na estante agora."
-  );
-}
-
-/**
- * PREVISAO DE ENTREGA: a data combinada para o exemplar emprestado voltar
- * para a estante. Com mais de um exemplar fora, o servidor manda a data mais
- * proxima entre elas (o que nao garante que sera o primeiro a voltar: um
- * exemplar emprestado sem prazo pode chegar antes).
- *
- * Devolve null quando nada esta emprestado: ai a linha nem aparece na tela.
- */
-function deliveryInfo(book) {
-  const loaned = book.loaned || 0;
-  if (loaned < 1) return null;
-
-  return {
-    label: loaned > 1 ? "Próxima entrega combinada" : "Previsão de entrega",
-    value: book.dueDate ? formatDate(book.dueDate) : "Sem data combinada",
-  };
-}
-
-function Availability({ book }) {
-  const info = availabilityOf(book);
-  const Icon = info.tone === "in" ? IconCheck : IconLoans;
-  return (
-    <span className={"avail avail--" + info.tone}>
-      <Icon width={14} height={14} aria-hidden="true" />
-      {info.label}
-    </span>
-  );
 }
 
 export default function Catalog() {
@@ -184,7 +113,7 @@ export default function Catalog() {
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
   // "Com quem falar?": os cartoes da equipe da biblioteca.
   const [staffOpen, setStaffOpen] = useState(false);
-  // null = nada para avisar | { total, items } = ha novidade para mostrar.
+  // null = nada para avisar | { total, items, since } = ha novidade para mostrar.
   const [newBooks, setNewBooks] = useState(null);
 
   function closeWelcome() {
@@ -214,7 +143,7 @@ export default function Catalog() {
         NEW_BOOKS_PREVIEW_LIMIT,
     )
       .then((data) => {
-        if (active && data.total > 0) setNewBooks(data);
+        if (active && data.total > 0) setNewBooks({ ...data, since: lastSeenAt });
       })
       .catch(() => {
         /* nao e essencial: sem aviso de novidade, o catalogo continua normal */
@@ -301,7 +230,6 @@ export default function Catalog() {
   const categories = overview?.categories || [];
   const staff = overview?.staff || [];
   const isFiltering = Boolean(search.trim() || category || status);
-  const delivery = selected ? deliveryInfo(selected) : null;
 
   function clearFilters() {
     setSearch("");
@@ -474,59 +402,15 @@ export default function Catalog() {
               <section key={letter} className="group">
                 <h2 className="group__letter">{letter}</h2>
                 <ul className="booklist">
-                  {letterItems.map((book) => {
-                    const info = availabilityOf(book);
-                    const authors = book.authors.join(", ");
-                    const bookTitle = formatBookTitle(book.title);
-                    return (
-                      <li key={book.id}>
-                        <button
-                          type="button"
-                          className="bookrow"
-                          onClick={() => setSelected(book)}
-                        >
-                          {/* A coroinha do livro mais emprestado fica em
-                              cima da capa (ninguem a recebe se houver empate
-                              no primeiro lugar). */}
-                          <span className="crowned">
-                            <BookCover
-                              src={book.cover}
-                              alt={"Capa de " + bookTitle}
-                              className="cover--sm"
-                            />
-                            {list.mostLoanedId === book.id ? (
-                              <span
-                                className="crowned__crown"
-                                title="O livro mais emprestado do acervo"
-                              >
-                                <IconCrown width={15} height={15} />
-                                <span className="sr-only">
-                                  O livro mais emprestado do acervo
-                                </span>
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="bookrow__text">
-                            <strong title={bookTitle}>{bookTitle}</strong>
-                            <small className="bookrow__meta">
-                              <span
-                                className="bookrow__authors"
-                                title={authors || undefined}
-                              >
-                                {authors || "Autor não informado"}
-                              </span>
-                            </small>
-                            <span className="pub__avail">
-                              <Availability book={book} />
-                              {info.note ? (
-                                <small className="pub__note">{info.note}</small>
-                              ) : null}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {letterItems.map((book) => (
+                    <li key={book.id}>
+                      <PublicBookRow
+                        book={book}
+                        onOpen={setSelected}
+                        mostLoaned={list.mostLoanedId === book.id}
+                      />
+                    </li>
+                  ))}
                 </ul>
               </section>
             ))}
@@ -571,6 +455,7 @@ export default function Catalog() {
         onClose={() => setNewBooks(null)}
         total={newBooks?.total ?? 0}
         items={newBooks?.items ?? []}
+        since={newBooks?.since ?? null}
       />
 
       <StaffModal
@@ -579,88 +464,12 @@ export default function Catalog() {
         staff={staff}
       />
 
-      {/* Detalhes do livro: so leitura. Sem botoes de editar/excluir e sem
-          nada sobre quem esta com o livro (o servidor nem envia). */}
-      <Modal
-        open={Boolean(selected)}
+      {/* Detalhes do livro: so leitura (ver components/PublicBook.jsx). */}
+      <PublicBookModal
+        book={selected}
         onClose={() => setSelected(null)}
-        title={formatBookTitle(selected?.title)}
-        variant="pub"
-      >
-        {selected ? (
-          <div className="detail">
-            <BookCover
-              src={selected.cover}
-              alt={"Capa de " + formatBookTitle(selected.title)}
-              className="cover--lg"
-            />
-            <dl className="detail__data">
-              <div className="detail__wide">
-                <dt>Situação</dt>
-                <dd>
-                  {/* A coroinha do mais emprestado fica aqui, ao lado da
-                      situacao: ela diz que o livro e o mais procurado do
-                      acervo, sem dizer quantas vezes ele saiu. */}
-                  <span className="pub__avail">
-                    <Availability book={selected} />
-                    {list.mostLoanedId === selected.id ? (
-                      <span className="detail__crown">
-                        <IconCrown width={15} height={15} />
-                        mais emprestado
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="pub__situation">
-                    {situationText(selected)}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Autor</dt>
-                <dd>{selected.authors.join(", ") || "—"}</dd>
-              </div>
-              <div>
-                <dt>Categoria</dt>
-                <dd>{selected.categories.join(", ") || "—"}</dd>
-              </div>
-              <div>
-                <dt>Editora</dt>
-                <dd>{selected.publisher || "—"}</dd>
-              </div>
-              <div>
-                <dt>Ano</dt>
-                <dd>{selected.year || "—"}</dd>
-              </div>
-              <div>
-                <dt>Páginas</dt>
-                <dd>{selected.pages || "—"}</dd>
-              </div>
-              <div>
-                <dt>ISBN</dt>
-                <dd>{selected.isbn || "—"}</dd>
-              </div>
-              <div>
-                <dt>Quantidade</dt>
-                <dd>{selected.copies}</dd>
-              </div>
-              {/* Ultimo item da lista, do lado da Quantidade. So aparece com
-                  exemplar emprestado. */}
-              {delivery ? (
-                <div>
-                  <dt>{delivery.label}</dt>
-                  <dd>{delivery.value}</dd>
-                </div>
-              ) : null}
-            </dl>
-            {selected.synopsis ? (
-              <div className="detail__synopsis">
-                <h3>Sinopse</h3>
-                <p>{selected.synopsis}</p>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </Modal>
+        mostLoaned={Boolean(selected) && list.mostLoanedId === selected.id}
+      />
     </div>
   );
 }

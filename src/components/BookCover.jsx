@@ -1,7 +1,9 @@
 import { IconBook } from './Icons.jsx';
 import { useEffect, useRef, useState } from 'react';
 
-export default function BookCover({ src, alt, className = '' }) {
+// title: quando a capa nao existe (ou nao carregou), mostra o nome do livro no
+// lugar do "Sem imagem" - para capas grandes, onde so um icone ficaria vazio.
+export default function BookCover({ src, alt, className = '', title = '' }) {
   // loading: a foto ainda esta baixando | loaded: ja apareceu | failed: nao carregou
   const [status, setStatus] = useState('loading');
   const imgRef = useRef(null);
@@ -29,9 +31,15 @@ export default function BookCover({ src, alt, className = '' }) {
         aria-label={alt ? 'Sem imagem da capa de ' + alt : 'Sem imagem'}
       >
         <IconBook width={26} height={26} aria-hidden="true" />
-        <span className="cover__label" aria-hidden="true">
-          Sem imagem
-        </span>
+        {title ? (
+          <span className="cover__title" aria-hidden="true">
+            {title}
+          </span>
+        ) : (
+          <span className="cover__label" aria-hidden="true">
+            Sem imagem
+          </span>
+        )}
       </div>
     );
   }

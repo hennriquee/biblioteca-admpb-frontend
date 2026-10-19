@@ -61,6 +61,20 @@ export const IconCheck = (props) => (
   </svg>
 );
 
+export const IconRotateLeft = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+);
+
+export const IconRotateRight = (props) => (
+  <svg {...base} {...props}>
+    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+  </svg>
+);
+
 export const IconTrash = (props) => (
   <svg {...base} {...props}>
     <path d="M4 7h16M9 7V5h6v2M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-12" />
