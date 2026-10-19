@@ -595,6 +595,14 @@ html[data-app="catalogo"] #root:empty {
 .bookrow:hover {
   border-color: var(--clay);
 }
+/* Linha da lista sem acao nenhuma (tela de novidades): mesma cara do
+   .bookrow, mas sem sugerir que da para clicar. */
+.bookrow--static {
+  cursor: default;
+}
+.bookrow--static:hover {
+  border-color: var(--line);
+}
 .bookrow__text {
   flex: 1;
   display: flex;
@@ -2745,6 +2753,23 @@ a.stat:active {
   border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
+}
+
+/* ---------- Aviso de novidade (NewBooksModal) ---------- */
+.newbooks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+.newbooks__covers {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.newbooks__lead {
+  margin: 0;
 }
 
 .welcome {

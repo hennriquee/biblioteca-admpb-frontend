@@ -15,11 +15,11 @@
 export const PHOTO_BACKGROUNDS = [
   { id: "branco", label: "Branco", color: "#ffffff" },
   { id: "marrom", label: "Marrom", color: "#3d1e09" },
-  { id: "rosa", label: "Rosa", color: "#d98fa6" },
+  { id: "rosa", label: "Rosa", color: "#da366a" },
   { id: "azul", label: "Azul", color: "#0663aa" },
-  { id: "laranja", label: "Laranja", color: "#d97a35" },
-  { id: "amarelo", label: "Amarelo", color: "#e3a520" },
-  { id: "verde", label: "Verde", color: "#5d8a63" },
+  { id: "laranja", label: "Laranja", color: "#e06d1b" },
+  { id: "amarelo", label: "Amarelo", color: "#eea60b" },
+  { id: "verde", label: "Verde", color: "#1da32f" },
 ];
 
 export const DEFAULT_PHOTO_BACKGROUND = PHOTO_BACKGROUNDS[0];

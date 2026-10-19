@@ -9,6 +9,7 @@ import Books from './pages/Books.jsx';
 import Loans from './pages/Loans.jsx';
 import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
+import NewBooks from './pages/NewBooks.jsx';
 import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
 import DevConsole from './pages/DevConsole.jsx';
@@ -44,10 +45,11 @@ function DevOnly({ children }) {
 }
 
 export default function App() {
-  // Quem abre direto o acervo publico e recebido pela animacao de
-  // boas-vindas de la; a tela de abertura do app ficaria por cima dela.
+  // Quem abre direto o acervo publico (ou a tela de novidades dele) e
+  // recebido pela animacao de boas-vindas de la; a tela de abertura do app
+  // ficaria por cima dela.
   const [showSplash] = useState(
-    () => !['/catalogo', '/catalogo/'].includes(window.location.pathname),
+    () => !window.location.pathname.startsWith('/catalogo'),
   );
 
   return (
@@ -58,6 +60,7 @@ export default function App() {
       {/* Unica tela aberta ao publico: fica de fora do Protected e do Layout
           do admin. Toda rota nova de admin deve ficar DENTRO do Protected. */}
       <Route path="/catalogo" element={<Catalog />} />
+      <Route path="/catalogo/novidades" element={<NewBooks />} />
       {/* Manutencao: fora do Layout do painel (sem abas nem engrenagem), porque
           esta sessao nao cuida de livro nem de emprestimo. */}
       <Route

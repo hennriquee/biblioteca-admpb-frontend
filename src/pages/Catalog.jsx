@@ -7,6 +7,7 @@ import BookCover from "../components/BookCover.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
+import NewBooksModal from "../components/NewBooksModal.jsx";
 import StaffModal from "../components/StaffModal.jsx";
 import {
   IconChat,
@@ -20,6 +21,7 @@ import { formatDate } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
+import { getLastSeenBooksAt, markBooksSeenNow } from "../utils/newBooksSeen.js";
 
 /**
  * Acervo PUBLICO (/catalogo): a unica tela que abre sem login.
@@ -47,13 +49,14 @@ function loadBooks(pageNumber, limit, filters) {
 // Voltando para a aba depois deste tempo, a situacao dos livros e recarregada.
 const STALE_AFTER_MS = 60 * 1000;
 
-// As boas-vindas abrem sozinhas uma vez por visita (por aba do navegador):
-// recarregar a pagina nao mostra de novo. A logo no topo reabre quando quiser.
+// As boas-vindas abrem sozinhas uma UNICA vez (a primeira visita deste
+// navegador): dali em diante nunca mais aparecem sozinhas, nem reabrindo o
+// site, nem em outra aba. A logo no topo reabre quando quiser.
 const WELCOME_KEY = "biblioteca_admpb_boas_vindas";
 
 function welcomeAlreadySeen() {
   try {
-    return sessionStorage.getItem(WELCOME_KEY) === "1";
+    return localStorage.getItem(WELCOME_KEY) === "1";
   } catch {
     return false;
   }
@@ -61,11 +64,14 @@ function welcomeAlreadySeen() {
 
 function rememberWelcomeSeen() {
   try {
-    sessionStorage.setItem(WELCOME_KEY, "1");
+    localStorage.setItem(WELCOME_KEY, "1");
   } catch {
     /* navegador sem armazenamento: so mostra de novo na proxima vez */
   }
 }
+
+// Quantas capas aparecem no aviso de novidade (ver NewBooksModal).
+const NEW_BOOKS_PREVIEW_LIMIT = 4;
 
 const STATUS_OPTIONS = [
   { key: "", label: "Todos" },
@@ -178,11 +184,50 @@ export default function Catalog() {
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
   // "Com quem falar?": os cartoes da equipe da biblioteca.
   const [staffOpen, setStaffOpen] = useState(false);
+  // null = nada para avisar | { total, items } = ha novidade para mostrar.
+  const [newBooks, setNewBooks] = useState(null);
 
   function closeWelcome() {
     rememberWelcomeSeen();
     setWelcomeOpen(false);
   }
+
+  // Avisa quem ja usou o catalogo antes (e so ele: na primeira visita, as
+  // boas-vindas acima ja cobrem a apresentacao, sem flood de "novidade" com
+  // o acervo inteiro) se chegou livro novo desde a ultima vez que esteve
+  // aqui. Roda uma vez, ao abrir a pagina - nao fica checando de novo quando
+  // a aba volta a ficar visivel.
+  useEffect(() => {
+    if (!welcomeAlreadySeen()) return undefined;
+
+    let active = true;
+    const lastSeenAt = getLastSeenBooksAt();
+
+    // Sem nada guardado (nunca checou antes, ou o navegador foi limpo):
+    // comeca a contar a partir de agora, sem tratar o acervo inteiro como
+    // novidade so porque a pessoa perdeu o historico.
+    if (!lastSeenAt) {
+      markBooksSeenNow();
+      return undefined;
+    }
+
+    publicApi(
+      "/api/public/books?since=" +
+        encodeURIComponent(lastSeenAt) +
+        "&sort=newest&limit=" +
+        NEW_BOOKS_PREVIEW_LIMIT,
+    )
+      .then((data) => {
+        if (active && data.total > 0) setNewBooks(data);
+      })
+      .catch(() => {
+        /* nao e essencial: sem aviso de novidade, o catalogo continua normal */
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const previous = document.title;
@@ -524,6 +569,13 @@ export default function Catalog() {
       </div>
 
       <WelcomeModal open={welcomeOpen} onClose={closeWelcome} />
+
+      <NewBooksModal
+        open={Boolean(newBooks)}
+        onClose={() => setNewBooks(null)}
+        total={newBooks?.total ?? 0}
+        items={newBooks?.items ?? []}
+      />
 
       <StaffModal
         open={staffOpen}
