@@ -2871,15 +2871,14 @@ a.stat:active {
   }
 }
 
-/* O palco: as capas abertas em leque, como cartas na mao de alguem. Tudo
-   escala com --w (a largura de uma capa). A mao sai pela borda de baixo do
-   palco, entao o palco nao tem espaco embaixo. */
+/* O palco: as capas abertas em leque, como cartas na mao. Tudo escala com
+   --w (a largura de uma capa). */
 .newbooks__stage {
   --w: clamp(84px, min(34vw, 19vh), 150px);
   position: relative;
   display: flex;
   justify-content: center;
-  padding: 36px 16px 0;
+  padding: 36px 16px 32px;
 }
 /* Um brilho dourado atras das capas */
 .newbooks__stage::before {
@@ -2898,10 +2897,10 @@ a.stat:active {
   isolation: isolate;
   flex-shrink: 0;
   width: calc(var(--w) * 2.2);
-  height: calc(var(--w) * 2.05);
+  height: calc(var(--w) * 1.5);
 }
-/* Cada carta gira em torno de um ponto abaixo dela (onde a mao segura): as
-   de fora se abrem como um leque, e a do meio fica por cima. */
+/* Cada carta gira em torno de um ponto abaixo dela: as de fora se abrem como
+   um leque, e a do meio fica por cima. */
 .newbooks__card {
   position: absolute;
   top: 0;
@@ -2964,65 +2963,6 @@ a.stat:active {
     opacity: 1;
     transform: rotate(var(--rot));
   }
-}
-
-/* A mao: a palma e a manga ficam atras das cartas; o polegar, na frente. */
-.newbooks__hand {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-  pointer-events: none;
-  animation: newbooks-hand 0.6s cubic-bezier(0.2, 0.85, 0.3, 1) both;
-}
-.newbooks__hand--back {
-  z-index: 1;
-}
-.newbooks__hand--front {
-  z-index: 4;
-}
-@keyframes newbooks-hand {
-  from {
-    opacity: 0;
-    transform: translateY(26%);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.newbooks__sleeve {
-  fill: var(--clay);
-}
-.newbooks__cuff {
-  fill: var(--clay-strong);
-}
-.newbooks__palm,
-.newbooks__tip {
-  fill: var(--clay-wash);
-  stroke: var(--clay);
-  stroke-width: 2;
-  stroke-linejoin: round;
-}
-.newbooks__thumb-edge,
-.newbooks__thumb {
-  fill: none;
-  stroke-linecap: round;
-}
-.newbooks__thumb-edge {
-  stroke: var(--clay);
-  stroke-width: 29;
-}
-.newbooks__thumb {
-  stroke: var(--clay-wash);
-  stroke-width: 25;
-}
-.newbooks__nail {
-  fill: var(--surface);
-  stroke: var(--clay-line);
-  stroke-width: 1.2;
 }
 
 /* A bolinha "+N": quantos livros novos existem alem das capas mostradas. */
@@ -3100,9 +3040,6 @@ a.stat:active {
   .newbooks__card {
     animation-duration: 0.8s !important;
   }
-  .newbooks__hand {
-    animation-duration: 0.6s !important;
-  }
   .newbooks__more {
     animation-duration: 0.55s !important;
   }
@@ -3119,7 +3056,7 @@ a.stat:active {
   }
   .newbooks__stage {
     --w: clamp(56px, 20vh, 84px);
-    padding-top: 16px;
+    padding: 16px 16px 20px;
   }
 }
 

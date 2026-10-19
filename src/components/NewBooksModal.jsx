@@ -24,57 +24,6 @@ const FANS = {
   ],
 };
 
-// A mao que segura as capas: uma parte fica ATRAS das cartas (o punho, a manga
-// e as pontas dos dedos, que seguram por tras e aparecem para fora da borda
-// da carta mais a direita) e outra NA FRENTE (o polegar). Mesmo tracado de
-// contorno da animacao de boas-vindas, nas cores do tema. O desenho vive num
-// quadro de 220x205, o mesmo do leque: cada carta tem 100x150, com o topo em
-// y=0 e o ponto de giro em (110, 202.5).
-function HandBack({ rot }) {
-  return (
-    <svg
-      className="newbooks__hand newbooks__hand--back"
-      viewBox="0 0 220 205"
-      aria-hidden="true"
-    >
-      {/* Gira junto com a carta mais a direita, para as pontas dos dedos
-          acompanharem a borda dela. */}
-      <g transform={"rotate(" + rot + " 110 202.5)"}>
-        <rect className="newbooks__tip" x="150" y="98" width="22" height="16" rx="8" />
-        <rect className="newbooks__tip" x="150" y="115" width="22" height="16" rx="8" />
-        <rect className="newbooks__tip" x="150" y="132" width="22" height="16" rx="8" />
-      </g>
-      <path className="newbooks__sleeve" d="M84 184 L136 184 L152 205 L68 205 Z" />
-      <path className="newbooks__cuff" d="M82 182 H138 L141 191 H79 Z" />
-      <path
-        className="newbooks__palm"
-        d="M70 128 L150 128 C160 140 164 152 160 162 C152 174 136 180 130 183 L130 188 L90 188 L90 183 C84 180 68 174 60 162 C56 152 60 140 70 128 Z"
-      />
-    </svg>
-  );
-}
-
-function HandFront() {
-  return (
-    <svg
-      className="newbooks__hand newbooks__hand--front"
-      viewBox="0 0 220 205"
-      aria-hidden="true"
-    >
-      <path className="newbooks__thumb-edge" d="M88 176 L108 128" />
-      <path className="newbooks__thumb" d="M88 176 L108 128" />
-      <ellipse
-        className="newbooks__nail"
-        cx="106.6"
-        cy="132.4"
-        rx="4.6"
-        ry="6.4"
-        transform="rotate(22 106.6 132.4)"
-      />
-    </svg>
-  );
-}
-
 // Brilhinho de quatro pontas ao redor do leque.
 function Spark({ x, y, size, delay }) {
   return (
@@ -97,7 +46,7 @@ function Spark({ x, y, size, delay }) {
 
 /**
  * Aviso de novidade do acervo publico: as capas dos livros mais novos abertas
- * em leque, como um baralho na mao de alguem, uma bolinha "+N" quando ha mais
+ * em leque, como cartas abertas na mao, uma bolinha "+N" quando ha mais
  * livros do que capas, e um convite para ver a lista completa
  * (/catalogo/novidades).
  *
@@ -139,7 +88,6 @@ export default function NewBooksModal({ open, onClose, total, items, since }) {
       <div className="welcome newbooks">
         <div className="welcome__stage newbooks__stage">
           <div className="newbooks__fan">
-            <HandBack rot={Math.max(...fan.map((card) => card.rot))} />
             {shown.map((book, index) => (
               <div
                 key={book.id}
@@ -160,7 +108,6 @@ export default function NewBooksModal({ open, onClose, total, items, since }) {
                 />
               </div>
             ))}
-            <HandFront />
             {more > 0 ? (
               <span className="newbooks__more" aria-hidden="true">
                 +{more}
@@ -168,7 +115,7 @@ export default function NewBooksModal({ open, onClose, total, items, since }) {
             ) : null}
           </div>
           <Spark x="14%" y="22%" size={18} delay={0.8} />
-          <Spark x="84%" y="46%" size={14} delay={1} />
+          <Spark x="86%" y="80%" size={14} delay={1} />
           <Spark x="9%" y="56%" size={11} delay={1.15} />
         </div>
         <div className="welcome__text">
