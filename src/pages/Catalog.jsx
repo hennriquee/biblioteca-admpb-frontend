@@ -192,20 +192,16 @@ export default function Catalog() {
     setWelcomeOpen(false);
   }
 
-  // Avisa quem ja usou o catalogo antes (e so ele: na primeira visita, as
-  // boas-vindas acima ja cobrem a apresentacao, sem flood de "novidade" com
-  // o acervo inteiro) se chegou livro novo desde a ultima vez que esteve
-  // aqui. Roda uma vez, ao abrir a pagina - nao fica checando de novo quando
-  // a aba volta a ficar visivel.
+  // Avisa se chegou livro novo desde a ultima vez que esteve aqui. Roda uma
+  // vez, ao abrir a pagina - nao fica checando de novo quando a aba volta a
+  // ficar visivel.
   useEffect(() => {
-    if (!welcomeAlreadySeen()) return undefined;
-
     let active = true;
     const lastSeenAt = getLastSeenBooksAt();
 
-    // Sem nada guardado (nunca checou antes, ou o navegador foi limpo):
-    // comeca a contar a partir de agora, sem tratar o acervo inteiro como
-    // novidade so porque a pessoa perdeu o historico.
+    // Sem nada guardado (primeira visita de verdade, ou o navegador foi
+    // limpo): comeca a contar JA, nesta mesma visita - nao so na proxima -
+    // e nao busca novidade agora, para nao tratar o acervo inteiro como tal.
     if (!lastSeenAt) {
       markBooksSeenNow();
       return undefined;
