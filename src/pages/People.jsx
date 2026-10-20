@@ -239,6 +239,14 @@ export default function People() {
                     {person.phone
                       ? formatStoredPhone(person.phone)
                       : "sem WhatsApp"}
+                  </small>
+                  {/* Quantas vezes a pessoa ja pegou livro (conta o que esta
+                      em andamento tambem). Linha propria, como no Novo
+                      emprestimo: no celular a linha do telefone e cortada com
+                      reticencias e esconderia o numero. Ele vem antes do "esta
+                      com" porque um titulo comprido tambem e cortado. */}
+                  <small>
+                    {(person.loansCount || 0) + " empréstimo(s)"}
                     {person.activeLoans.length
                       ? " · está com " + person.activeLoans.join(", ")
                       : ""}

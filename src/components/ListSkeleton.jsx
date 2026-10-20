@@ -23,6 +23,7 @@ export default function ListSkeleton({
               <span className="personrow__text">
                 <span className="pubskel pubskel__line pubskel__line--lg" />
                 <span className="pubskel pubskel__line" />
+                <span className="pubskel pubskel__line" />
               </span>
             </li>
           ))}
