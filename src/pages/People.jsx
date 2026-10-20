@@ -9,6 +9,7 @@ import PersonFormModal from "../components/PersonFormModal.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import { IconEdit, IconPlus, IconSearch } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 
 /**
@@ -248,7 +249,8 @@ export default function People() {
                   <small>
                     {(person.loansCount || 0) + " empréstimo(s)"}
                     {person.activeLoans.length
-                      ? " · está com " + person.activeLoans.join(", ")
+                      ? " · está com " +
+                        person.activeLoans.map(formatBookTitle).join(", ")
                       : ""}
                   </small>
                 </span>

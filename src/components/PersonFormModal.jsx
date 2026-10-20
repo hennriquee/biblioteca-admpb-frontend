@@ -5,6 +5,7 @@ import Modal from "./Modal.jsx";
 import Confirm from "./Confirm.jsx";
 import PhoneInput from "./PhoneInput.jsx";
 import PhotoPicker from "./PhotoPicker.jsx";
+import { formatBookTitle } from "../utils/bookTitle.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
 const emptyForm = {
@@ -163,6 +164,29 @@ export default function PersonFormModal({
               setForm((f) => ({ ...f, photo: "", removePhoto: true }))
             }
           />
+
+          {/* Situacao da pessoa: com quais livros ela esta agora e quantos
+              emprestimos ja fez. So ao editar - quem esta sendo cadastrada
+              ainda nao pegou nada. Os dados vem da lista de Usuarios
+              (activeLoans = titulos dos emprestimos em andamento). */}
+          {person ? (
+            <dl className="detail__data personform__loans">
+              <div className="detail__wide">
+                <dt>Está com</dt>
+                <dd>
+                  {person.activeLoans?.length
+                    ? person.activeLoans.map((title, index) => (
+                        <span key={index}>{formatBookTitle(title)}</span>
+                      ))
+                    : "Nenhum livro no momento"}
+                </dd>
+              </div>
+              <div className="detail__wide">
+                <dt>Empréstimos já feitos</dt>
+                <dd>{person.loansCount || 0}</dd>
+              </div>
+            </dl>
+          ) : null}
 
           <label className="field">
             <span>Nome completo</span>

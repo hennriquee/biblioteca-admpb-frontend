@@ -3651,6 +3651,14 @@ span.avatar--empty {
   flex-shrink: 0;
   gap: 2px;
 }
+/* Resumo de emprestimos no topo do formulario de editar pessoa (ver
+   components/PersonFormModal.jsx): numa caixa, para nao parecer um campo. */
+.personform__loans {
+  padding: 12px 14px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
 
 /* Selos: quem tem conta de administrador e a sua propria conta. */
 .chip--admin {
