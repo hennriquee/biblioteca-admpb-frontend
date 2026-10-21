@@ -1339,6 +1339,25 @@ html[data-app="catalogo"] #root:empty {
   font-size: 0.85rem;
   text-align: center;
 }
+/* Editando a imagem que ja esta salva: ela pode demorar um instante para
+   chegar (principalmente se vier de outro site). */
+.cropper__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 12px;
+  color: var(--surface);
+  font-size: 0.9rem;
+  text-align: center;
+}
+/* Foto de perfil sem fundo: atras dela fica a cor que o app usa atras da foto
+   redonda, e nao o escuro de uma foto comum. */
+.cropper__frame--alpha {
+  background: var(--surface-sunk);
+}
 
 /* ---------- Camera ao vivo (computador) ---------- */
 .webcam {
@@ -3450,8 +3469,9 @@ span.avatar--empty {
     opacity: 1;
   }
 }
-/* O girador e os pontinhos sao o unico sinal de "estou trabalhando" nesta
-   espera, que pode levar alguns segundos. Por isso os dois sao excecao a
+/* O girador e os pontinhos sao o unico sinal de "estou trabalhando" nestas
+   esperas (o recorte do fundo da foto e a abertura da capa/foto salva para
+   editar), que podem levar alguns segundos. Por isso os dois sao excecao a
    regra geral de parar as animacoes com o movimento reduzido: parados,
    eles diriam que travou. */
 @media (prefers-reduced-motion: reduce) {

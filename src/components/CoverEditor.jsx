@@ -68,6 +68,10 @@ function angleSpoken(angle) {
  *  - onCancel(): fechar sem usar a foto
  *  - onConfirm(dataUri): foto recortada em JPEG 600x900
  *  - onLoadError(): o navegador nao conseguiu abrir a imagem
+ *  - loading: a imagem ainda esta sendo buscada (ao editar a que ja esta
+ *    salva); o quadro avisa e `file` chega depois
+ *  - keepAlpha: a foto tem partes transparentes (perfil sem fundo) e elas
+ *    ficam transparentes: o arquivo sai em PNG, sem o fundo branco
  */
 export default function CoverEditor({
   open,
@@ -75,6 +79,8 @@ export default function CoverEditor({
   onCancel,
   onConfirm,
   onLoadError,
+  loading = false,
+  keepAlpha = false,
   // Formato do recorte: largura/altura. 2/3 = capa; 1 = foto de perfil.
   ratio = 2 / 3,
   // Tamanho final do arquivo, em px.
@@ -257,9 +263,11 @@ export default function CoverEditor({
     canvas.width = out.w;
     canvas.height = out.h;
     const ctx = canvas.getContext("2d");
-    // Fundo branco: PNG com transparencia nao vira preto no JPEG.
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, out.w, out.h);
+    if (!keepAlpha) {
+      // Fundo branco: PNG com transparencia nao vira preto no JPEG.
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, out.w, out.h);
+    }
     ctx.imageSmoothingQuality = "high";
     // Refaz no canvas o que a tela mostra: o quadro (box) vira o arquivo
     // inteiro (out); dentro dele a foto vai para o lugar, gira e escala.
@@ -270,7 +278,11 @@ export default function CoverEditor({
     ctx.scale(scale, scale);
     ctx.drawImage(img, -natural.w / 2, -natural.h / 2);
 
-    onConfirm(canvas.toDataURL("image/jpeg", 0.88));
+    onConfirm(
+      keepAlpha
+        ? canvas.toDataURL("image/png")
+        : canvas.toDataURL("image/jpeg", 0.88),
+    );
   }
 
   const ready = Boolean(natural && box.w);
@@ -308,7 +320,11 @@ export default function CoverEditor({
       <div className="cropper" ref={wrapRef}>
         <div
           ref={frameRef}
-          className={"cropper__frame" + (round ? " cropper__frame--round" : "")}
+          className={
+            "cropper__frame" +
+            (round ? " cropper__frame--round" : "") +
+            (keepAlpha ? " cropper__frame--alpha" : "")
+          }
           style={{ width: box.w, height: box.h }}
           tabIndex={0}
           role="group"
@@ -353,6 +369,16 @@ export default function CoverEditor({
               }
               onError={() => onLoadError && onLoadError()}
             />
+          ) : null}
+          {loading && !url ? (
+            <p className="cropper__loading" role="status">
+              Abrindo a imagem
+              <span className="loadingdots" aria-hidden="true">
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </span>
+            </p>
           ) : null}
           <div className="cropper__grid" aria-hidden="true" />
         </div>

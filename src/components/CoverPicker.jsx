@@ -3,13 +3,19 @@ import { createPortal } from "react-dom";
 import BookCover from "./BookCover.jsx";
 import CoverEditor from "./CoverEditor.jsx";
 import WebcamCapture from "./WebcamCapture.jsx";
+import { loadSavedImage } from "../utils/savedImage.js";
 import {
   IconCamera,
+  IconEdit,
   IconImage,
   IconSearch,
   IconLink,
   IconTrash,
 } from "./Icons.jsx";
+
+// Rota do servidor que baixa a capa quando ela e um link de outro site (o
+// navegador nao deixa o recorte ler essas imagens sozinho).
+const COVER_PROXY = "/api/books/cover-source";
 
 // Celular/tablet (toque): <input capture> abre direto o app da camera.
 // Computador: abrimos a webcam dentro do proprio app.
@@ -23,9 +29,11 @@ function isTouchDevice() {
 
 /**
  * Capa do livro com uma bolinha de camera no canto. Ao tocar nela abre um
- * menu: tirar foto, escolher da galeria, buscar na internet, colar link e
- * remover. A foto escolhida passa por uma tela de recorte (2:3) e so entao
- * volta para o formulario, via onPhoto(dataUri).
+ * menu: editar a capa que ja esta no livro, tirar foto, escolher da galeria,
+ * buscar na internet, colar link e remover. A foto escolhida passa por uma
+ * tela de recorte (2:3) e so entao volta para o formulario, via
+ * onPhoto(dataUri). "Editar capa" abre essa mesma tela com a capa atual
+ * (salva ou recem-escolhida) para ampliar, girar e reenquadrar.
  *
  * Props:
  *  - src: o que mostrar na capa (foto recem-recortada ou link ja salvo)
@@ -51,7 +59,14 @@ export default function CoverPicker({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [webcamOpen, setWebcamOpen] = useState(false);
-  const [editorFile, setEditorFile] = useState(null);
+  // { file, saved }: saved = e a capa que ja estava no livro, nao uma nova.
+  const [editor, setEditor] = useState(null);
+  // Buscando a capa atual para editar (pode demorar se vier de outro site).
+  const [opening, setOpening] = useState(false);
+  // Cancela a busca da capa atual: ao desistir (ou fechar o formulario), o
+  // download para na hora e uma capa que chegue atrasada e ignorada.
+  const abortRef = useRef(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Fecha o menu ao tocar fora dele ou com Esc (so o menu, nao o modal todo).
   useEffect(() => {
@@ -74,6 +89,8 @@ export default function CoverPicker({
     // "capture" para rodar antes do Esc do Modal e impedir que ele feche junto.
     document.addEventListener("keydown", onKeyDown, true);
     menuRef.current?.querySelector("button")?.focus();
+    // Celular deitado: o menu pode passar da borda da janela do formulario.
+    menuRef.current?.scrollIntoView({ block: "nearest" });
 
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
@@ -104,7 +121,37 @@ export default function CoverPicker({
       notify("Escolha um arquivo de imagem (JPG, PNG…).", "error");
       return;
     }
-    setEditorFile(file);
+    setEditor({ file, saved: false });
+  }
+
+  async function editCurrent() {
+    setMenuOpen(false);
+    // O item do menu que foi clicado vai sumir: sem isto o foco do teclado
+    // cairia no fim da pagina. Com a bolinha da camera focada, o Modal a
+    // devolve de volta ao fechar o editor (cancelar, Esc, confirmar ou erro).
+    anchorRef.current?.querySelector("button")?.focus();
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setOpening(true);
+    try {
+      const file = await loadSavedImage(src, {
+        proxy: COVER_PROXY,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setEditor({ file, saved: true });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      notify(error.message, "error");
+    }
+    setOpening(false);
+  }
+
+  function closeEditor() {
+    abortRef.current?.abort();
+    setOpening(false);
+    setEditor(null);
   }
 
   function handleWebcamError() {
@@ -116,9 +163,12 @@ export default function CoverPicker({
   }
 
   function handleLoadError() {
-    setEditorFile(null);
+    const saved = editor?.saved;
+    closeEditor();
     notify(
-      "Não foi possível abrir essa imagem. Tente uma foto em JPG ou PNG.",
+      saved
+        ? "Não foi possível abrir essa capa para editar. Escolha uma nova."
+        : "Não foi possível abrir essa imagem. Tente uma foto em JPG ou PNG.",
       "error",
     );
   }
@@ -150,6 +200,17 @@ export default function CoverPicker({
             aria-label="Capa do livro"
             ref={menuRef}
           >
+            {src ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="coverpicker__item"
+                onClick={editCurrent}
+              >
+                <IconEdit width={18} height={18} />
+                Editar capa
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"
@@ -231,16 +292,23 @@ export default function CoverPicker({
             onError={handleWebcamError}
             onCapture={(blob) => {
               setWebcamOpen(false);
-              setEditorFile(blob);
+              setEditor({ file: blob, saved: false });
             }}
           />
           <CoverEditor
-            open={Boolean(editorFile)}
-            file={editorFile}
-            onCancel={() => setEditorFile(null)}
+            open={Boolean(editor) || opening}
+            file={editor ? editor.file : null}
+            loading={opening}
+            title={opening || editor?.saved ? "Editar capa" : "Ajustar capa"}
+            hint={
+              opening || editor?.saved
+                ? "Arraste, amplie ou gire a capa para reenquadrar."
+                : undefined
+            }
+            onCancel={closeEditor}
             onLoadError={handleLoadError}
             onConfirm={(dataUri) => {
-              setEditorFile(null);
+              setEditor(null);
               onPhoto(dataUri);
             }}
           />

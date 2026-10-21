@@ -58,6 +58,15 @@ function toCanvas(image) {
   return { canvas, ctx, width, height };
 }
 
+// Olha a transparencia (o 4o valor de cada ponto) de 1 ponto a cada 4 - numa
+// foto recortada o fundo vazio e enorme, nao escapa da amostra.
+export function hasTransparentPixels(pixels) {
+  for (let i = 3; i < pixels.length; i += 16) {
+    if (pixels[i] < 250) return true;
+  }
+  return false;
+}
+
 /**
  * Le a foto QUE JA ESTA SALVA (endereco do Cloudinary) e diz se ela ja esta
  * sem fundo. E o que permite a quem virou administrador trocar a cor do fundo
@@ -87,15 +96,7 @@ export async function readSavedPhoto(src) {
     );
   }
 
-  // Olha a transparencia (o 4o valor de cada ponto) de 1 ponto a cada 4 -
-  // numa foto recortada o fundo vazio e enorme, nao escapa da amostra.
-  let transparent = false;
-  for (let i = 3; i < pixels.length; i += 16) {
-    if (pixels[i] < 250) {
-      transparent = true;
-      break;
-    }
-  }
+  const transparent = hasTransparentPixels(pixels);
 
   return {
     transparent,

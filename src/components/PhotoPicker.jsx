@@ -10,7 +10,14 @@ import {
   photoCutoutBlockedReason,
 } from "../api/photoCutout.js";
 import { readSavedPhoto } from "../utils/photoBackgrounds.js";
-import { IconCamera, IconImage, IconPalette, IconTrash } from "./Icons.jsx";
+import { blobHasTransparency, loadSavedImage } from "../utils/savedImage.js";
+import {
+  IconCamera,
+  IconEdit,
+  IconImage,
+  IconPalette,
+  IconTrash,
+} from "./Icons.jsx";
 
 // Celular/tablet (toque): <input capture> abre direto o app da camera.
 // Computador: abrimos a webcam dentro do proprio app.
@@ -36,6 +43,13 @@ function isTouchDevice() {
  * - a PROPRIA foto do administrador (chooseBackground, tela Minha conta): abre
  *   o "Fundo da foto", onde ele escolhe a cor nas bolinhas e ve na hora como
  *   fica. A foto salva ja vai com essa cor atras.
+ *
+ * "EDITAR FOTO" abre a foto que ja esta salva (ou a que acabou de ser
+ * montada) na mesma tela de recorte de uma foto nova: ampliar, girar e
+ * reenquadrar o rosto. Nao passa de novo pelo recorte do fundo - o fundo ja
+ * esta resolvido e refazer gastaria uma foto da cota por nada. Se a foto
+ * salva ainda esta sem fundo (transparente), ela continua assim: sai em PNG,
+ * e na propria foto do administrador segue para a escolha da cor.
  *
  * QUEM VIROU ADMINISTRADOR E JA TINHA FOTO nao precisa tirar outra: com
  * chooseBackground, o menu ganha "Mudar o fundo", que pega a foto que esta
@@ -75,7 +89,17 @@ export default function PhotoPicker({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [webcamOpen, setWebcamOpen] = useState(false);
-  const [editorFile, setEditorFile] = useState(null);
+  // { file, saved, alpha }: saved = e a foto que ja estava no perfil, nao uma
+  // nova; alpha = ela tem partes transparentes (foto sem fundo).
+  const [editor, setEditor] = useState(null);
+  // Buscando a foto atual para editar.
+  const [opening, setOpening] = useState(false);
+  // Cancela a busca da foto atual: ao desistir (ou fechar o formulario), o
+  // download para na hora e uma foto que chegue atrasada e ignorada.
+  const abortRef = useRef(null);
+  // A foto que a pessoa ja tinha continua valendo se ela desistir da etapa
+  // do fundo (veio de "Editar foto" ou "Mudar o fundo"): o aviso muda.
+  const keepsPhotoRef = useRef(false);
   // Recorte do fundo em andamento (vai e volta do servidor).
   const [cutting, setCutting] = useState(false);
   // PNG sem fundo esperando a escolha da cor (so quando chooseBackground).
@@ -97,6 +121,7 @@ export default function PhotoPicker({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      abortRef.current?.abort();
     };
   }, []);
 
@@ -121,6 +146,8 @@ export default function PhotoPicker({
     // "capture" para rodar antes do Esc do Modal e impedir que ele feche junto.
     document.addEventListener("keydown", onKeyDown, true);
     menuRef.current?.querySelector("button")?.focus();
+    // Celular deitado: o menu pode passar da borda da janela do formulario.
+    menuRef.current?.scrollIntoView({ block: "nearest" });
 
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
@@ -146,12 +173,56 @@ export default function PhotoPicker({
       notify("Escolha um arquivo de imagem (JPG, PNG…).", "error");
       return;
     }
-    setEditorFile(file);
+    keepsPhotoRef.current = false;
+    setEditor({ file, saved: false, alpha: false });
+  }
+
+  async function editCurrent() {
+    setMenuOpen(false);
+    if (!src) return;
+    keepsPhotoRef.current = true;
+    // O item do menu que foi clicado vai sumir: sem isto o foco do teclado
+    // cairia no fim da pagina. Com a bolinha da camera focada, o Modal a
+    // devolve de volta ao fechar o editor (cancelar, Esc, confirmar ou erro).
+    anchorRef.current?.querySelector("button")?.focus();
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setOpening(true);
+    try {
+      const file = await loadSavedImage(src, { signal: controller.signal });
+      const alpha = await blobHasTransparency(file);
+      if (controller.signal.aborted) return;
+      setEditor({ file, saved: true, alpha });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      notify(error.message, "error");
+    }
+    setOpening(false);
+  }
+
+  function closeEditor() {
+    abortRef.current?.abort();
+    setOpening(false);
+    setEditor(null);
+  }
+
+  // Saiu do recorte da foto que ja estava salva: o fundo nao muda, entao a
+  // foto segue direto - so a transparente da propria pessoa ainda precisa
+  // escolher a cor que vai atras.
+  function handleEdited(dataUri) {
+    const transparent = Boolean(editor?.alpha);
+    setEditor(null);
+    if (transparent && chooseBackground) {
+      setCutout(dataUri);
+      return;
+    }
+    onPhoto(dataUri);
   }
 
   // Saiu do recorte quadrado: tira o fundo antes de a foto seguir viagem.
   async function handleCropped(dataUri) {
-    setEditorFile(null);
+    setEditor(null);
     originalRef.current = dataUri;
 
     // Esta visita ja descobriu que o recorte nao vai acontecer (sem chave,
@@ -215,6 +286,7 @@ export default function PhotoPicker({
   async function changeBackground() {
     setMenuOpen(false);
     if (!src) return;
+    keepsPhotoRef.current = true;
 
     // Foi esta tela que montou a foto de agora: o recorte dela esta na mao,
     // entao trocar de cor nao custa nada.
@@ -268,6 +340,17 @@ export default function PhotoPicker({
             aria-label="Foto de perfil"
             ref={menuRef}
           >
+            {src ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="coverpicker__item"
+                onClick={editCurrent}
+              >
+                <IconEdit width={18} height={18} />
+                Editar foto
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"
@@ -356,26 +439,36 @@ export default function PhotoPicker({
             }}
             onCapture={(blob) => {
               setWebcamOpen(false);
-              setEditorFile(blob);
+              keepsPhotoRef.current = false;
+              setEditor({ file: blob, saved: false, alpha: false });
             }}
           />
           <CoverEditor
-            open={Boolean(editorFile)}
-            file={editorFile}
+            open={Boolean(editor) || opening}
+            file={editor ? editor.file : null}
+            loading={opening}
+            keepAlpha={Boolean(editor?.alpha)}
             ratio={1}
             out={{ w: 400, h: 400 }}
             round
-            title="Ajustar foto"
-            hint="Arraste a foto para centralizar o rosto."
-            onCancel={() => setEditorFile(null)}
+            title={opening || editor?.saved ? "Editar foto" : "Ajustar foto"}
+            hint={
+              opening || editor?.saved
+                ? "Arraste, amplie ou gire a foto para reenquadrar."
+                : "Arraste a foto para centralizar o rosto."
+            }
+            onCancel={closeEditor}
             onLoadError={() => {
-              setEditorFile(null);
+              const saved = editor?.saved;
+              closeEditor();
               notify(
-                "Não foi possível abrir essa imagem. Tente uma foto em JPG ou PNG.",
+                saved
+                  ? "Não foi possível abrir essa foto para editar. Escolha uma nova."
+                  : "Não foi possível abrir essa imagem. Tente uma foto em JPG ou PNG.",
                 "error",
               );
             }}
-            onConfirm={handleCropped}
+            onConfirm={editor?.saved ? handleEdited : handleCropped}
           />
           {/* A espera fica num passo proprio, e nao atras de um girador na
               foto, para o formulario nao poder ser salvo no meio dela (sairia
@@ -425,7 +518,12 @@ export default function PhotoPicker({
             notify={notify}
             onCancel={() => {
               setCutout("");
-              notify("A foto foi descartada.", "info");
+              notify(
+                keepsPhotoRef.current
+                  ? "Nada foi alterado. A foto continua a mesma."
+                  : "A foto foi descartada.",
+                "info",
+              );
             }}
             onConfirm={(dataUri) => {
               // Guarda o recorte junto da foto montada: se a pessoa quiser
