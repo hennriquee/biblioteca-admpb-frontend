@@ -175,7 +175,10 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
               maxLength={150}
               required
               aria-required="true"
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, title: e.target.value }));
+                setFormError("");
+              }}
             />
           </label>
 
@@ -187,7 +190,10 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
               maxLength={100}
               required
               aria-required="true"
-              onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, author: e.target.value }));
+                setFormError("");
+              }}
             />
           </label>
 

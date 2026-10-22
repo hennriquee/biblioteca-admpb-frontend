@@ -4156,7 +4156,9 @@ span.avatar--empty {
 }
 .support__qr {
   align-self: center;
-  width: min(240px, 70vw);
+  /* Em tela baixa (notebook) o QR encolhe para o modal caber sem rolar. */
+  width: min(240px, 70vw, 30vh);
+  min-width: 160px;
   padding: 10px;
   background: #fff;
   border: 1px solid var(--line);

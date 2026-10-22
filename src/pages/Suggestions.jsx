@@ -182,7 +182,9 @@ export default function Suggestions() {
                 )}
                 <span className="suggestrow__text">
                   <strong title={title}>{title}</strong>
-                  <small>{item.author}</small>
+                  {/* Mesmo padrao de escrita do titulo ("john bunyan" vira
+                      "John Bunyan", "Machado de Assis" fica igual). */}
+                  <small>{formatBookTitle(item.author)}</small>
                   <small className="suggestrow__date">Sugerido em {sentAt(item.createdAt)}</small>
                 </span>
                 <button
