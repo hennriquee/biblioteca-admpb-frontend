@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
-import { IconExit, IconUser, IconUsers } from "./Icons.jsx";
+import { IconBookPlus, IconExit, IconUser, IconUsers } from "./Icons.jsx";
 
 /**
  * Menu de configuracoes que entra pela esquerda (botao de engrenagem do
- * painel). Leva ao cadastro de gente e a conta de quem esta logado, e tem a saida do app.
+ * painel). Leva ao cadastro de gente, aos livros sugeridos pelo acervo
+ * publico e a conta de quem esta logado, e tem a saida do app.
  *
  * Fecha com Esc, tocando fora ou ao escolher uma opcao. Enquanto esta aberto,
  * a pagina de tras nao rola e o Tab fica dando a volta dentro do menu.
@@ -89,6 +90,17 @@ export default function SettingsDrawer({ open, onClose, user, onLogout }) {
             <span>
               <strong>Usuários</strong>
               <small>Quem pega livros emprestados</small>
+            </span>
+          </Link>
+          <Link
+            to="/configuracoes/sugestoes"
+            className="drawer__item"
+            onClick={onClose}
+          >
+            <IconBookPlus width={20} height={20} />
+            <span>
+              <strong>Livros sugeridos</strong>
+              <small>Pedidos do catálogo público</small>
             </span>
           </Link>
           <Link

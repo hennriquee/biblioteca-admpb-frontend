@@ -12,6 +12,7 @@ import Catalog from './pages/Catalog.jsx';
 import NewBooks from './pages/NewBooks.jsx';
 import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
+import Suggestions from './pages/Suggestions.jsx';
 import DevConsole from './pages/DevConsole.jsx';
 
 function Booting() {
@@ -85,6 +86,7 @@ export default function App() {
         {/* Configuracoes: cadastro de gente (engrenagem do painel) */}
         <Route path="/configuracoes/conta" element={<Account />} />
         <Route path="/configuracoes/usuarios" element={<People />} />
+        <Route path="/configuracoes/sugestoes" element={<Suggestions />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

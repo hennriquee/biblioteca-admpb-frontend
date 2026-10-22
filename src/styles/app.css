@@ -4061,3 +4061,262 @@ span.avatar--empty {
     justify-content: flex-start;
   }
 }
+
+/* ---------- Menu "Participe" do acervo publico ----------
+   O botao do topo do /catalogo abre o menu (components/CatalogMenu.jsx); cada
+   opcao abre a sua janela por cima dele. */
+.pub__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* Logado no painel, a barra tem dois botoes; no celular estreito o "Voltar
+   ao painel" encurta para "Painel" (o nome completo fica no aria-label). */
+.pub__panelshort {
+  display: none;
+}
+@media (max-width: 400px) {
+  .pub__actions--two .pub__admin {
+    padding: 0 12px;
+  }
+  .pub__actions--two .pub__panelfull {
+    display: none;
+  }
+  .pub__actions--two .pub__panelshort {
+    display: inline;
+  }
+}
+.pubmenu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.pubmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.pubmenu__item:hover {
+  background: var(--surface-sunk);
+  border-color: var(--clay-line);
+}
+.pubmenu__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--clay-wash);
+  color: var(--clay);
+}
+.pubmenu__icon--whatsapp {
+  background: #e3f6ea;
+  color: #1a8f4a;
+}
+.pubmenu__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.pubmenu__text strong {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.pubmenu__text small {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.pubmenu__out {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+
+/* "Apoie o nosso projeto": QR code do PIX e o codigo para copiar. */
+.support {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.support__qr {
+  align-self: center;
+  width: min(240px, 70vw);
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.pixqr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.support__steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.field textarea.support__code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  word-break: break-all;
+  resize: none;
+  background: var(--surface-sunk);
+}
+.support__receiver {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.support__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--clay);
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* "Sugerir um livro": a ficha e a confirmacao. */
+.suggest__photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+/* Campo-isca para robos: invisivel e sem ocupar espaco, como o .sr-only
+   (display:none alguns robos reconhecem e pulam). */
+.suggest__trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.suggest__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.suggest__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius);
+}
+.suggest__data {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+.suggest__data dt {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.suggest__data dd {
+  margin: 0;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+/* Painel: Configuracoes > Livros sugeridos. */
+.suggestlist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.suggestrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.suggestrow__pos {
+  flex-shrink: 0;
+  min-width: 1.6rem;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.suggestrow__cover {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.suggestrow__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+/* Titulo inteiro, quebrando linha: e o que a equipe precisa ler para comprar. */
+.suggestrow__text strong {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.suggestrow__text small {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+.suggestrow__text .suggestrow__date {
+  font-size: 0.75rem;
+}
+.suggestrow__delete {
+  flex-shrink: 0;
+  color: var(--danger);
+}
+/* "Excluir todas": acao destrutiva em tom de perigo, sem destaque de botao principal. */
+.suggest__clear {
+  color: var(--danger);
+  border-color: var(--danger-line);
+}
+.suggest__clear:hover {
+  background: var(--danger-wash);
+}
+/* Pontos invisiveis nas pontas do modal que seguram o Tab dentro dele (ver
+   Modal.jsx). */
+.modal__sentinel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}

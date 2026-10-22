@@ -34,6 +34,7 @@ const PARENTS = {
     always: true,
   },
   "/configuracoes/usuarios": { to: "/", label: "Início", always: true },
+  "/configuracoes/sugestoes": { to: "/", label: "Início", always: true },
 };
 
 export default function Layout() {

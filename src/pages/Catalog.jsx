@@ -8,7 +8,10 @@ import ListSkeleton from "../components/ListSkeleton.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import NewBooksModal from "../components/NewBooksModal.jsx";
 import StaffModal from "../components/StaffModal.jsx";
-import { IconChat, IconSearch } from "../components/Icons.jsx";
+import CatalogMenu from "../components/CatalogMenu.jsx";
+import SupportModal from "../components/SupportModal.jsx";
+import SuggestBookModal from "../components/SuggestBookModal.jsx";
+import { IconSearch, IconUsers } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
@@ -112,8 +115,12 @@ export default function Catalog() {
   const [selected, setSelected] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
-  // "Com quem falar?": os cartoes da equipe da biblioteca.
+  // Menu "Participe" (botao do topo) e as janelas que ele abre por cima:
+  // "Com quem falar?" (cartoes da equipe), "Sugerir um livro" e "Apoie".
+  const [menuOpen, setMenuOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   // null = nada para avisar | { total, items, since } = ha novidade para mostrar.
   const [newBooks, setNewBooks] = useState(null);
 
@@ -292,8 +299,9 @@ export default function Catalog() {
     <div className="pub">
       <div className="pub__inner page">
         {/* Barra do topo: a logo pequena a esquerda (reabre as boas-vindas) e,
-            so para quem esta logado no painel, "Voltar ao painel" a direita.
-            Os dois tem a mesma altura e nenhum ganha destaque. */}
+            a direita, o menu "Participe" (com quem falar, sugerir um livro,
+            apoiar e o grupo do WhatsApp) - e, para quem esta logado no painel,
+            tambem o "Voltar ao painel". Todos com a mesma altura. */}
         <div className="pub__bar">
           <button
             type="button"
@@ -307,22 +315,23 @@ export default function Catalog() {
               alt="Biblioteca ADMP Brasil: sobre a biblioteca"
             />
           </button>
-          {user ? (
-            <Link to="/" className="btn btn--ghost pub__admin">
-              Voltar ao painel
-            </Link>
-          ) : staff.length > 0 ? (
-            // Quem nao administra o acervo ve aqui com quem falar para pegar
-            // um livro (no lugar do "Voltar ao painel").
+          <div className={"pub__actions" + (user ? " pub__actions--two" : "")}>
+            {user ? (
+              <Link to="/" className="btn btn--ghost pub__admin" aria-label="Voltar ao painel">
+                <span className="pub__panelfull">Voltar ao painel</span>
+                <span className="pub__panelshort">Painel</span>
+              </Link>
+            ) : null}
             <button
               type="button"
               className="btn btn--ghost pub__admin"
-              onClick={() => setStaffOpen(true)}
+              aria-haspopup="dialog"
+              onClick={() => setMenuOpen(true)}
             >
-              <IconChat width={18} height={18} />
-              Com quem falar?
+              <IconUsers width={18} height={18} aria-hidden="true" />
+              Participe
             </button>
-          ) : null}
+          </div>
         </div>
 
         <header className="pub__title">
@@ -491,10 +500,31 @@ export default function Catalog() {
         since={newBooks?.since ?? null}
       />
 
+      <CatalogMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        hasStaff={staff.length > 0}
+        onStaff={() => setStaffOpen(true)}
+        onSuggest={() => setSuggestOpen(true)}
+        onSupport={() => setSupportOpen(true)}
+      />
+
       <StaffModal
         open={staffOpen}
         onClose={() => setStaffOpen(false)}
         staff={staff}
+      />
+
+      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+
+      <SuggestBookModal
+        open={suggestOpen}
+        onClose={() => setSuggestOpen(false)}
+        onSent={() => {
+          // Sugestao recebida: fecha a ficha e o menu, de volta ao acervo.
+          setSuggestOpen(false);
+          setMenuOpen(false);
+        }}
       />
 
       {/* Detalhes do livro: so leitura (ver components/PublicBook.jsx). */}

@@ -38,8 +38,10 @@ function isTouchDevice() {
  * Props:
  *  - src: o que mostrar na capa (foto recem-recortada ou link ja salvo)
  *  - onPhoto(dataUri): foto pronta (recortada)
- *  - onSearch(): abrir "Buscar foto na internet"
- *  - onToggleLink(): mostrar/esconder o campo de link
+ *  - onSearch(): abrir "Buscar foto na internet" (opcional: sem ele, o item
+ *    nao aparece - e o caso do "Sugerir um livro" do acervo publico, que nao
+ *    tem acesso a busca do painel)
+ *  - onToggleLink(): mostrar/esconder o campo de link (opcional, idem)
  *  - onRemove(): tirar a capa
  *  - notify(message, tone): avisos na tela
  */
@@ -229,24 +231,28 @@ export default function CoverPicker({
               <IconImage width={18} height={18} />
               Escolher da galeria
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="coverpicker__item"
-              onClick={menuAction(onSearch)}
-            >
-              <IconSearch width={18} height={18} />
-              Buscar na internet
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="coverpicker__item"
-              onClick={menuAction(onToggleLink)}
-            >
-              <IconLink width={18} height={18} />
-              {linkOpen ? "Esconder campo de link" : "Colar link da imagem"}
-            </button>
+            {onSearch ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="coverpicker__item"
+                onClick={menuAction(onSearch)}
+              >
+                <IconSearch width={18} height={18} />
+                Buscar na internet
+              </button>
+            ) : null}
+            {onToggleLink ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="coverpicker__item"
+                onClick={menuAction(onToggleLink)}
+              >
+                <IconLink width={18} height={18} />
+                {linkOpen ? "Esconder campo de link" : "Colar link da imagem"}
+              </button>
+            ) : null}
             {src ? (
               <>
                 <div className="coverpicker__sep" role="separator" />

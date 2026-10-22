@@ -240,3 +240,32 @@ export const IconBell = (props) => (
     <path d="M10.2 20.5a2 2 0 0 0 3.6 0" />
   </svg>
 );
+
+export const IconHeart = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 19.5s-7.5-4.4-7.5-9.6A4.1 4.1 0 0 1 8.6 5.8c1.5 0 2.7.8 3.4 2 .7-1.2 1.9-2 3.4-2a4.1 4.1 0 0 1 4.1 4.1c0 5.2-7.5 9.6-7.5 9.6z" />
+  </svg>
+);
+
+export const IconBookPlus = (props) => (
+  <svg {...base} {...props}>
+    <path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v13H6.5A1.5 1.5 0 0 0 5 18.5z" />
+    <path d="M5 18.5A1.5 1.5 0 0 0 6.5 20H18v-3" />
+    <path d="M11.5 7.5v6M8.5 10.5h6" />
+  </svg>
+);
+
+export const IconCopy = (props) => (
+  <svg {...base} {...props}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+  </svg>
+);
+
+export const IconExternal = (props) => (
+  <svg {...base} {...props}>
+    <path d="M13.5 4.5h6v6" />
+    <path d="m19.5 4.5-8 8" />
+    <path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4" />
+  </svg>
+);
