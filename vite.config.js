@@ -53,6 +53,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
         navigateFallbackDenylist: [/^\/api\//],
+        // Notificacoes do "Avise-me quando voltar" do acervo publico: o
+        // service worker gerado carrega este arquivo de public/.
+        importScripts: ['/push-sw.js'],
       },
     }),
   ],

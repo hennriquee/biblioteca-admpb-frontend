@@ -94,6 +94,21 @@ export default function NewBooks() {
       ? books.find((book) => book.id === selectedId) || null
       : null;
 
+  // O "Avise-me" descobriu que o livro aberto ja voltou para a estante: busca
+  // a situacao de agora so dele (a lista nao e recarregada inteira).
+  function refreshBook(bookId) {
+    publicApi("/api/public/books/" + encodeURIComponent(bookId))
+      .then((data) => {
+        if (!data?.book) return;
+        setBooks((current) =>
+          current.map((book) => (book.id === bookId ? data.book : book)),
+        );
+      })
+      .catch(() => {
+        /* sem internet: fica a situacao que ja estava na tela */
+      });
+  }
+
   function openBook(book) {
     navigate(location.pathname, { state: { since, bookId: book.id } });
   }
@@ -169,6 +184,7 @@ export default function NewBooks() {
         book={selected}
         onClose={closeBook}
         mostLoaned={Boolean(selected) && mostLoanedId === selected.id}
+        onStale={refreshBook}
       />
     </div>
   );

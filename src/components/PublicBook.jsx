@@ -1,5 +1,6 @@
 import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
+import ReturnAlert from "./ReturnAlert.jsx";
 import { IconCheck, IconCrown, IconLoans } from "./Icons.jsx";
 import { formatDate } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
@@ -11,7 +12,8 @@ import { formatBookTitle } from "../utils/bookTitle.js";
  * delas precisa ser igual a abrir na outra.
  *
  * So leitura: sem botoes de editar/excluir e sem nada sobre quem esta com o
- * livro (o servidor nem envia).
+ * livro (o servidor nem envia). A unica acao e o "Avise-me quando voltar" do
+ * livro todo emprestado (ver ReturnAlert.jsx).
  */
 
 // "in" = tem pelo menos uma unidade na estante; "out" = todas emprestadas.
@@ -121,9 +123,15 @@ export function PublicBookRow({ book, onOpen, mostLoaned = false }) {
 
 /**
  * Janela de detalhes do livro. `book` null = fechada. mostLoaned acende a
- * coroinha de "mais emprestado" ao lado da situacao.
+ * coroinha de "mais emprestado" ao lado da situacao. onStale (opcional) e
+ * chamado quando o "Avise-me" descobre que a situacao na tela esta velha.
  */
-export default function PublicBookModal({ book, onClose, mostLoaned = false }) {
+export default function PublicBookModal({
+  book,
+  onClose,
+  mostLoaned = false,
+  onStale,
+}) {
   const delivery = book ? deliveryInfo(book) : null;
 
   return (
@@ -157,6 +165,11 @@ export default function PublicBookModal({ book, onClose, mostLoaned = false }) {
                   ) : null}
                 </span>
                 <span className="pub__situation">{situationText(book)}</span>
+                {/* Todos os exemplares fora: da para pedir o aviso de quando
+                    um deles voltar. */}
+                {book.available === 0 ? (
+                  <ReturnAlert key={book.id} book={book} onStale={onStale} />
+                ) : null}
               </dd>
             </div>
             <div>

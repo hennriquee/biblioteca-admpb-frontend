@@ -233,3 +233,10 @@ export const IconWhatsapp = (props) => (
     <path d="M285.431 228.46C262.184 210.573 250.584 200.134 232.965 225.301" />
   </svg>
 );
+
+export const IconBell = (props) => (
+  <svg {...base} {...props}>
+    <path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z" />
+    <path d="M10.2 20.5a2 2 0 0 0 3.6 0" />
+  </svg>
+);

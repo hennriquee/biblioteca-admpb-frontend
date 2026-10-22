@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { publicApi } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PublicBookModal, { PublicBookRow } from "../components/PublicBook.jsx";
@@ -110,6 +110,7 @@ export default function Catalog() {
   const { items, total, hasMore, waiting, error } = list;
 
   const [selected, setSelected] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [welcomeOpen, setWelcomeOpen] = useState(() => !welcomeAlreadySeen());
   // "Com quem falar?": os cartoes da equipe da biblioteca.
   const [staffOpen, setStaffOpen] = useState(false);
@@ -152,6 +153,38 @@ export default function Catalog() {
     return () => {
       active = false;
     };
+  }, []);
+
+  // Toque na notificacao do "Avise-me quando voltar": o endereco chega com
+  // ?livro=id e o catalogo abre ja com esse livro, na situacao de agora (ver
+  // public/push-sw.js). O "?livro=" sai do endereco em seguida, para
+  // recarregar a pagina nao reabrir o livro.
+  useEffect(() => {
+    const bookId = searchParams.get("livro");
+    if (!bookId) return undefined;
+    let active = true;
+    publicApi("/api/public/books/" + encodeURIComponent(bookId))
+      .then((data) => {
+        if (active && data?.book) setSelected(data.book);
+      })
+      .catch(() => {
+        /* livro excluido ou sem internet: o catalogo abre normalmente */
+      });
+    // Copia, e nao o proprio "params": ele e o mesmo objeto que searchParams,
+    // e altera-lo apagaria o livro da leitura acima antes da hora.
+    setSearchParams(
+      (params) => {
+        const next = new URLSearchParams(params);
+        next.delete("livro");
+        return next;
+      },
+      { replace: true },
+    );
+    return () => {
+      active = false;
+    };
+    // Roda so ao abrir a pagina.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -469,6 +502,10 @@ export default function Catalog() {
         book={selected}
         onClose={() => setSelected(null)}
         mostLoaned={Boolean(selected) && list.mostLoanedId === selected.id}
+        onStale={() => {
+          list.revalidate();
+          loadOverview();
+        }}
       />
     </div>
   );

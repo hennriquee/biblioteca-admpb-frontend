@@ -2782,6 +2782,87 @@ a.stat:active {
   margin-top: 0;
 }
 
+/* "Avise-me quando voltar": logo abaixo da situacao, so no livro com todos os
+   exemplares emprestados (ver ReturnAlert.jsx). A regra ".detail__data div"
+   (la em cima) poe TODO div do detalhe em coluna, com 2px de espaco; por isso
+   os seletores daqui sao um pouco mais especificos que o normal. */
+div.returnalert {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+.returnalert__hint {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+/* Esperando o servidor: parece desabilitado, mas continua com o foco (ver o
+   comentario do aria-disabled no componente). */
+.returnalert .btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+.returnalert .returnalert__on {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--success-wash);
+}
+.returnalert__status {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 220px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.returnalert__status svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--success);
+}
+.returnalert__status strong {
+  color: var(--success);
+}
+.returnalert__on .btn {
+  background: var(--surface);
+}
+.returnalert .returnalert__problem {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+/* Algo que a pessoa resolve (permitir, instalar): tom de orientacao. */
+.returnalert .returnalert__problem--info {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+}
+.returnalert .returnalert__problem--error {
+  border-color: var(--danger-line);
+  background: var(--danger-wash);
+  color: var(--danger);
+}
+.returnalert__problem ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.returnalert__problem li + li {
+  margin-top: 2px;
+}
+
 .pub__foot {
   display: flex;
   flex-direction: column;
