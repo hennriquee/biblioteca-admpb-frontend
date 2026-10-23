@@ -107,6 +107,15 @@ select {
   outline-offset: 2px;
   border-radius: 4px;
 }
+/* Titulo que recebe o foco POR PROGRAMA (tabindex="-1": a entrada do site
+   leva o foco ao <h1> da pagina que abriu, para leitor de tela e teclado)
+   nao e botao nem link. O navegador trata esse foco como "de teclado" e
+   desenharia a moldura marrom em volta do titulo, que parece um defeito (como
+   se a tecla Alt tivesse sido apertada). */
+h1[tabindex="-1"]:focus,
+h1[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 .sr-only {
   position: absolute;
@@ -2968,7 +2977,7 @@ div.returnalert {
   cursor: pointer;
 }
 
-/* ---------- Entrada do acervo: "Nao sou um robo" (CatalogGate.jsx) ----------
+/* ---------- Entrada do site: "Nao sou um robo" (SiteGate.jsx) ----------
    A animacao de boas-vindas em cima e, embaixo, a caixa do Google. No
    celular ocupa a largura toda; no PC vira um cartao no meio da tela. */
 .gate {
@@ -3013,8 +3022,17 @@ div.returnalert {
   letter-spacing: -0.02em;
   color: var(--ink);
 }
-.gate__title:focus {
-  outline: none;
+/* Aviso de que a verificacao venceu no meio do uso (nao e erro de ninguem:
+   amarelo da logo, e nao o vermelho do problema). */
+.gate__expired {
+  max-width: 38ch;
+  padding: 10px 12px;
+  background: var(--gold-wash);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  color: var(--gold-strong);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 .gate__lead {
   max-width: 34ch;

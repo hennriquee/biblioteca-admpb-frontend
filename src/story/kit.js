@@ -11,10 +11,10 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
  *
  * Tempo: tudo na animacao e uma conta do instante (nada guarda estado), entao
  * qualquer quadro pode ser desenhado sozinho - os testes conferem quadros
- * isolados e a ilustracao do livro e o primeiro quadro da rua.
+ * isolados.
  */
 
-export const KIND = { hatch: 0, solid: 1, hair: 2, plain: 3, image: 4, shadowOnly: 5 };
+export const KIND = { hatch: 0, solid: 1, plain: 3, image: 4, shadowOnly: 5 };
 
 let nextId = 1;
 /** Um id novo para contornos (1 a 250, dando a volta). */
@@ -77,65 +77,22 @@ export function box(w, h, d, r = 0) {
 }
 
 /**
- * Capsula que afina: comeca em y = 0 (a junta) e desce "length", com raio
- * r1 em cima e r2 embaixo. Girar o grupo da junta gira o membro inteiro.
+ * Prepara uma geometria para ser uma peca sozinha: o nanquim desenha tudo
+ * como InstancedMesh (assim a cena inteira usa um programa so da placa de
+ * video, que demora a montar); aqui, uma copia de tom e id do proprio desenho.
  */
-export function limb(r1, r2, length, radial = 14) {
-  const points = [];
-  const cap = 6;
-  for (let i = 0; i <= cap; i += 1) {
-    const a = (Math.PI / 2) * (1 - i / cap);
-    points.push(new THREE.Vector2(Math.cos(a) * r1, Math.sin(a) * r1));
-  }
-  for (let i = 1; i <= cap; i += 1) {
-    const a = (-Math.PI / 2) * (i / cap);
-    points.push(new THREE.Vector2(Math.cos(a) * r2, -length + Math.sin(a) * r2));
-  }
-  points[0].x = 0.0001;
-  points[points.length - 1].x = 0.0001;
-  const g = new THREE.LatheGeometry(points, radial);
-  g.computeVertexNormals();
-  return g;
+export function single(geometry) {
+  geometry.setAttribute("aInstTone", new THREE.InstancedBufferAttribute(new Float32Array([0]), 1));
+  geometry.setAttribute("aInstId", new THREE.InstancedBufferAttribute(new Float32Array([0]), 1));
+  return geometry;
 }
 
-/** Torneado a partir de um perfil [[raio, altura], ...] de baixo para cima. */
-export function lathe(profile, radial = 18) {
-  const g = new THREE.LatheGeometry(
-    profile.map(([r, y]) => new THREE.Vector2(Math.max(r, 0.0001), y)),
-    radial,
-  );
-  g.computeVertexNormals();
-  return g;
-}
-
-export function sphere(r, w = 16, h = 12) {
-  return new THREE.SphereGeometry(r, w, h);
-}
-
-export function cylinder(rTop, rBottom, h, radial = 14, open = false) {
-  return new THREE.CylinderGeometry(rTop, rBottom, h, radial, 1, open);
-}
-
-/** Tubo por uma curva (fios, alcas, arame). */
-export function tube(points, radius, segments = 24, radial = 6) {
-  const curve = new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-  return new THREE.TubeGeometry(curve, segments, radius, radial, false);
-}
-
-/** Um Mesh com o material do nanquim. */
+/** Uma peca com o material do nanquim (InstancedMesh de uma copia so). */
 export function part(geometry, material, options, parent) {
-  const mesh = new THREE.Mesh(tag(geometry, options), material);
+  const mesh = new THREE.InstancedMesh(single(tag(geometry, options)), material, 1);
   mesh.frustumCulled = false;
   if (parent) parent.add(mesh);
   return mesh;
-}
-
-/** Grupo (junta) na posicao dada, dentro de "parent". */
-export function joint(parent, x = 0, y = 0, z = 0) {
-  const g = new THREE.Group();
-  g.position.set(x, y, z);
-  if (parent) parent.add(g);
-  return g;
 }
 
 // ---------- Tempo ----------
@@ -147,9 +104,6 @@ export const seg = (t, a, b) => clamp((t - a) / (b - a));
 export const smooth = (t) => t * t * (3 - 2 * t);
 export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-export const easeIn = (t) => t * t * t;
-export const easeOutBack = (t, s = 1.7) => 1 + (s + 1) * Math.pow(t - 1, 3) + s * Math.pow(t - 1, 2);
-export const easeInBack = (t, s = 1.7) => (s + 1) * t * t * t - s * t * t;
 
 /**
  * Chaves de animacao: [[instante, valor, curva?], ...]. A curva de cada chave
@@ -177,6 +131,18 @@ export function spring(t, t0, { freq = 3, damp = 5, amp = 1 } = {}) {
   return amp * Math.exp(-damp * dt) * Math.sin(2 * Math.PI * freq * dt);
 }
 
+/** Sorteio com semente (o mesmo a cada volta). */
+export function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function hash1(n) {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return s - Math.floor(s);
@@ -188,4 +154,3 @@ export function noise1(x, seed = 0) {
   const u = f * f * (3 - 2 * f);
   return (hash1(i + seed * 57) * (1 - u) + hash1(i + 1 + seed * 57) * u) * 2 - 1;
 }
-export { hash1 };

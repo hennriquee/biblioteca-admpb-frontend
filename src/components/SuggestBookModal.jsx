@@ -22,7 +22,7 @@ import { publicApi } from "../api/client.js";
  * a pessoa nunca fica presa esperando um servidor que nao responde.
  *
  * Recebida a sugestao, aparece no meio da tela o convite para contribuir
- * (ContributeModal, com a animacao do caminhao trazendo os livros); o
+ * (ContributeModal, com a animacao da pilha de livros); o
  * "Quero contribuir" abre o PIX (SupportModal). A animacao comeca a baixar
  * quando a ficha abre, para estar pronta na hora.
  *

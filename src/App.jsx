@@ -9,7 +9,6 @@ import Books from './pages/Books.jsx';
 import Loans from './pages/Loans.jsx';
 import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
-import CatalogGate from './components/CatalogGate.jsx';
 import NewBooks from './pages/NewBooks.jsx';
 import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
@@ -59,13 +58,12 @@ export default function App() {
       {showSplash ? <AppSplash /> : null}
       <Routes>
       <Route path="/login" element={<Login />} />
-      {/* Unica tela aberta ao publico: fica de fora do Protected e do Layout
-          do admin. Toda rota nova de admin deve ficar DENTRO do Protected.
-          A entrada (CatalogGate) pede o "Nao sou um robo" antes. */}
-      <Route element={<CatalogGate />}>
-        <Route path="/catalogo" element={<Catalog />} />
-        <Route path="/catalogo/novidades" element={<NewBooks />} />
-      </Route>
+      {/* Unicas telas abertas ao publico: ficam de fora do Protected e do
+          Layout do admin. Toda rota nova de admin deve ficar DENTRO do
+          Protected. (O "Nao sou um robo" vale para o site inteiro: ver
+          components/SiteGate.jsx, em main.jsx.) */}
+      <Route path="/catalogo" element={<Catalog />} />
+      <Route path="/catalogo/novidades" element={<NewBooks />} />
       {/* Manutencao: fora do Layout do painel (sem abas nem engrenagem), porque
           esta sessao nao cuida de livro nem de emprestimo. */}
       <Route

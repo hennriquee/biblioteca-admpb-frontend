@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
+import SiteGate from "./components/SiteGate.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { wakeBackend } from "./api/client.js";
@@ -19,11 +20,16 @@ registerSW({ immediate: true });
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ToastProvider>
+      {/* "Nao sou um robo" na frente do site inteiro. Fica ACIMA do
+          AuthProvider: o servidor recusa qualquer pedido sem o passe, entao
+          o login so e restaurado depois da caixa. */}
+      <SiteGate>
+        <ToastProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ToastProvider>
+      </SiteGate>
     </BrowserRouter>
   </React.StrictMode>,
 );

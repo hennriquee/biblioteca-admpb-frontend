@@ -1,188 +1,160 @@
 import * as THREE from "three";
 import { BOIL_FPS, createSketchRenderer } from "./sketch.js";
-import { makeBird, makeBoy, makeCourier, makeDog, makePuffs, makeTruck } from "./cast.js";
-import { CITY, makeCity, makeClouds } from "./city.js";
-import { makeDecals } from "./decals.js";
-import { makeBook, makeHand, makeHeroBook, makeImpact, makeTable } from "./books.js";
-import { DURATION, HERO, STACK, T, look, pose } from "./script.js";
-import { box, part } from "./kit.js";
+import { bendPage, makeBooks, makeDust, makeGround, makePage } from "./books.js";
+import { DURATION, PLAN, T, posePile, turnAngle, turnProgress } from "./script.js";
 
 /**
- * A animacao da sugestao, pronta para um <canvas>: monta as duas cenas, a
- * ilustracao do livro (o primeiro quadro da rua, desenhado numa imagem) e o
- * relogio. Ver script.js (roteiro) e sketch.js (o nanquim).
+ * A animacao da sugestao, pronta para um <canvas>: monta a pilha de livros,
+ * a pagina que vira no fim de cada volta e o relogio. E sempre a mesma (nao
+ * depende do livro sugerido). Ver script.js (roteiro) e sketch.js (o
+ * nanquim).
  *
- * createSuggestStory(canvas, { title, paper, ink }) devolve:
+ * createSuggestStory(canvas, { paper, ink }) devolve:
+ *  - ready: promessa que resolve quando os programas da placa de video
+ *    estao montados (desenhar antes disso trava a tela ate montar)
  *  - resize(width, height, px): tamanho em pixels CSS e densidade da tela
- *  - draw(seconds, first): desenha o instante (first = primeira volta, em
- *    que o desenho "se faz" no comeco)
+ *  - draw(seconds): desenha o instante
  *  - duration: segundos de uma volta
  *  - dispose(): solta a memoria da placa de video
  */
 
-// Sol baixo de fim de tarde, de lado (pela esquerda, um pouco atras de
-// quem olha a rua): uma calcada na sombra, a outra no sol, sombras compridas.
-const SUN1 = {
-  dir: new THREE.Vector3(-0.62, 0.42, 0.66).normalize(),
-  center: new THREE.Vector3(-3, 0, -9),
-  radius: 24,
+// Sol de lado (pela esquerda, um pouco na frente de quem olha): a pilha
+// ganha volume e a sombra cai para tras, a direita.
+const SUN_PILE = {
+  dir: new THREE.Vector3(-0.62, 0.68, 0.38).normalize(),
+  center: new THREE.Vector3(0, 0.45, 0),
+  radius: 1.9,
 };
-const SUN2 = {
-  dir: new THREE.Vector3(-0.55, 0.72, 0.42).normalize(),
-  center: new THREE.Vector3(0, 0.1, 0),
-  radius: 0.6,
+// Na pagina que vira, a luz vem do alto, pela esquerda: a dobra joga uma
+// faixa de sombra na pagina de baixo.
+const SUN_PAGE = {
+  dir: new THREE.Vector3(-0.55, 0.8, -0.18).normalize(),
+  center: new THREE.Vector3(0, 0, 0),
+  radius: 2.6,
 };
 
-function buildAct1(sk, decals) {
+// Ids de contorno livres (os livros da pilha usam de 1 a 236).
+const DUST_IDS = [246, 247, 248];
+const PAGE_ID = 249;
+
+function buildPile(sk) {
   const scene = new THREE.Scene();
   const m = sk.material;
-  const { group: city, live } = makeCity(m, decals);
-  scene.add(city);
-  scene.add(makeClouds(m));
-
-  const boy = makeBoy(m);
-  scene.add(boy.root);
-  scene.add(boy.bag);
-  const courier = makeCourier(m);
-  scene.add(courier.root);
-  const truck = makeTruck(m, decals);
-  const truckPivot = new THREE.Group();
-  truck.root.position.set(0, 0, -2.9);
-  truckPivot.add(truck.root);
-  scene.add(truckPivot);
-  const dog = makeDog(m);
-  scene.add(dog.root);
-  const bird = makeBird(m);
-  scene.add(bird.root);
-  const wireBirds = [0.32, 0.4].map((u, i) => {
-    const b = makeBird(m, 0.88);
-    const a = live.wireStart;
-    const e = live.wireEnd;
-    b.root.position.set(a.x + (e.x - a.x) * u, a.y + (e.y - a.y) * u - Math.sin(Math.PI * u) * 0.6 + 0.04, a.z + (e.z - a.z) * u);
-    b.wings.forEach((w, k) => {
-      w.rotation.z = (k ? 1 : -1) * 1.25;
-      w.scale.setScalar(0.55);
-    });
-    b.root.scale.setScalar(1.1 + i * 0.1);
-    scene.add(b.root);
-    return b;
-  });
-  const puffs = makePuffs(m, 16);
-  scene.add(puffs.group);
-
-  // A porta de casa (abre para dentro). Dobradica na borda esquerda.
-  const homeDoor = new THREE.Group();
-  homeDoor.position.set(CITY.door.x - 0.54, 0.3, CITY.door.z + 0.02);
-  const leaf = part(box(1.06, 2.2, 0.06, 0.02), m, { tone: 0.32 }, homeDoor);
-  leaf.position.set(0.53, 1.1, 0);
-  for (let k = 0; k < 2; k += 1) {
-    const panel = part(box(0.72, 0.8, 0.02, 0.01), m, { tone: 0.42 }, homeDoor);
-    panel.position.set(0.53, 0.62 + k * 0.98, 0.035);
-  }
-  const knob = part(new THREE.SphereGeometry(0.045, 10, 8), m, { tone: 0.05 }, homeDoor);
-  knob.position.set(0.92, 1.05, 0.07);
-  scene.add(homeDoor);
-
-  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 420);
+  scene.add(makeGround(m));
+  const books = makeBooks(sk, PLAN.books);
+  scene.add(books.group);
+  const dust = makeDust(m, DUST_IDS, 12);
+  scene.add(dust.group);
+  const camera = new THREE.PerspectiveCamera(36, 1.6, 0.05, 60);
+  // (A camada 1 sao os livros no ar: a camera ve, o sol nao.)
   camera.layers.enable(1);
-  return { scene, camera, boy, courier, truck, truckPivot, dog, bird, wireBirds, puffs, trees: live.trees, homeDoor };
+  return { scene, camera, books, dust };
 }
 
-function buildAct2(sk, title, aspect) {
+// A camera da pagina: de cima, bem de longe (quase sem perspectiva), com a
+// folha enchendo a tela.
+const PAGE_FOV = 14;
+
+function buildTurn(sk, pageMaterial, aspect) {
   const scene = new THREE.Scene();
-  const m = sk.material;
-  scene.add(makeTable(m));
-  const stack = new THREE.Group();
-  scene.add(stack);
-  const books = STACK.map((spec) => {
-    const b = makeBook(sk, spec);
-    stack.add(b);
-    return b;
-  });
-  const hero = makeHeroBook(sk, { ...HERO, title, aspect });
-  stack.add(hero.group);
-  const hand = makeHand(m);
-  scene.add(hand.root);
-  const impact = makeImpact(m);
-  scene.add(impact.group);
-  const camera = new THREE.PerspectiveCamera(30, aspect, 0.01, 50);
-  return { scene, camera, stack, books, hero, hand, impact };
+  scene.add(makeGround(sk.material));
+  const page = makePage(pageMaterial, aspect, PAGE_ID);
+  scene.add(page.mesh);
+  const camera = new THREE.PerspectiveCamera(PAGE_FOV, aspect, 1, 20);
+  const distance = 0.5 / Math.tan(THREE.MathUtils.degToRad(PAGE_FOV / 2));
+  camera.position.set(0, distance, 0);
+  camera.up.set(0, 0, -1);
+  camera.lookAt(0, 0, 0);
+  return { scene, camera, page };
 }
 
-export function createSuggestStory(canvas, { title = "", paper, ink } = {}) {
+export function createSuggestStory(canvas, { paper, ink } = {}) {
   const sk = createSketchRenderer(canvas, { paper, ink });
-  const decals = makeDecals(sk);
+  const pile = buildPile(sk);
   let aspect = 1.6;
-  const act1 = buildAct1(sk, decals);
-  let act2 = buildAct2(sk, title, aspect);
-  const world = { act1, act2 };
-  let picture = null;
-  let pictureMaterial = null;
+  // O desenho da pilha, para a pagina que vira (so a tinta; do tamanho da
+  // tela, entao nao precisa de versoes menores).
+  const sheet = new THREE.WebGLRenderTarget(4, 4, {
+    generateMipmaps: false,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    depthBuffer: false,
+  });
+  // (Um material so: refazer a folha nao pode jogar fora o programa montado.)
+  const pageMaterial = sk.imageMaterial(sheet.texture);
+  let turn = buildTurn(sk, pageMaterial, aspect);
 
-  const look1 = { sky: 1, fogNear: 14, fogFar: 95, spacing: 4.2, vignette: 0.36 };
-  const look2 = { sky: 0, fogNear: 40, fogFar: 90, spacing: 4.6, vignette: 0.5 };
+  let disposed = false;
+  const ready = sk
+    .precompile(
+      [
+        [pile.scene, pile.camera],
+        [turn.scene, turn.camera],
+      ],
+      [sheet],
+    )
+    .then(() => {
+      if (disposed) return;
+      // Algumas placas ainda terminam de preparar as coisas no primeiro
+      // desenho com elas: desenha uma vez agora (ninguem ve: o primeiro
+      // quadro de verdade vem logo depois) a pagina virando, que so aparece
+      // la no fim, para nao engasgar ali.
+      draw(T.turn + 0.6);
+    });
 
-  function renderAct1(t, reveal, target = null) {
-    pose(world, t);
-    sk.render(act1.scene, act1.camera, SUN1, { ...look1, focus: act1.camera.userData.focus, boil: Math.floor(t * BOIL_FPS) % 3, reveal }, target);
-  }
+  const lookPile = { fogNear: 5, fogFar: 26, spacing: 5.0, vignette: 0.32 };
+  const lookPage = { fogNear: 100, fogFar: 200, spacing: 5.0, vignette: 0.32, focus: 1000 };
 
-  // A ilustracao do livro: o primeiro quadro da cena 1, so a tinta.
-  function paintPicture() {
-    const { width, height } = sk.size;
-    if (!picture) {
-      picture = new THREE.WebGLRenderTarget(width, height, {
-        generateMipmaps: true,
-        minFilter: THREE.LinearMipmapLinearFilter,
-        magFilter: THREE.LinearFilter,
-        depthBuffer: false,
-      });
-    } else {
-      picture.setSize(width, height);
-    }
-    renderAct1(0, 1, picture);
-    if (!pictureMaterial) pictureMaterial = sk.imageMaterial(picture.texture);
-    act2.hero.pictureMesh.material = pictureMaterial;
+  function renderPile(t, boil, target = null) {
+    posePile(pile, t);
+    sk.render(pile.scene, pile.camera, SUN_PILE, { ...lookPile, focus: pile.camera.userData.focus, boil }, target);
   }
 
   function resize(width, height, px) {
     const w = Math.max(2, Math.round(width * px));
     const h = Math.max(2, Math.round(height * px));
-    sk.setSize(w, h, px);
+    // Traco, hachura e grao acompanham o tamanho do desenho: num quadro
+    // pequeno (celular) as linhas afinam junto, em vez de virar rabisco.
+    sk.setSize(w, h, px * Math.min(1.1, Math.max(0.62, height / 380)));
+    sheet.setSize(w, h);
     const next = w / h;
-    act1.camera.aspect = next;
-    if (Math.abs(next - aspect) > 0.01) {
-      // A ilustracao precisa ter a proporcao da tela: refaz o livro.
+    pile.camera.aspect = next;
+    if (Math.abs(next - aspect) > 0.001) {
+      // A folha tem a proporcao da tela: refaz.
       aspect = next;
-      act2.scene.traverse((o) => o.geometry?.dispose?.());
-      act2 = buildAct2(sk, title, aspect);
-      world.act2 = act2;
+      turn.page.mesh.geometry.dispose();
+      turn = buildTurn(sk, pageMaterial, aspect);
     }
-    act2.camera.aspect = aspect;
-    paintPicture();
   }
 
-  function draw(seconds, first = false) {
+  function draw(seconds) {
     const t = ((seconds % DURATION) + DURATION) % DURATION;
-    const { act, reveal } = look(t, first);
-    if (act === 1) {
-      renderAct1(t, reveal);
+    const boil = Math.floor(t * BOIL_FPS) % 3;
+    if (t < T.turn) {
+      renderPile(t, boil);
+    } else if (t < T.turnEnd) {
+      // A pilha continua (a camera ainda se afasta), desenhada na folha que
+      // vira; embaixo, a pagina seguinte, em branco.
+      renderPile(t, boil, sheet);
+      bendPage(turn.page, turnAngle(turnProgress(t), aspect));
+      sk.render(turn.scene, turn.camera, SUN_PAGE, { ...lookPage, boil });
     } else {
-      pose(world, t);
-      sk.render(act2.scene, act2.camera, SUN2, { ...look2, focus: act2.camera.userData.focus, boil: Math.floor(t * BOIL_FPS) % 3, reveal });
+      // Pagina nova: o comeco da volta seguinte.
+      renderPile(t - DURATION, boil);
     }
   }
 
   function dispose() {
-    picture?.dispose();
-    for (const scene of [act1.scene, act2.scene]) {
+    disposed = true;
+    sheet.dispose();
+    for (const scene of [pile.scene, turn.scene]) {
       scene.traverse((o) => {
         o.geometry?.dispose?.();
       });
     }
-    pictureMaterial?.dispose();
+    pageMaterial.dispose();
     sk.dispose();
   }
 
-  return { resize, draw, dispose, duration: DURATION, T };
+  return { ready, resize, draw, dispose, duration: DURATION, T };
 }

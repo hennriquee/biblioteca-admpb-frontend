@@ -1,30 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   ApiError,
-  CATALOG_PASS_EVENT,
-  getCatalogPass,
+  SITE_PASS_EVENT,
+  getSitePass,
   publicApi,
-  setCatalogPass,
+  setSitePass,
 } from "../api/client.js";
 import WelcomeScene from "./WelcomeScene.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { loadRecaptcha } from "../utils/recaptcha.js";
 
 /**
- * Entrada do acervo publico (/catalogo e /catalogo/novidades): antes de ver
- * os livros, a pessoa marca o "Nao sou um robo" do Google. A animacao de
+ * Entrada do SITE inteiro (acervo publico, login e painel): antes de ver
+ * qualquer pagina, a pessoa marca o "Nao sou um robo" do Google. A animacao de
  * boas-vindas (a logo que vira livro e depois a pomba) roda em cima, para a
  * espera nao parecer uma barreira.
+ *
+ * Fica ACIMA de tudo (ver main.jsx), ate do AuthProvider: o app so comeca a
+ * falar com o servidor (restaurar o login, carregar o acervo) depois do passe,
+ * porque o servidor recusa qualquer pedido sem ele.
  *
  * O servidor confere a caixa com o Google e devolve um passe que vale algumas
  * horas neste aparelho (ver api/client.js e backend/src/services/captcha.js):
  * com o passe valido, esta tela nem aparece. Se o servidor recusar o passe no
- * meio do uso (venceu, ou o servidor trocou de chave), o catalogo sai da tela
- * e esta entrada volta.
+ * meio do uso (venceu, ou o servidor trocou de chave), a pagina sai da tela e
+ * esta entrada volta - o login do painel continua guardado, entao depois da
+ * caixa a pessoa segue logada.
  *
  * Com o reCAPTCHA desligado no servidor (sem as chaves no ambiente), a
- * entrada so pergunta isso ao servidor e abre o catalogo direto.
+ * entrada so pergunta isso ao servidor e abre o site direto.
  */
 
 // Largura fixa da caixa do Google. Em celular estreito ela e reduzida (em
@@ -56,11 +61,14 @@ function messageFor(error) {
   if (error?.message === "recaptcha-script" || error?.message === "recaptcha-timeout") {
     return "Não foi possível carregar a verificação do Google. Confira a internet (ou desligue o bloqueador de anúncios para este site) e tente de novo.";
   }
-  return "Não foi possível abrir o acervo agora. Tente de novo.";
+  return "Não foi possível abrir o site agora. Tente de novo.";
 }
 
-export default function CatalogGate() {
-  const [passed, setPassed] = useState(() => Boolean(getCatalogPass()));
+export default function SiteGate({ children }) {
+  // O acervo publico tem a "cara" propria (titulo da aba, icone do app e o
+  // texto que fala em "acervo"); o resto do site, a do painel.
+  const isCatalog = useLocation().pathname.startsWith("/catalogo");
+  const [passed, setPassed] = useState(() => Boolean(getSitePass()));
   // Cada nova tentativa (botao "Tentar de novo", passe recusado) recomeca.
   const [attempt, setAttempt] = useState(0);
   // undefined = perguntando ao servidor | { enabled, siteKey }
@@ -68,6 +76,9 @@ export default function CatalogGate() {
   const [grecaptcha, setGrecaptcha] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [problem, setProblem] = useState(null);
+  // A entrada voltou no meio do uso (o servidor recusou o passe): a pessoa
+  // precisa saber que o que estava fazendo nao foi enviado.
+  const [expired, setExpired] = useState(false);
   const [slow, setSlow] = useState(false);
   const [scale, setScale] = useState(1);
 
@@ -75,7 +86,7 @@ export default function CatalogGate() {
   const slotRef = useRef(null);
   const widgetRef = useRef(null);
   const titleRef = useRef(null);
-  // Leva o foco ao titulo do catalogo depois de passar pela caixa (sem isso
+  // Leva o foco ao titulo da pagina depois de passar pela caixa (sem isso
   // ele fica perdido no <body>: a caixa saiu da tela).
   const focusAfterPass = useRef(false);
   const passedRef = useRef(passed);
@@ -87,17 +98,24 @@ export default function CatalogGate() {
   useEffect(() => {
     function onPassRefused() {
       if (!passedRef.current) return;
+      setExpired(true);
       setPassed(false);
       setAttempt((current) => current + 1);
     }
-    window.addEventListener(CATALOG_PASS_EVENT, onPassRefused);
-    return () => window.removeEventListener(CATALOG_PASS_EVENT, onPassRefused);
+    window.addEventListener(SITE_PASS_EVENT, onPassRefused);
+    return () => window.removeEventListener(SITE_PASS_EVENT, onPassRefused);
   }, []);
 
-  // Enquanto a entrada esta na tela, ela e a pagina do acervo: titulo da aba
-  // e "cara" de app do catalogo (o catalogo faz o mesmo quando abre).
+  // Passou de novo: o aviso de passe vencido ja cumpriu o papel.
   useEffect(() => {
-    if (passed) return undefined;
+    if (passed) setExpired(false);
+  }, [passed]);
+
+  // Entrando pelo acervo, a entrada e a pagina do acervo: titulo da aba e
+  // "cara" de app do catalogo (o catalogo faz o mesmo quando abre). Nas outras
+  // paginas ela fica com o titulo e o icone de sempre.
+  useEffect(() => {
+    if (passed || !isCatalog) return undefined;
     const previous = document.title;
     document.title = "Acervo · Biblioteca ADMP Brasil";
     const undoIdentity = applyCatalogIdentity();
@@ -105,7 +123,7 @@ export default function CatalogGate() {
       document.title = previous;
       undoIdentity();
     };
-  }, [passed]);
+  }, [passed, isCatalog]);
 
   // Pergunta ao servidor se a caixa esta ligada e, ao mesmo tempo, ja vai
   // baixando o script do Google (quase sempre ele vai ser preciso).
@@ -186,7 +204,7 @@ export default function CatalogGate() {
         }
       }
       setBusy(false);
-      setCatalogPass(data.pass, data.expiresIn);
+      setSitePass(data.pass, data.expiresIn);
       focusAfterPass.current = true;
       setPassed(true);
     } catch (error) {
@@ -247,13 +265,14 @@ export default function CatalogGate() {
   }, [passed]);
 
   // Foco no titulo quando a entrada volta no meio do uso (o foco estava num
-  // elemento do catalogo que sumiu).
+  // elemento da pagina que sumiu).
   useEffect(() => {
     if (!passed && attempt > 0) titleRef.current?.focus();
   }, [passed, attempt]);
 
   // Passou pela caixa: o foco vai para o titulo da pagina que abriu. Se uma
-  // janela (as boas-vindas) abrir por cima, ela pega o foco depois.
+  // janela (as boas-vindas) abrir por cima, ela pega o foco depois. (Titulo
+  // com foco por programa nao desenha moldura: ver "h1[tabindex]" no app.css.)
   useEffect(() => {
     if (!passed || !focusAfterPass.current) return;
     focusAfterPass.current = false;
@@ -263,7 +282,7 @@ export default function CatalogGate() {
     heading.focus({ preventScroll: true });
   }, [passed]);
 
-  if (passed) return <Outlet />;
+  if (passed) return children;
 
   const showWidget = Boolean(grecaptcha && config?.siteKey);
 
@@ -283,7 +302,7 @@ export default function CatalogGate() {
   } else if (waiting && !problem) {
     status = slow ? (
       <>
-        Aguarde um tempo, o acervo está abrindo
+        Aguarde um tempo, {isCatalog ? "o acervo" : "o site"} está abrindo
         <Dots />
       </>
     ) : (
@@ -305,8 +324,16 @@ export default function CatalogGate() {
           <h1 className="gate__title" ref={titleRef} tabIndex={-1}>
             Boas-vindas!
           </h1>
+          {expired ? (
+            <p className="gate__expired" role="alert">
+              A verificação deste aparelho venceu. Marque a caixa de novo para
+              continuar: o que você estava fazendo não foi enviado.
+            </p>
+          ) : null}
           <p className="gate__lead">
-            Para ver o acervo da biblioteca, confirme que você não é um robô.
+            {isCatalog
+              ? "Para ver o acervo da biblioteca, confirme que você não é um robô."
+              : "Para entrar no site da biblioteca, confirme que você não é um robô."}
           </p>
 
           <div
@@ -347,7 +374,7 @@ export default function CatalogGate() {
           ) : null}
 
           <p className="gate__note">
-            Essa verificação do Google protege o acervo contra acessos
+            Essa verificação do Google protege o site contra acessos
             automáticos. Neste aparelho, ela vale por algumas horas.
           </p>
         </div>

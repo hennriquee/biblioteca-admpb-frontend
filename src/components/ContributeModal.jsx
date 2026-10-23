@@ -5,8 +5,8 @@ import "../styles/contribute.css";
 
 /**
  * Logo depois de enviar uma sugestao de livro: no meio da tela, a animacao
- * do caminhao trazendo os livros (com o titulo sugerido na capa do quinto) e
- * o convite para contribuir, para a sugestao chegar mais rapido ao acervo.
+ * dos livros virando uma montanha (a mesma para todo livro) e o convite
+ * para contribuir, para a sugestao chegar mais rapido ao acervo.
  *
  * - title: o livro sugerido
  * - duplicate: o livro ja estava entre as sugestoes (a pessoa reforcou)
@@ -44,7 +44,7 @@ export default function ContributeModal({ open, onClose, onContribute, title, du
     >
       <div className="contribute">
         <div className="contribute__stage">
-          {open ? <SuggestScene title={title} /> : null}
+          {open ? <SuggestScene /> : null}
         </div>
         <div className="contribute__text">
           <p className="contribute__badge">

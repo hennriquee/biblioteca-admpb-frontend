@@ -24,7 +24,13 @@ import * as THREE from "three";
  *
  * Os objetos levam tres atributos por vertice (ver kit.js): aTone (o quanto
  * a superficie e escura, 0 a 1), aId (para separar contornos) e aKind (o
- * jeito de riscar: hachura, chapado, cabelo, sem hachura ou "sombra so").
+ * jeito de riscar: hachura, chapado, sem hachura, imagem ou "sombra so").
+ * Pecas repetidas (os livros) vao num InstancedMesh, cada copia com o seu
+ * tom e o seu id (aInstTone, aInstId).
+ *
+ * Os programas da placa de video demoram a montar (segundos, em algumas
+ * maquinas): precompile() monta todos de uma vez, sem travar a tela, antes
+ * de a animacao comecar.
  */
 
 export const BOIL_FPS = 8;
@@ -51,6 +57,11 @@ const SCENE_VERT = /* glsl */ `
 in float aTone;
 in float aId;
 in float aKind;
+#ifdef USE_INSTANCING
+// Muitas copias da mesma peca (os livros): cada uma com o seu tom e o seu id.
+in float aInstTone;
+in float aInstId;
+#endif
 out vec3 vWorld;
 out vec3 vNormalW;
 out vec3 vViewN;
@@ -61,16 +72,23 @@ out float vId;
 out float vKind;
 out vec2 vUv;
 void main() {
-  vec4 world = modelMatrix * vec4(position, 1.0);
-  vWorld = world.xyz;
-  mat3 normalWorld = transpose(inverse(mat3(modelMatrix)));
-  vNormalW = normalize(normalWorld * normal);
-  vViewN = normalize(normalMatrix * normal);
-  // Coordenadas do proprio objeto (em metros): a hachura fica presa nele.
-  vLocal = position * length(modelMatrix[0].xyz);
-  vLocalN = normal;
+#ifdef USE_INSTANCING
+  mat4 model = modelMatrix * instanceMatrix;
+  vTone = clamp(aTone + aInstTone, 0.0, 1.0);
+  vId = mod(aId + aInstId - 1.0, 250.0) + 1.0;
+#else
+  mat4 model = modelMatrix;
   vTone = aTone;
   vId = aId;
+#endif
+  vec4 world = model * vec4(position, 1.0);
+  vWorld = world.xyz;
+  mat3 normalWorld = transpose(inverse(mat3(model)));
+  vNormalW = normalize(normalWorld * normal);
+  vViewN = normalize(mat3(viewMatrix) * vNormalW);
+  // Coordenadas do proprio objeto (em metros): a hachura fica presa nele.
+  vLocal = position * vec3(length(model[0].xyz), length(model[1].xyz), length(model[2].xyz));
+  vLocalN = normal;
   vKind = aKind;
   vUv = uv;
   gl_Position = projectionMatrix * viewMatrix * world;
@@ -93,12 +111,13 @@ uniform float uSpacing;
 uniform float uFogNear;
 uniform float uFogFar;
 uniform float uFocus;
-#ifdef USE_DECAL
+// Desenho preso na superficie (uDecal: as linhas das folhas) e a pagina
+// que vira (uImage: o desenho pronto). Ligados por uniforme, e nao por
+// "#define": todos os materiais da cena usam o mesmo programa.
 uniform sampler2D uDecal;
-#endif
-#ifdef USE_IMAGE
+uniform float uDecalOn;
 uniform sampler2D uImage;
-#endif
+uniform float uImageOn;
 
 in vec3 vWorld;
 in vec3 vNormalW;
@@ -165,9 +184,9 @@ float strokeSet(vec2 p, float ang, float weight, float seed) {
 // Hachura por camadas: quanto mais escuro, mais direcoes e tracos mais
 // grossos (a pena aperta mais).
 float hatch(vec2 p, float dark, float seed) {
-  float w1 = smoothstep(0.2, 0.42, dark);
-  float w2 = smoothstep(0.48, 0.66, dark);
-  float w3 = smoothstep(0.68, 0.84, dark);
+  float w1 = smoothstep(0.22, 0.44, dark);
+  float w2 = smoothstep(0.52, 0.7, dark);
+  float w3 = smoothstep(0.74, 0.88, dark);
   float press = mix(0.55, 1.35, dark);
   float ink = strokeSet(p, 0.82, w1 * press, seed);
   ink = max(ink, strokeSet(p, -0.62, w2 * press, seed + 11.0));
@@ -185,17 +204,16 @@ void main() {
 
   float ndl = dot(n, uSun);
   float diffuse = clamp((ndl + 0.18) / 1.18, 0.0, 1.0);
-  float lit = diffuse * shadowAt(vWorld, n);
+  float shadow = shadowAt(vWorld, n);
+  float lit = diffuse * shadow;
   float albedo = 1.0 - vTone;
   float sky = 0.9 + 0.1 * n.y;
-  // Luz do sol quase toda branca; a sombra fica bem marcada (contraste
-  // forte de fim de tarde).
   // A sombra nao "apaga" a cor: um branco na sombra ganha so uma camada leve
-  // de tracos; o que e escuro de verdade (roupa, cabelo) e que fecha. Perto
-  // da camera entra uma luz de rebatimento (rosto legivel mesmo contra o sol).
-  float dist0 = length(cameraPosition - vWorld);
-  float fill = 0.28 * max(dot(n, viewDir), 0.0) * (1.0 - smoothstep(3.0, 16.0, dist0));
-  float bright = albedo * (0.64 * sky + 0.36 * smoothstep(0.0, 0.5, lit) + fill);
+  // de tracos; o que e escuro de verdade e que fecha. Perto da camera entra
+  // uma luz de rebatimento.
+  float dist = length(cameraPosition - vWorld);
+  float fill = 0.28 * max(dot(n, viewDir), 0.0) * (1.0 - smoothstep(3.0, 16.0, dist));
+  float bright = albedo * (0.69 * sky + 0.31 * smoothstep(0.0, 0.5, lit) + fill);
   // Contraluz: a borda do que esta de costas para o sol brilha.
   float facing = 1.0 - max(dot(n, viewDir), 0.0);
   float rim = pow(facing, 3.0) * max(dot(-viewDir, uSun), 0.0) * 0.6;
@@ -203,56 +221,57 @@ void main() {
   float dark = 1.0 - bright;
 
   // Longe, tudo fica mais claro (o ar entre a gente e o fundo).
-  float dist = length(cameraPosition - vWorld);
   float fog = smoothstep(uFogNear, uFogFar, dist);
   // E o que fica atras do assunto do plano sai mais solto e claro (como o
-  // desenhista faz com o fundo): o personagem salta.
+  // desenhista faz com o fundo): o assunto salta.
   float behind = smoothstep(uFocus * 1.35, uFocus * 3.2, dist) * 0.5;
   dark *= (1.0 - fog * 0.75) * (1.0 - behind);
 
-  float ink = 0.0;
-  if (kind == 1.0) {
-    // Chapado: olhos, pneus.
-    ink = 0.97;
-  } else if (kind == 2.0) {
-    // Cabelo: tracos saindo do redemoinho, como na referencia.
-    vec3 q = vLocal;
-    float r = length(q);
-    float phi = atan(q.z, q.x);
-    float theta = acos(clamp(q.y / max(r, 1e-4), -1.0, 1.0));
-    vec2 p = vec2(theta, phi) * 0.16;
-    float hairDark = max(dark, 0.45);
-    ink = max(strokeSet(p, 0.0, 1.25, seed + 50.0), strokeSet(p, 0.06, 0.9 * smoothstep(0.5, 0.8, dark), seed + 60.0));
-    ink = max(ink, smoothstep(0.78, 0.95, hairDark) * 0.9);
-  } else if (kind == 3.0) {
-    // Sem hachura (so contorno): papel, brilho do olho.
-    ink = 0.0;
-  } else if (kind == 5.0) {
-    // So a sombra (a mesa que nao aparece): hachura onde a sombra cai.
-    float shade = 1.0 - shadowAt(vWorld, n);
-    ink = hatch(vWorld.xz * 1.0, shade * 0.62, seed);
-  } else {
-    vec3 w = pow(abs(normalize(vLocalN)), vec3(4.0));
-    w /= w.x + w.y + w.z;
-    ink = hatch(vLocal.zy, dark, seed) * w.x
-        + hatch(vLocal.xz, dark, seed + 101.0) * w.y
-        + hatch(vLocal.xy, dark, seed + 211.0) * w.z;
+  // Uma hachura so por ponto (o shader fica pequeno e monta rapido): riscada
+  // na face do objeto que mais encara aquele lado, presa nele.
+  vec3 a = abs(normalize(vLocalN));
+  vec2 p = a.x > a.y && a.x > a.z ? vLocal.zy : (a.y > a.z ? vLocal.xz : vLocal.xy);
+  float face = a.x > a.y && a.x > a.z ? 0.0 : (a.y > a.z ? 101.0 : 211.0);
+  float amount = dark;
+  if (kind == 5.0) {
+    // So a sombra (o chao que nao aparece): hachura onde a sombra cai.
+    p = vWorld.xz;
+    face = 0.0;
+    amount = (1.0 - shadow) * 0.54;
+  }
+  if (uImageOn > 0.5) {
+    p = vUv * vec2(1.6, 1.0);
+    face = 307.0;
+    if (!gl_FrontFacing) amount = 0.0;
+  }
+  float ink = hatch(p, amount, seed + face);
+  // Chapado (so tinta) e "sem hachura" (so contorno: papel, poeira).
+  if (kind == 1.0) ink = 0.97;
+  if (kind == 3.0) ink = 0.0;
+
+  // Desenhos presos na superficie (as linhas das folhas): a tinta por cima.
+  vec4 decal = texture(uDecal, vUv);
+  ink = max(ink, decal.a * (1.0 - fog * 0.6) * uDecalOn);
+  // A pagina que vira: o desenho ja vem pronto (tinta). Inclinada contra a
+  // luz, ganha uma hachura leve presa na folha. O verso: papel um pouco mais
+  // escuro (grafite), com o desenho de tras aparecendo de leve.
+  float picture = texture(uImage, vUv).r;
+  if (uImageOn > 0.5) {
+    if (gl_FrontFacing) {
+      ink = max(picture, ink);
+    } else {
+      ink = picture * 0.16;
+      dark = max(dark, 0.42);
+    }
   }
 
-#ifdef USE_DECAL
-  // Letreiros e titulos: a tinta do desenho do letreiro por cima.
-  vec4 decal = texture(uDecal, vUv);
-  ink = max(ink, decal.a * (1.0 - fog * 0.6));
-#endif
-#ifdef USE_IMAGE
-  // A ilustracao do livro: ja vem desenhada (tinta pronta).
-  ink = texture(uImage, vUv).r;
-  dark = 0.0;
-#endif
-
   float background = kind == 5.0 ? 0.0 : 1.0;
+  // Dobras viram linha so nas pecas comuns: a poeira (sem hachura) fica so
+  // com o contorno de fora, como nuvem; a pagina que vira marca 0.25 (ver
+  // isImage na arte-final).
+  float crease = kind == 4.0 ? 0.25 : (kind == 3.0 ? 0.0 : 1.0);
   gInk = vec4(ink, dark, vId / 255.0, background);
-  gGeo = vec4(normalize(vViewN) * 0.5 + 0.5, kind == 4.0 || kind == 3.0 ? 0.5 : 1.0);
+  gGeo = vec4(normalize(vViewN) * 0.5 + 0.5, crease);
 }
 `;
 
@@ -282,10 +301,7 @@ uniform float uFogFar;
 uniform float uFocus;
 uniform vec3 uPaper;
 uniform vec3 uInkColor;
-uniform float uReveal;
 uniform float uMode;
-uniform vec3 uSunScreen;
-uniform float uSkyHatch;
 uniform float uVignette;
 
 in vec2 vUv;
@@ -345,6 +361,8 @@ vec2 boilOffset(vec2 px, float amp, float seed) {
 void main() {
   vec2 px = vUv * uRes;
   float seed = uBoil + 1.0;
+  // A pagina que vira ja traz o desenho pronto: nao treme de novo.
+  float isImage = step(abs(texture(tGeo, vUv).a - 0.25), 0.05);
 
   // O contorno a tinta: a linha treme (posicao muda a cada desenho do ciclo)
   // e muda de grossura ao longo do caminho, como a pressao da pena.
@@ -359,38 +377,23 @@ void main() {
   line *= near;
 
   // Segunda passada, de lapis: mais clara, mais fina e fora do lugar.
-  vec2 uvB = vUv + boilOffset(px, 2.6, seed + 7.0) / uRes;
-  float pencil = edgeAt(uvB, uLine * uPx * 0.5) * 0.32 * near;
+  vec2 uvB = vUv + boilOffset(px, 2.0, seed + 7.0) / uRes;
+  float pencil = edgeAt(uvB, uLine * uPx * 0.5) * 0.2 * near;
 
-  float hatchInk = inkA.r;
+  float hatchInk = mix(inkA.r * 0.9, texture(tInk, vUv).r, isImage);
   float tone = inkA.g * inkA.a;
 
-  // O fundo (ceu): grafite esfumado, mais escuro no alto e nas bordas,
-  // como o papel da referencia.
-  float skyInk = 0.0;
-  if (inkA.a < 0.5 && uSkyHatch > 0.0) {
-    float high = smoothstep(0.35, 1.0, vUv.y);
-    skyInk = uSkyHatch * (0.1 + 0.3 * high);
-  }
-
-  // Desenha "chegando": o contorno vem antes, a hachura depois.
-  float stroke = vnoise(vec2(px.x * 0.6 + px.y, px.y * 0.25 - px.x * 0.4) / (22.0 * uPx));
-  stroke = stroke * 0.7 + 0.3 * hash12(floor(px / (3.0 * uPx)));
-  float showLine = smoothstep(stroke - 0.06, stroke, uReveal * 1.25);
-  float showFill = smoothstep(stroke - 0.06, stroke, uReveal * 1.25 - 0.25);
-
-  float ink = 0.0;
-  ink = max(ink, hatchInk * 0.9 * showFill);
-  ink = 1.0 - (1.0 - ink) * (1.0 - line * showLine);
-  ink = 1.0 - (1.0 - ink) * (1.0 - pencil * showLine);
+  float ink = hatchInk;
+  ink = 1.0 - (1.0 - ink) * (1.0 - line);
+  ink = 1.0 - (1.0 - ink) * (1.0 - pencil);
 
   // Papel com grao (o grafite "pega" no grao).
   float grain = vnoise(px / (1.1 * uPx)) * 0.5 + vnoise(px / (3.4 * uPx)) * 0.3 + vnoise(px / (14.0 * uPx)) * 0.2;
-  float graphite = (tone * 0.24 + skyInk) * smoothstep(0.2, 0.8, grain + tone * 0.3 + skyInk) * showFill;
+  float graphite = tone * 0.22 * smoothstep(0.2, 0.8, grain + tone * 0.3);
   ink = 1.0 - (1.0 - ink) * (1.0 - graphite);
 
   if (uMode > 0.5) {
-    // So a tinta (para a ilustracao dentro do livro).
+    // So a tinta (para a pagina que vira: o papel entra depois).
     outColor = vec4(ink, ink, ink, 1.0);
     return;
   }
@@ -419,6 +422,9 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
   });
   renderer.autoClear = true;
   renderer.setPixelRatio(1);
+  // (A arte-final ja escreve a cor pronta. Com a saida "linear", desenhar na
+  // tela ou na folha que vira usa o mesmo programa.)
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
   const shadowSize = 2048;
   const shadowTarget = new THREE.WebGLRenderTarget(shadowSize, shadowSize, {
@@ -452,15 +458,24 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
     uFocus: { value: 1000 },
   };
 
-  function sceneMaterial(defines = {}, extra = {}) {
+  // Textura vazia para quem nao usa desenho preso nem imagem.
+  const blank = new THREE.DataTexture(new Uint8Array(4), 1, 1);
+  blank.needsUpdate = true;
+
+  function sceneMaterial(extra = {}) {
     return new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       vertexShader: SCENE_VERT,
       fragmentShader: SCENE_FRAG,
-      defines,
-      uniforms: { ...shared, ...extra },
+      uniforms: {
+        ...shared,
+        uDecal: { value: blank },
+        uDecalOn: { value: 0 },
+        uImage: { value: blank },
+        uImageOn: { value: 0 },
+        ...extra,
+      },
       side: THREE.DoubleSide,
-      extensions: {},
     });
   }
 
@@ -468,12 +483,12 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
   const decalCache = new Map();
   function decalMaterial(texture) {
     if (!decalCache.has(texture)) {
-      decalCache.set(texture, sceneMaterial({ USE_DECAL: "" }, { uDecal: { value: texture } }));
+      decalCache.set(texture, sceneMaterial({ uDecal: { value: texture }, uDecalOn: { value: 1 } }));
     }
     return decalCache.get(texture);
   }
   function imageMaterial(texture) {
-    return sceneMaterial({ USE_IMAGE: "" }, { uImage: { value: texture } });
+    return sceneMaterial({ uImage: { value: texture }, uImageOn: { value: 1 } });
   }
 
   const post = new THREE.ShaderMaterial({
@@ -497,10 +512,7 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
       uFocus: shared.uFocus,
       uPaper: { value: new THREE.Color(paper) },
       uInkColor: { value: new THREE.Color(ink) },
-      uReveal: { value: 1 },
       uMode: { value: 0 },
-      uSunScreen: { value: new THREE.Vector3(0.5, 0.8, 0) },
-      uSkyHatch: { value: 0 },
       uVignette: { value: 0.34 },
     },
   });
@@ -520,14 +532,13 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
   }
 
   const sunTarget = new THREE.Vector3();
-  const projected = new THREE.Vector3();
 
   /**
    * Desenha um quadro. "sun": { dir (para o sol), center (o meio da area de
-   * sombra), radius }. "look": { reveal, boil, sky (forca do ceu riscado),
-   * sunDisc (raio do sol na tela, 0 = sem sol), fogNear, fogFar }.
-   * "target": null = tela; um WebGLRenderTarget = so a tinta, para a
-   * ilustracao do livro.
+   * sombra), radius }. "look": { boil, spacing (das linhas da hachura),
+   * fogNear, fogFar, focus, vignette }.
+   * "target": null = tela; um WebGLRenderTarget = so a tinta, para a pagina
+   * que vira.
    */
   function render(scene, camera, sun, look, target = null) {
     shared.uBoil.value = look.boil;
@@ -569,26 +580,44 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
     // 3. Arte-final.
     post.uniforms.uNear.value = camera.near;
     post.uniforms.uFar.value = camera.far;
-    post.uniforms.uReveal.value = look.reveal ?? 1;
     post.uniforms.uMode.value = target ? 1 : 0;
-    post.uniforms.uSkyHatch.value = look.sky ?? 0;
     post.uniforms.uVignette.value = look.vignette ?? 0.34;
-    if (look.sunWorld && look.sunDisc) {
-      projected.copy(look.sunWorld).project(camera);
-      post.uniforms.uSunScreen.value.set(projected.x * 0.5 + 0.5, projected.y * 0.5 + 0.5, look.sunDisc);
-    } else if (look.sunWorld) {
-      projected.copy(look.sunWorld).project(camera);
-      post.uniforms.uSunScreen.value.set(projected.x * 0.5 + 0.5, projected.y * 0.5 + 0.5, 0);
-    }
     renderer.setRenderTarget(target);
     renderer.render(postScene, postCamera);
     renderer.setRenderTarget(null);
+  }
+
+  /**
+   * Monta de uma vez os programas que as cenas vao usar (cada um no destino
+   * em que vai desenhar: o nome do programa muda com ele), para nenhum
+   * travar a tela no meio da animacao. Com KHR_parallel_shader_compile, a
+   * montagem corre em paralelo e a pagina continua respondendo.
+   * scenes: [[cena, camera], ...]; targets: outros destinos da arte-final.
+   */
+  function precompile(scenes, targets = []) {
+    const jobs = [];
+    const at = (target, scene, camera) => {
+      renderer.setRenderTarget(target);
+      jobs.push(renderer.compileAsync(scene, camera));
+    };
+    for (const [scene, camera] of scenes) at(gbuffer, scene, camera);
+    // A sombra (todas as pecas sao InstancedMesh, ver kit.js).
+    const probe = new THREE.Scene();
+    const geometry = new THREE.PlaneGeometry(1, 1);
+    probe.add(new THREE.InstancedMesh(geometry, castOnly, 1));
+    at(shadowTarget, probe, sunCamera);
+    at(null, postScene, postCamera);
+    for (const target of targets) at(target, postScene, postCamera);
+    renderer.setRenderTarget(null);
+    return Promise.all(jobs).finally(() => geometry.dispose());
   }
 
   function dispose() {
     shadowTarget.dispose();
     gbuffer.dispose();
     material.dispose();
+    castOnly.dispose();
+    blank.dispose();
     decalCache.forEach((m) => {
       m.uniforms.uDecal?.value?.dispose?.();
       m.dispose();
@@ -597,5 +626,5 @@ export function createSketchRenderer(canvas, { paper = "#efe7da", ink = "#1b1510
     renderer.dispose();
   }
 
-  return { renderer, material, decalMaterial, imageMaterial, setSize, render, size, dispose };
+  return { renderer, material, decalMaterial, imageMaterial, setSize, render, precompile, size, dispose };
 }

@@ -1,7 +1,7 @@
 /**
  * Carrega o script do reCAPTCHA do Google (a caixa "Nao sou um robo") uma vez
- * so, sob demanda: so quem chega a entrada do acervo sem passe baixa o script
- * (ver components/CatalogGate.jsx).
+ * so, sob demanda: so quem chega a entrada do site sem passe baixa o script
+ * (ver components/SiteGate.jsx).
  *
  * Devolve uma promessa com o window.grecaptcha. Falha (sem internet,
  * bloqueador de anuncios, Google fora do ar ou lento demais) rejeita a

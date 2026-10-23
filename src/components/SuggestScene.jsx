@@ -3,11 +3,11 @@ import { IconBookPlus, IconPause, IconPlay } from "./Icons.jsx";
 
 /**
  * A animacao do "obrigado pela sugestao": desenho a nanquim em 3D (ver
- * story/index.js e story/script.js). Na esquina, o menino espera; o caminhao
- * desengoncado chega, o entregador entrega a sacola de livros, o menino
- * confere e leva para casa; de perto, os livros chegam na pilha e o quinto -
- * o livro sugerido, com o titulo na capa - se abre, e a historia recomeca
- * dentro dele.
+ * story/index.js e story/script.js). Numa pagina em branco, livros sao
+ * jogados no chao, cada vez mais, e se amontoam numa montanha de livros que
+ * afina ate um so la em cima; a camera se afasta devagar e a pagina vira,
+ * comecando tudo de novo. E sempre a mesma animacao (nao depende do livro
+ * sugerido).
  *
  * O three.js e as cenas sao pesados: so baixam quando o modal abre (ou antes,
  * com preloadSuggestScene, enquanto a pessoa preenche a sugestao). Sem WebGL,
@@ -16,7 +16,6 @@ import { IconBookPlus, IconPause, IconPlay } from "./Icons.jsx";
  * Como a animacao de boas-vindas, roda mesmo com "menos movimento" ligado no
  * sistema (decisao do projeto), com o botao de pausar no canto.
  *
- * - title: o livro sugerido (vai na capa do quinto livro)
  * - time: desenha um instante fixo (segundos) em vez de animar - so para
  *   conferir quadros isolados (testes).
  */
@@ -33,9 +32,9 @@ export function preloadSuggestScene() {
 }
 
 const LABEL =
-  "Desenho a nanquim: numa esquina, um menino espera; um caminhão desengonçado chega chacoalhando e para perto do poste; o entregador entrega uma sacola de livros, que o menino confere, abraça e leva para casa. De perto, os livros chegam um a um na pilha; o quinto, o livro sugerido, se abre, e a história recomeça dentro dele.";
+  "Desenho a nanquim: numa página em branco, livros são jogados no chão, cada vez mais, e vão se amontoando numa montanha de livros que afina até sobrar um só lá em cima. A câmera se afasta devagar, a página vira e os livros começam a cair de novo.";
 
-export default function SuggestScene({ title = "", time = null }) {
+export default function SuggestScene({ time = null }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const [status, setStatus] = useState("loading");
@@ -64,41 +63,45 @@ export default function SuggestScene({ title = "", time = null }) {
       .then(({ createSuggestStory }) => {
         if (!alive) return;
         try {
-          story = createSuggestStory(canvas, { title });
+          story = createSuggestStory(canvas);
         } catch {
           setStatus("failed");
           return;
         }
-        // A primeira volta comeca com o desenho "se fazendo".
-        const draw = () => {
-          const seconds = time ?? elapsedRef.current;
-          story.draw(seconds, time === null && seconds < story.duration);
-        };
+        let ready = false;
+        const draw = () => story.draw(time ?? elapsedRef.current);
         const fit = () => {
           const rect = wrap.getBoundingClientRect();
           if (rect.width < 2 || rect.height < 2) return;
           story.resize(rect.width, rect.height, Math.min(2, window.devicePixelRatio || 1));
-          draw();
+          if (ready) draw();
         };
         fit();
         observer = new ResizeObserver(fit);
         observer.observe(wrap);
-        setStatus("ready");
-        if (time !== null) return;
+        // Desenhar antes de a placa de video montar os programas travaria a
+        // tela: espera (os pontinhos continuam na tela enquanto isso).
+        return story.ready.then(() => {
+          if (!alive) return;
+          ready = true;
+          draw();
+          setStatus("ready");
+          if (time !== null) return;
 
-        // Relogio proprio: soma so o tempo em que a aba esta desenhando.
-        let previous = null;
-        const tick = (now) => {
-          if (playingRef.current) {
-            if (previous !== null) elapsedRef.current += Math.min(0.1, (now - previous) / 1000);
-            previous = now;
-            draw();
-          } else {
-            previous = null;
-          }
+          // Relogio proprio: soma so o tempo em que a aba esta desenhando.
+          let previous = null;
+          const tick = (now) => {
+            if (playingRef.current) {
+              if (previous !== null) elapsedRef.current += Math.min(0.1, (now - previous) / 1000);
+              previous = now;
+              draw();
+            } else {
+              previous = null;
+            }
+            frame = requestAnimationFrame(tick);
+          };
           frame = requestAnimationFrame(tick);
-        };
-        frame = requestAnimationFrame(tick);
+        });
       })
       .catch(() => {
         if (alive) setStatus("failed");
@@ -111,7 +114,7 @@ export default function SuggestScene({ title = "", time = null }) {
       canvas.removeEventListener("webglcontextlost", onLost);
       story?.dispose();
     };
-  }, [title, time]);
+  }, [time]);
 
   const toggleLabel = playing ? "Pausar animação" : "Continuar animação";
 
@@ -126,13 +129,11 @@ export default function SuggestScene({ title = "", time = null }) {
       />
       {status === "loading" ? (
         <p className="suggest-scene__wait">
-          <span>
-            Desenhando
-            <span className="loadingdots" aria-hidden="true">
-              <span>.</span>
-              <span>.</span>
-              <span>.</span>
-            </span>
+          <span className="sr-only">Carregando a animação</span>
+          <span className="loadingdots" aria-hidden="true">
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
           </span>
         </p>
       ) : null}

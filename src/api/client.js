@@ -21,15 +21,17 @@ export function setToken(token) {
   }
 }
 
-// ---------- Passe do acervo publico (reCAPTCHA) ----------
-// Quem marca o "Nao sou um robo" na entrada do /catalogo recebe do servidor
-// um passe que vale algumas horas (ver components/CatalogGate.jsx e
-// backend/src/services/captcha.js). Toda chamada de /api/public/* leva o
-// passe; quando o servidor diz que ele faltou ou venceu, o app avisa a
-// entrada do catalogo (CATALOG_PASS_EVENT) para pedir a caixa de novo.
+// ---------- Passe do site (reCAPTCHA) ----------
+// Quem marca o "Nao sou um robo" na entrada do site recebe do servidor um
+// passe que vale algumas horas (ver components/SiteGate.jsx e
+// backend/src/services/captcha.js). TODA chamada da API leva o passe; quando o
+// servidor diz que ele faltou ou venceu, o app avisa a entrada do site
+// (SITE_PASS_EVENT) para pedir a caixa de novo. (A chave guardada e o nome do
+// cabecalho ficaram do tempo em que so o acervo pedia a caixa: mudar um deles
+// faria os passes ja entregues e os apps ja instalados pararem de valer.)
 const PASS_KEY = "biblioteca_admpb_passe_acervo";
 const PASS_HEADER = "X-Catalogo-Passe";
-export const CATALOG_PASS_EVENT = "biblioteca:passe-do-acervo";
+export const SITE_PASS_EVENT = "biblioteca:passe-do-site";
 // Passe que vence em menos de 1 minuto ja e tratado como vencido: melhor
 // marcar a caixa agora do que ver o catalogo falhar no meio.
 const PASS_MARGIN_MS = 60 * 1000;
@@ -41,7 +43,7 @@ function stillValid(entry) {
   return Boolean(entry?.pass) && entry.until - PASS_MARGIN_MS > Date.now();
 }
 
-export function getCatalogPass() {
+export function getSitePass() {
   if (stillValid(memoryPass)) return memoryPass.pass;
   try {
     const stored = JSON.parse(localStorage.getItem(PASS_KEY) || "null");
@@ -58,7 +60,7 @@ export function getCatalogPass() {
 // expiresIn em segundos, como o servidor manda. O vencimento e contado no
 // relogio DESTE aparelho: com o relogio do celular errado, uma data vinda do
 // servidor faria o passe parecer vencido logo que chega.
-export function setCatalogPass(pass, expiresIn) {
+export function setSitePass(pass, expiresIn) {
   memoryPass = pass ? { pass, until: Date.now() + expiresIn * 1000 } : null;
   try {
     if (memoryPass) localStorage.setItem(PASS_KEY, JSON.stringify(memoryPass));
@@ -120,23 +122,19 @@ function fallbackMessage(status) {
 // - auth: false e para as rotas publicas (/api/public/*): nao envia o token
 //   (nao ha motivo para ele sair do navegador) e, se der 401, nao leva ao
 //   login. Use publicApi() em vez de passar isso na mao.
+// O passe do reCAPTCHA vai em toda chamada (inclusive o login).
 // - redirectOnExpired: false deixa quem chamou decidir o que fazer com o 401.
 //   Usado ao restaurar a sessao: sem isso, quem tem um token vencido e abre o
 //   /catalogo (pagina publica) seria mandado para o login.
 export async function api(path, options = {}) {
-  const {
-    auth = true,
-    redirectOnExpired = true,
-    catalogPass = false,
-    ...fetchOptions
-  } = options;
+  const { auth = true, redirectOnExpired = true, ...fetchOptions } = options;
   const headers = { ...(fetchOptions.headers || {}) };
   if (fetchOptions.body && !headers["Content-Type"])
     headers["Content-Type"] = "application/json";
 
   const token = auth ? getToken() : null;
   if (token) headers.Authorization = "Bearer " + token;
-  const pass = catalogPass ? getCatalogPass() : null;
+  const pass = getSitePass();
   if (pass) headers[PASS_HEADER] = pass;
 
   let response;
@@ -169,19 +167,18 @@ export async function api(path, options = {}) {
   }
 
   if (!response.ok) {
-    // Passe do acervo faltando ou vencido: a entrada do catalogo pede o
-    // "Nao sou um robo" de novo (ver components/CatalogGate.jsx). So se o
-    // passe recusado ainda e o guardado: a resposta atrasada de um pedido
-    // feito com o passe velho nao pode apagar o passe novo, que a pessoa
-    // acabou de ganhar marcando a caixa.
+    // Passe do site faltando ou vencido: a entrada do site pede o "Nao sou
+    // um robo" de novo (ver components/SiteGate.jsx). So se o passe recusado
+    // ainda e o guardado: a resposta atrasada de um pedido feito com o passe
+    // velho nao pode apagar o passe novo, que a pessoa acabou de ganhar
+    // marcando a caixa. (Sem passe nenhum, a entrada ja esta na tela.)
     if (
-      catalogPass &&
       response.status === 403 &&
       data?.code === "CAPTCHA_REQUIRED" &&
-      getCatalogPass() === pass
+      getSitePass() === pass
     ) {
-      setCatalogPass(null);
-      window.dispatchEvent(new Event(CATALOG_PASS_EVENT));
+      setSitePass(null);
+      window.dispatchEvent(new Event(SITE_PASS_EVENT));
     }
     if (response.status === 401 && auth && !path.includes("/auth/login")) {
       setToken(null);
@@ -200,8 +197,7 @@ export async function api(path, options = {}) {
   return data;
 }
 
-// Chamada sem login, so para /api/public/*. Nunca envia o token; envia o
-// passe do acervo (reCAPTCHA), quando houver.
+// Chamada sem login, so para /api/public/*. Nunca envia o token.
 export function publicApi(path, options = {}) {
-  return api(path, { ...options, auth: false, catalogPass: true });
+  return api(path, { ...options, auth: false });
 }
