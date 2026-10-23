@@ -2978,15 +2978,17 @@ div.returnalert {
 }
 
 /* ---------- Entrada do site: "Nao sou um robo" (SiteGate.jsx) ----------
-   A animacao de boas-vindas em cima e, embaixo, a caixa do Google. No
-   celular ocupa a largura toda; no PC vira um cartao no meio da tela. */
+   A animacao de boas-vindas em cima e, embaixo, a caixa do Google. O cartao
+   fica no MEIO da tela, na horizontal e na vertical, no celular tambem (em
+   tela baixa, ou com o cartao maior que a tela, ele cresce e a pagina rola:
+   min-height, e nao height, deixa o centro nunca cortar o topo). */
 .gate {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   min-height: 100%;
   padding: calc(16px + env(safe-area-inset-top, 0px)) 16px
-    calc(24px + env(safe-area-inset-bottom, 0px));
+    calc(16px + env(safe-area-inset-bottom, 0px));
 }
 .gate__card {
   display: flex;
@@ -3078,7 +3080,6 @@ div.returnalert {
 }
 @media (min-width: 600px) {
   .gate {
-    align-items: center;
     padding-top: 32px;
     padding-bottom: 32px;
   }
