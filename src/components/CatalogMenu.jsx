@@ -38,7 +38,7 @@ export default function CatalogMenu({
             </span>
             <span className="pubmenu__text">
               <strong>Com quem falar?</strong>
-              <small>Quem procurar na igreja para pegar ou devolver um livro</small>
+              <small>Quem procurar na igreja para pegar, devolver ou doar um livro</small>
             </span>
           </button>
         ) : null}

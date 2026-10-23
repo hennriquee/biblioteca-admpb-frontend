@@ -1,0 +1,203 @@
+/* ===========================================================
+   Convite para contribuir (depois de sugerir um livro): a animacao
+   do caminhao no topo e o convite embaixo. Ver ContributeModal.jsx.
+   =========================================================== */
+
+/* Um pouco mais largo que os outros avisos: a animacao e o destaque.
+   (Seletores com uma classe a mais: este arquivo entra antes do app.css.) */
+@media (min-width: 600px) {
+  .modal.modal--contribute {
+    max-width: 660px;
+  }
+}
+
+.contribute {
+  display: flex;
+  flex-direction: column;
+}
+
+/* O "papel" da animacao: a mesma cor do papel desenhado, para nao piscar
+   enquanto o desenho carrega. */
+.contribute__stage {
+  position: relative;
+  /* (Largura fixa: com o teto de altura, o Firefox e o Safari encolhiam a
+     largura para manter a proporcao e sobrava uma faixa branca.) */
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 46vh;
+  max-height: 46dvh;
+  background: #efe7da;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.suggest-scene {
+  position: absolute;
+  inset: 0;
+}
+.suggest-scene__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.suggest-scene__wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #6f6152;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+.suggest-scene__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.contribute__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 22px 6px;
+  text-align: center;
+}
+.contribute__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--success-wash);
+  color: var(--success);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.contribute__badge svg {
+  flex-shrink: 0;
+}
+.contribute__title {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.2rem + 1.3vw, 2rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.contribute__lead {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.contribute__lead strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.contribute__note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+/* O botao de contribuir: o maior do rodape, com um brilho dourado que pulsa
+   algumas vezes e o coracao batendo junto. */
+.modal--contribute.modal--hero .modal__foot .contribute__cta {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 52px;
+  font-size: 1.05rem;
+  animation: contribute-glow 1.5s ease-out 0.9s 4;
+}
+.contribute__cta svg {
+  animation: contribute-beat 1.5s ease-in-out 0.9s 4;
+}
+@keyframes contribute-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+}
+@keyframes contribute-beat {
+  0%,
+  40%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.28);
+  }
+  28% {
+    transform: scale(0.94);
+  }
+}
+/* Chamar a atencao e o proposito deste aviso: o brilho roda mesmo com
+   "menos movimento" ligado (o Windows desta equipe informa isso sempre), mas
+   so algumas vezes, e para. */
+@media (prefers-reduced-motion: reduce) {
+  .modal--contribute.modal--hero .modal__foot .contribute__cta,
+  .contribute__cta svg {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: 4 !important;
+  }
+}
+
+/* Celular em pe: o botao de contribuir em cima, inteiro, e o "Agora nao"
+   embaixo (lado a lado, os dois quebravam em duas linhas). */
+.modal--contribute .modal__foot .btn {
+  white-space: nowrap;
+}
+@media (max-width: 479px) {
+  .modal--contribute.modal--hero .modal__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
+@media (min-width: 600px) {
+  .contribute__text {
+    padding: 22px 32px 8px;
+  }
+}
+
+/* Celular deitado: desenho de um lado, texto do outro. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .modal-backdrop--center .modal.modal--contribute {
+    max-width: 760px;
+  }
+  .contribute {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .contribute__stage {
+    flex: 0 0 46%;
+    aspect-ratio: auto;
+    max-height: none;
+    min-height: 170px;
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+  .contribute__text {
+    justify-content: center;
+    padding: 14px 18px 6px;
+  }
+  .contribute__title {
+    font-size: 1.3rem;
+  }
+}

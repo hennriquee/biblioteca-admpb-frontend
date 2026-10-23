@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { publicApi } from "../api/client.js";
-import { useAuth } from "../context/AuthContext.jsx";
 import PublicBookModal, { PublicBookRow } from "../components/PublicBook.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
@@ -91,8 +90,6 @@ function groupByLetter(books) {
 }
 
 export default function Catalog() {
-  const { user } = useAuth();
-
   // overview: undefined = carregando | null = nao carregou | { titles, ... }
   const [overview, setOverview] = useState(undefined);
   // O servidor gratuito dorme quando ninguem usa; a primeira abertura pode
@@ -300,8 +297,9 @@ export default function Catalog() {
       <div className="pub__inner page">
         {/* Barra do topo: a logo pequena a esquerda (reabre as boas-vindas) e,
             a direita, o menu "Participe" (com quem falar, sugerir um livro,
-            apoiar e o grupo do WhatsApp) - e, para quem esta logado no painel,
-            tambem o "Voltar ao painel". Todos com a mesma altura. */}
+            apoiar e o grupo do WhatsApp), com a mesma altura. Nao ha atalho
+            para o painel aqui, nem para quem esta logado como administrador:
+            o acervo publico e so do publico. */}
         <div className="pub__bar">
           <button
             type="button"
@@ -315,13 +313,7 @@ export default function Catalog() {
               alt="Biblioteca ADMP Brasil: sobre a biblioteca"
             />
           </button>
-          <div className={"pub__actions" + (user ? " pub__actions--two" : "")}>
-            {user ? (
-              <Link to="/" className="btn btn--ghost pub__admin" aria-label="Voltar ao painel">
-                <span className="pub__panelfull">Voltar ao painel</span>
-                <span className="pub__panelshort">Painel</span>
-              </Link>
-            ) : null}
+          <div className="pub__actions">
             <button
               type="button"
               className="btn btn--ghost pub__admin"

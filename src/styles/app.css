@@ -2510,10 +2510,9 @@ a.stat:active {
   gap: 14px;
 }
 
-/* Barra do topo: logo pequena a esquerda e, quando a pessoa esta logada no
-   painel, "Voltar ao painel" a direita. Os dois tem a mesma altura
-   (--pub-bar-h) e ficam sem destaque; um fio embaixo separa a barra do
-   titulo. */
+/* Barra do topo: logo pequena a esquerda e o menu "Participe" a direita.
+   Os dois tem a mesma altura (--pub-bar-h) e ficam sem destaque; um fio
+   embaixo separa a barra do titulo. */
 .pub {
   --pub-bar-h: 48px;
 }
@@ -2573,6 +2572,28 @@ a.stat:active {
 .pub__filters {
   display: grid;
   gap: 10px;
+  /* Lado a lado (PC), a lista de categorias aberta deixa a linha mais alta:
+     sem isto, a barra de busca ao lado esticaria junto. */
+  align-items: start;
+}
+/* Barra de busca e botao das categorias com a MESMA altura, fixa: antes a
+   linha esticada disfarcava a diferenca (2px no Chrome, 5px no Safari, que
+   desenha o campo de busca mais alto). */
+.pub__filters {
+  --pub-filter-h: 50px;
+}
+.pub__filters > .searchbar {
+  height: var(--pub-filter-h);
+}
+.pub__filters > .searchbar input {
+  height: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.pub__filters .catpicker__trigger {
+  height: var(--pub-filter-h);
+  padding-top: 0;
+  padding-bottom: 0;
 }
 .pub__status .segmented__item {
   padding: 10px 6px;
@@ -2945,6 +2966,107 @@ div.returnalert {
   border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
+}
+
+/* ---------- Entrada do acervo: "Nao sou um robo" (CatalogGate.jsx) ----------
+   A animacao de boas-vindas em cima e, embaixo, a caixa do Google. No
+   celular ocupa a largura toda; no PC vira um cartao no meio da tela. */
+.gate {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px
+    calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.gate__card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+.gate__stage {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.gate__stage .welcome-scene {
+  max-height: 34vh;
+  max-height: 34dvh;
+}
+.gate__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 20px;
+  text-align: center;
+}
+.gate__title {
+  font-size: clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.gate__title:focus {
+  outline: none;
+}
+.gate__lead {
+  max-width: 34ch;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+/* A caixa do Google tem 304 x 78 fixos; em tela estreita o componente a
+   reduz por inteiro (transform) e esta faixa acompanha a altura reduzida. */
+.gate__captcha {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.gate__slot {
+  flex-shrink: 0;
+  transform-origin: top center;
+}
+.gate__status {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.gate__problem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--danger-wash);
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.gate__note {
+  max-width: 38ch;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+@media (min-width: 600px) {
+  .gate {
+    align-items: center;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+  .gate__body {
+    padding: 24px 28px 26px;
+  }
 }
 
 /* ---------- Aviso de novidade (NewBooksModal) ---------- */
@@ -3802,6 +3924,9 @@ span.avatar--empty {
   font-weight: 500;
   line-height: 1.25;
 }
+.staff__donate {
+  margin-top: 16px;
+}
 
 /* ---------- Engrenagem de configuracoes e menu lateral ---------- */
 /* Na Inicio a engrenagem flutua no canto esquerdo, espelhando o botao de
@@ -4070,22 +4195,6 @@ span.avatar--empty {
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-/* Logado no painel, a barra tem dois botoes; no celular estreito o "Voltar
-   ao painel" encurta para "Painel" (o nome completo fica no aria-label). */
-.pub__panelshort {
-  display: none;
-}
-@media (max-width: 400px) {
-  .pub__actions--two .pub__admin {
-    padding: 0 12px;
-  }
-  .pub__actions--two .pub__panelfull {
-    display: none;
-  }
-  .pub__actions--two .pub__panelshort {
-    display: inline;
-  }
 }
 .pubmenu {
   display: flex;

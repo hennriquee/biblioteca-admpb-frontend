@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
 import CoverPicker from "./CoverPicker.jsx";
+import ContributeModal from "./ContributeModal.jsx";
+import SupportModal from "./SupportModal.jsx";
+import { preloadSuggestScene } from "./SuggestScene.jsx";
 import { useToast } from "./Toast.jsx";
 import { publicApi } from "../api/client.js";
 
@@ -18,7 +21,13 @@ import { publicApi } from "../api/client.js";
  * prazo (SEND_TIMEOUT_MS) e pode ser cancelado no "Voltar", no "x" ou no Esc:
  * a pessoa nunca fica presa esperando um servidor que nao responde.
  *
- * onSent(): sugestao recebida - quem abriu fecha o menu e agradece.
+ * Recebida a sugestao, aparece no meio da tela o convite para contribuir
+ * (ContributeModal, com a animacao do caminhao trazendo os livros); o
+ * "Quero contribuir" abre o PIX (SupportModal). A animacao comeca a baixar
+ * quando a ficha abre, para estar pronta na hora.
+ *
+ * onSent(): sugestao recebida - quem abriu fecha a ficha e o menu (o convite
+ * fica por conta deste componente).
  */
 
 const EMPTY = { title: "", author: "", photo: "", website: "" };
@@ -37,9 +46,18 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  // Depois de enviar: { title, duplicate } enquanto o convite estiver aberto.
+  const [thanks, setThanks] = useState(null);
+  const [supportOpen, setSupportOpen] = useState(false);
   // Envio em andamento: { controller, timedOut } (para cancelar ou estourar o prazo).
   const sendRef = useRef(null);
   useEffect(() => () => sendRef.current?.controller.abort(), []);
+
+  // Baixa a animacao do convite enquanto a pessoa preenche (sem rede ou sem
+  // suporte, o convite aparece mesmo assim, sem o desenho).
+  useEffect(() => {
+    if (open) preloadSuggestScene().catch(() => {});
+  }, [open]);
 
   // A ficha e limpa ao FECHAR, para a proxima abertura ja comecar em branco
   // (limpando ao abrir, o rascunho anterior aparecia por um instante).
@@ -91,12 +109,7 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
           website: form.website,
         },
       });
-      notify(
-        result?.duplicate
-          ? "Esse livro já estava entre as sugestões. Obrigado por reforçar!"
-          : "Sugestão enviada. Obrigado!",
-        "success",
-      );
+      setThanks({ title: form.title, duplicate: Boolean(result?.duplicate) });
       setConfirming(false);
       onSent();
     } catch (error) {
@@ -280,6 +293,18 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
           ) : null}
         </div>
       </Modal>
+
+      <ContributeModal
+        open={Boolean(thanks)}
+        title={thanks?.title}
+        duplicate={thanks?.duplicate}
+        onClose={() => setThanks(null)}
+        onContribute={() => {
+          setThanks(null);
+          setSupportOpen(true);
+        }}
+      />
+      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
     </>
   );
 }

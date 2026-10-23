@@ -21,6 +21,53 @@ export function setToken(token) {
   }
 }
 
+// ---------- Passe do acervo publico (reCAPTCHA) ----------
+// Quem marca o "Nao sou um robo" na entrada do /catalogo recebe do servidor
+// um passe que vale algumas horas (ver components/CatalogGate.jsx e
+// backend/src/services/captcha.js). Toda chamada de /api/public/* leva o
+// passe; quando o servidor diz que ele faltou ou venceu, o app avisa a
+// entrada do catalogo (CATALOG_PASS_EVENT) para pedir a caixa de novo.
+const PASS_KEY = "biblioteca_admpb_passe_acervo";
+const PASS_HEADER = "X-Catalogo-Passe";
+export const CATALOG_PASS_EVENT = "biblioteca:passe-do-acervo";
+// Passe que vence em menos de 1 minuto ja e tratado como vencido: melhor
+// marcar a caixa agora do que ver o catalogo falhar no meio.
+const PASS_MARGIN_MS = 60 * 1000;
+
+// Copia na memoria: vale mesmo no navegador que nao deixa guardar nada.
+let memoryPass = null;
+
+function stillValid(entry) {
+  return Boolean(entry?.pass) && entry.until - PASS_MARGIN_MS > Date.now();
+}
+
+export function getCatalogPass() {
+  if (stillValid(memoryPass)) return memoryPass.pass;
+  try {
+    const stored = JSON.parse(localStorage.getItem(PASS_KEY) || "null");
+    if (stillValid(stored)) {
+      memoryPass = stored;
+      return stored.pass;
+    }
+  } catch {
+    /* sem armazenamento ou valor estragado: sem passe */
+  }
+  return null;
+}
+
+// expiresIn em segundos, como o servidor manda. O vencimento e contado no
+// relogio DESTE aparelho: com o relogio do celular errado, uma data vinda do
+// servidor faria o passe parecer vencido logo que chega.
+export function setCatalogPass(pass, expiresIn) {
+  memoryPass = pass ? { pass, until: Date.now() + expiresIn * 1000 } : null;
+  try {
+    if (memoryPass) localStorage.setItem(PASS_KEY, JSON.stringify(memoryPass));
+    else localStorage.removeItem(PASS_KEY);
+  } catch {
+    /* modo privado: fica so na memoria, ate fechar a aba */
+  }
+}
+
 export class ApiError extends Error {
   constructor(message, status, payload) {
     super(message);
@@ -36,6 +83,25 @@ export function wakeBackend() {
   fetch(BASE_URL + "/api/health").catch(() => {
     /* tentativa de "acordar" o servidor; se der erro, sem problema */
   });
+}
+
+// O servidor responde? (Pedido leve, com prazo curto.) Serve para separar
+// "sem internet" de outros problemas quando o aparelho diz que esta on-line
+// mas a rede nao sai para a internet (Wi-Fi sem conexao, portal de login).
+export async function serverReachable(timeoutMs = 4000) {
+  try {
+    const response = await fetch(BASE_URL + "/api/health", {
+      cache: "no-store",
+      // Navegador antigo sem AbortSignal.timeout: pergunta sem prazo.
+      signal:
+        typeof AbortSignal.timeout === "function"
+          ? AbortSignal.timeout(timeoutMs)
+          : undefined,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 // Mensagem para quando a API nao devolveu um texto de erro proprio
@@ -58,13 +124,20 @@ function fallbackMessage(status) {
 //   Usado ao restaurar a sessao: sem isso, quem tem um token vencido e abre o
 //   /catalogo (pagina publica) seria mandado para o login.
 export async function api(path, options = {}) {
-  const { auth = true, redirectOnExpired = true, ...fetchOptions } = options;
+  const {
+    auth = true,
+    redirectOnExpired = true,
+    catalogPass = false,
+    ...fetchOptions
+  } = options;
   const headers = { ...(fetchOptions.headers || {}) };
   if (fetchOptions.body && !headers["Content-Type"])
     headers["Content-Type"] = "application/json";
 
   const token = auth ? getToken() : null;
   if (token) headers.Authorization = "Bearer " + token;
+  const pass = catalogPass ? getCatalogPass() : null;
+  if (pass) headers[PASS_HEADER] = pass;
 
   let response;
   try {
@@ -96,6 +169,20 @@ export async function api(path, options = {}) {
   }
 
   if (!response.ok) {
+    // Passe do acervo faltando ou vencido: a entrada do catalogo pede o
+    // "Nao sou um robo" de novo (ver components/CatalogGate.jsx). So se o
+    // passe recusado ainda e o guardado: a resposta atrasada de um pedido
+    // feito com o passe velho nao pode apagar o passe novo, que a pessoa
+    // acabou de ganhar marcando a caixa.
+    if (
+      catalogPass &&
+      response.status === 403 &&
+      data?.code === "CAPTCHA_REQUIRED" &&
+      getCatalogPass() === pass
+    ) {
+      setCatalogPass(null);
+      window.dispatchEvent(new Event(CATALOG_PASS_EVENT));
+    }
     if (response.status === 401 && auth && !path.includes("/auth/login")) {
       setToken(null);
       if (redirectOnExpired) window.location.href = "/login";
@@ -113,7 +200,8 @@ export async function api(path, options = {}) {
   return data;
 }
 
-// Chamada sem login, so para /api/public/*. Nunca envia o token.
+// Chamada sem login, so para /api/public/*. Nunca envia o token; envia o
+// passe do acervo (reCAPTCHA), quando houver.
 export function publicApi(path, options = {}) {
-  return api(path, { ...options, auth: false });
+  return api(path, { ...options, auth: false, catalogPass: true });
 }

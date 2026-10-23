@@ -64,6 +64,11 @@ function problemFor(error) {
         tone: "info",
         text: "Para receber o aviso, toque em “Permitir” quando o navegador perguntar sobre notificações. (No Chrome, a pergunta às vezes aparece como um sininho na barra de endereço.)",
       };
+    case "offline":
+      return {
+        tone: "error",
+        text: "Você está sem internet agora, então o aviso não foi pedido (ele não fica guardado para depois). Quando a conexão voltar, toque de novo no botão.",
+      };
     case "worker":
       return {
         tone: "error",

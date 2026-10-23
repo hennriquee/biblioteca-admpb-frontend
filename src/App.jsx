@@ -9,6 +9,7 @@ import Books from './pages/Books.jsx';
 import Loans from './pages/Loans.jsx';
 import NewLoan from './pages/NewLoan.jsx';
 import Catalog from './pages/Catalog.jsx';
+import CatalogGate from './components/CatalogGate.jsx';
 import NewBooks from './pages/NewBooks.jsx';
 import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
@@ -59,9 +60,12 @@ export default function App() {
       <Routes>
       <Route path="/login" element={<Login />} />
       {/* Unica tela aberta ao publico: fica de fora do Protected e do Layout
-          do admin. Toda rota nova de admin deve ficar DENTRO do Protected. */}
-      <Route path="/catalogo" element={<Catalog />} />
-      <Route path="/catalogo/novidades" element={<NewBooks />} />
+          do admin. Toda rota nova de admin deve ficar DENTRO do Protected.
+          A entrada (CatalogGate) pede o "Nao sou um robo" antes. */}
+      <Route element={<CatalogGate />}>
+        <Route path="/catalogo" element={<Catalog />} />
+        <Route path="/catalogo/novidades" element={<NewBooks />} />
+      </Route>
       {/* Manutencao: fora do Layout do painel (sem abas nem engrenagem), porque
           esta sessao nao cuida de livro nem de emprestimo. */}
       <Route

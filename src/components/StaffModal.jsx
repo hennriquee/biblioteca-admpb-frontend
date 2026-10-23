@@ -4,8 +4,8 @@ import Avatar from "./Avatar.jsx";
 /**
  * "Com quem falar?" do acervo publico: os cartoes da equipe da biblioteca,
  * com a foto e os dois primeiros nomes, para a pessoa saber quem procurar na
- * igreja. Nao mostra telefone nem nome completo - quem quer um livro fala
- * pessoalmente com a equipe.
+ * igreja (para pegar, devolver ou doar um livro). Nao mostra telefone nem
+ * nome completo - quem quer um livro fala pessoalmente com a equipe.
  */
 export default function StaffModal({ open, onClose, staff = [] }) {
   return (
@@ -23,6 +23,11 @@ export default function StaffModal({ open, onClose, staff = [] }) {
           </li>
         ))}
       </ul>
+
+      <p className="muted staff__donate">
+        Quer doar algum livro para a biblioteca? Você também pode procurar uma
+        destas pessoas.
+      </p>
     </Modal>
   );
 }

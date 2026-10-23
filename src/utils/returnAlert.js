@@ -1,4 +1,4 @@
-import { ApiError, publicApi } from "../api/client.js";
+import { ApiError, publicApi, serverReachable } from "../api/client.js";
 
 /**
  * "Avise-me quando voltar" do acervo publico: o lado do navegador.
@@ -156,11 +156,24 @@ async function ensureSubscription(registration, publicKey) {
     );
   } catch (error) {
     if (error?.name === "NotAllowedError") throw new ReturnAlertError("denied");
+    // Criar a inscricao fala com o servico do fabricante: sem internet ela
+    // falha, e a culpa nao e do navegador. O aparelho nem sempre sabe que
+    // esta sem internet (Wi-Fi conectado que nao sai para a internet): na
+    // duvida, confere se o nosso servidor responde.
+    if (isOffline() || !(await serverReachable())) {
+      throw new ReturnAlertError("offline");
+    }
     // Ex.: aba anonima do Chrome (nao tem push, e de proposito nao ha como
     // saber antes), Brave com as notificacoes do Google desligadas, navegador
     // que nunca respondeu (SUBSCRIBE_TIMEOUT_MS).
     throw new ReturnAlertError("push");
   }
+}
+
+// O navegador tem certeza de que esta sem internet. (O contrario, "online",
+// nao garante nada: so o pedido de verdade diz.)
+function isOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
 // Inscricao que ja existe, sem pedir permissao nem criar nada. null quando
@@ -181,8 +194,13 @@ async function existingSubscription() {
  * espera, porque o iPhone (e o Chrome, depois de alguns segundos) so mostra a
  * pergunta "Permitir notificacoes?" logo apos um toque.
  *
- * Lanca ReturnAlertError ("denied", "dismissed", "worker", "push") ou o
- * ApiError do servidor (ex.: 409 com code BOOK_AVAILABLE).
+ * Lanca ReturnAlertError ("denied", "dismissed", "worker", "push",
+ * "offline") ou o ApiError do servidor (ex.: 409 com code BOOK_AVAILABLE).
+ *
+ * Sem internet o pedido NAO fica guardado para depois: ele so existe quando
+ * chega ao servidor. A tela diz isso e o botao continua la para tentar de
+ * novo. (Ja o aviso em si, depois de pedido, espera o celular voltar a ter
+ * internet: ver PUSH_TTL_SECONDS em backend/src/services/returnAlerts.js.)
  */
 export async function enableReturnAlert(book, title) {
   if (pushSupport() !== "ready") throw new ReturnAlertError("unsupported");
@@ -191,17 +209,33 @@ export async function enableReturnAlert(book, title) {
   if (state === "default") state = await askPermission();
   if (state === "denied") throw new ReturnAlertError("denied");
   if (state !== "granted") throw new ReturnAlertError("dismissed");
+  // Depois da permissao (que precisa vir logo apos o toque): sem internet,
+  // nada adiante funcionaria.
+  if (isOffline()) throw new ReturnAlertError("offline");
 
-  const [publicKey, registration] = await Promise.all([
-    loadPushKey(),
-    workerReady(),
-  ]);
-  const subscription = await ensureSubscription(registration, publicKey);
+  try {
+    const [publicKey, registration] = await Promise.all([
+      loadPushKey(),
+      workerReady(),
+    ]);
+    const subscription = await ensureSubscription(registration, publicKey);
 
-  await publicApi(ALERTS, {
-    method: "POST",
-    body: { bookId: book.id, title, subscription: subscription.toJSON() },
-  });
+    await publicApi(ALERTS, {
+      method: "POST",
+      body: { bookId: book.id, title, subscription: subscription.toJSON() },
+    });
+  } catch (error) {
+    // A internet caiu no meio do caminho (a chave do servidor ou o pedido
+    // final nao chegaram): a mesma mensagem de "sem internet".
+    if (
+      error instanceof ApiError &&
+      error.status === 0 &&
+      (isOffline() || !(await serverReachable()))
+    ) {
+      throw new ReturnAlertError("offline");
+    }
+    throw error;
+  }
 }
 
 /** Este aparelho ja pediu aviso deste livro? */
