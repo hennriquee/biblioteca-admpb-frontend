@@ -15,6 +15,7 @@ import {
 } from "../utils/dates.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { warningText } from "../pages/NewLoan.jsx";
+import { pokeNotices } from "../utils/adminNotices.js";
 
 // "hoje", "amanhã", "em 3 dias", "passou há 2 dias".
 export function pickupWhen(pickupDate) {
@@ -86,6 +87,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
           body: { startDate, dueDate: dueDate || null, notes, ...extra },
         });
         notify("Empréstimo registrado.", "success");
+        pokeNotices();
         onChanged("loan");
       } catch (error) {
         const code = error instanceof ApiError ? error.payload?.code : null;
@@ -107,6 +109,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
       try {
         await api("/api/requests/" + request._id, { method: "DELETE" });
         notify("Solicitação excluída. O livro voltou para a estante.", "success");
+        pokeNotices();
         onChanged("deleted");
       } catch (error) {
         notify(error.message, "error");
@@ -162,7 +165,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
             <div className="field reqdetail__fixed">
               <span className="field__label">Quem vai levar</span>
               <div className="picked">
-                <Avatar name={request.personName} size={44} />
+                <Avatar src={request.personPhoto} name={request.personName} size={44} />
                 <div>
                   <strong title={request.personName}>
                     {(request.personCode ? "#" + request.personCode + " " : "") +

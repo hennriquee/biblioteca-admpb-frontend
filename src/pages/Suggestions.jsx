@@ -7,6 +7,27 @@ import ListSkeleton from "../components/ListSkeleton.jsx";
 import { IconTrash } from "../components/Icons.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseDate } from "../utils/dates.js";
+import { useRefresh } from "../utils/refresh.js";
+import { pokeNotices } from "../utils/adminNotices.js";
+
+// A sugestao mais nova que esta na tela: ate ela, esta conta "ja viu" (o
+// sininho do painel para de contar - ver components/NotificationBell.jsx).
+async function markSeen(list) {
+  const newest = list.reduce((latest, item) => {
+    const at = Date.parse(item.createdAt);
+    return Number.isFinite(at) && at > latest ? at : latest;
+  }, 0);
+  if (!newest) return;
+  try {
+    await api("/api/suggestions/seen", {
+      method: "POST",
+      body: { upTo: new Date(newest).toISOString() },
+    });
+    pokeNotices();
+  } catch {
+    /* sem a marca, o sininho so continua contando; tenta de novo na proxima */
+  }
+}
 
 /**
  * Livros sugeridos (Configuracoes > Livros sugeridos): os livros que quem
@@ -45,11 +66,15 @@ export default function Suggestions() {
       if (requestId !== requestRef.current) return;
       setItems(data);
       setError("");
+      markSeen(data);
     } catch (err) {
       if (requestId !== requestRef.current) return;
       setError(err.message);
     }
   }, []);
+
+  // Puxar para atualizar (ver utils/refresh.js).
+  useRefresh(load);
 
   useEffect(() => {
     load();
@@ -71,6 +96,7 @@ export default function Suggestions() {
       await api("/api/suggestions/" + target.id, { method: "DELETE" });
       setItems((current) => (current || []).filter((item) => item.id !== target.id));
       notify("Sugestão excluída.", "success");
+      pokeNotices();
     } catch (err) {
       notify(err.message, "error");
       // Ja excluida por outra pessoa: a lista e recarregada.
@@ -92,6 +118,7 @@ export default function Suggestions() {
         body: { ids: (items || []).map((item) => item.id) },
       });
       load();
+      pokeNotices();
       notify(
         data?.deleted === 1 ? "1 sugestão excluída." : (data?.deleted ?? 0) + " sugestões excluídas.",
         "success",

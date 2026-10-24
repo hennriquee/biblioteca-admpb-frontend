@@ -26,10 +26,14 @@ export function buildMessage(loan) {
 
   if (kind === "late") {
     return (
-      "Olá, " + first + "! A paz do Senhor! 🙏\n\n" +
-      "Aqui é da Biblioteca ADMP Brasil. O livro " + book +
+      "Olá, " +
+      first +
+      "! A paz do Senhor! 🙏\n\n" +
+      "Aqui é da Biblioteca ADMP Brasil. O livro " +
+      book +
       " estava combinado para ser devolvido em " +
-      formatLongDate(loan.dueDate) + ".\n\n" +
+      formatLongDate(loan.dueDate) +
+      ".\n\n" +
       "Sabemos que a rotina é corrida, mas você consegue devolvê-lo assim que possível? " +
       "Outras pessoas também gostariam de ler. Se precisar de mais tempo, é só nos avisar. " +
       "Muito obrigado! 📚"
@@ -37,9 +41,14 @@ export function buildMessage(loan) {
   }
 
   return (
-    "Olá, " + first + "! A paz do Senhor! 🙏\n\n" +
+    "Olá, " +
+    first +
+    "! A paz do Senhor! 🙏\n\n" +
     "Aqui é da Biblioteca ADMP Brasil. Passando para lembrar com carinho que o livro " +
-    book + " deve ser devolvido em " + formatLongDate(loan.dueDate) + ".\n\n" +
+    book +
+    " deve ser devolvido em " +
+    formatLongDate(loan.dueDate) +
+    ".\n\n" +
     "Se precisar de mais tempo, é só nos avisar. Muito obrigado! 📚"
   );
 }
@@ -85,25 +94,41 @@ export function requestLinkUrl(token) {
 
 /**
  * A mensagem que a pessoa manda para a biblioteca. link pode faltar (o
- * servidor nao respondeu): a equipe registra a solicitacao na mao.
+ * servidor nao respondeu): a equipe registra a solicitacao na mao. isNew: a
+ * pessoa nao esta no cadastro (tocou em "Nao sou nenhuma dessas pessoas", ou
+ * o nome nao foi achado) - vai "(novo cadastro)" logo depois do nome.
  */
-export function buildRequestMessage({ book, name, pickupDate, link }) {
+export function buildRequestMessage({ book, name, isNew = false, pickupDate, link }) {
   const authors = joinNames(book.authors);
   return (
-    "Olá! A paz do Senhor! 🙏\n\n" +
-    "Meu nome é " + name + " e gostaria de pegar emprestado o livro \"" +
-    formatBookTitle(book.title) + "\"" +
+    "Olá, meu nome é " +
+    name +
+    (isNew ? " (novo cadastro)" : "") +
+    ' e gostaria de pegar emprestado o livro "' +
+    formatBookTitle(book.title) +
+    '"' +
     (authors ? ", de " + authors : "") +
     ", da Biblioteca ADMP Brasil.\n\n" +
     "📅 Dia de preferência para pegar o livro: " +
-    formatPickupDay(pickupDate) + ".\n\n" +
+    formatPickupDay(pickupDate) +
+    ".\n\n" +
     "Podemos combinar a retirada com um dos administradores? Desde já, agradeço! 📚" +
-    (link ? "\n\nLink da solicitação (para a equipe da biblioteca):\n" + link : "")
+    (link
+      ? "\n\nLink da solicitação (para a equipe da biblioteca):\n" + link
+      : "")
   );
 }
 
 export function libraryWhatsappUrl(text) {
   return (
     "https://wa.me/" + LIBRARY_WHATSAPP + "?text=" + encodeURIComponent(text)
+  );
+}
+
+// O mesmo, pelo endereco do proprio aplicativo: no Android abre o WhatsApp
+// direto, sem a aba em branco do wa.me (ver components/RequestLoanModal.jsx).
+export function libraryWhatsappAppUrl(text) {
+  return (
+    "whatsapp://send?phone=" + LIBRARY_WHATSAPP + "&text=" + encodeURIComponent(text)
   );
 }

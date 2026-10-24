@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import { loanProgress } from "../utils/dates.js";
+import { useRefresh } from "../utils/refresh.js";
 import ReadingScene from "../components/ReadingScene.jsx";
 import { IconBooks, IconLoans, IconPlus } from "../components/Icons.jsx";
 
@@ -25,32 +26,36 @@ export default function Home() {
   // null = ainda carregando (mostra os pontinhos); "error" = nao foi possivel carregar
   const [stats, setStats] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      try {
-        const [books, loans] = await Promise.all([
-          api("/api/books"),
-          api("/api/loans?status=ativo"),
-        ]);
-        if (!active) return;
-        // Mesma regra da tela de Empréstimos: atrasado = prazo vencido por dia.
-        const overdue = loans.filter(
-          (loan) => loan.dueDate && loanProgress(loan.startDate, loan.dueDate).overdue,
-        ).length;
-        setStats({ books: books.length, active: loans.length, overdue });
-      } catch {
-        // a home continua util mesmo sem os numeros
-        if (active) setStats("error");
-      }
+  const activeRef = useRef(true);
+  // quiet: atualizacao (puxar para atualizar) - se falhar, os numeros que ja
+  // estao na tela ficam.
+  const load = useCallback(async ({ quiet = false } = {}) => {
+    try {
+      const [books, loans] = await Promise.all([
+        api("/api/books"),
+        api("/api/loans?status=ativo"),
+      ]);
+      if (!activeRef.current) return;
+      // Mesma regra da tela de Empréstimos: atrasado = prazo vencido por dia.
+      const overdue = loans.filter(
+        (loan) => loan.dueDate && loanProgress(loan.startDate, loan.dueDate).overdue,
+      ).length;
+      setStats({ books: books.length, active: loans.length, overdue });
+    } catch {
+      // a home continua util mesmo sem os numeros
+      if (activeRef.current && !quiet) setStats("error");
     }
+  }, []);
 
+  useEffect(() => {
+    activeRef.current = true;
     load();
     return () => {
-      active = false;
+      activeRef.current = false;
     };
-  }, []);
+  }, [load]);
+
+  useRefresh(() => load({ quiet: true }));
 
   return (
     <div className="home rise">

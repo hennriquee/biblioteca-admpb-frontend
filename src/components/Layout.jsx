@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Confirm from "./Confirm.jsx";
 import SettingsDrawer from "./SettingsDrawer.jsx";
+import NotificationBell from "./NotificationBell.jsx";
+import { prefetchBookList } from "../hooks/useBookList.js";
+import { loadPanelBooks } from "../api/panelBooks.js";
 import {
   IconBooks,
   IconChevronLeft,
-  IconExit,
   IconHome,
   IconLoans,
   IconSettings,
@@ -44,13 +46,24 @@ export default function Layout() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isHome = pathname === "/";
+
+  // O Acervo (lista e primeiras capas) vai sendo baixado enquanto a pessoa
+  // esta em outra tela: tocando em "Livros", ele ja aparece com as capas.
+  // Espera um pouco para nao disputar com o que a tela atual esta buscando.
+  // (Na propria tela Livros quem busca e ela.)
+  useEffect(() => {
+    if (pathname === "/livros") return undefined;
+    const timer = setTimeout(() => prefetchBookList(loadPanelBooks), 1200);
+    return () => clearTimeout(timer);
+  }, [pathname]);
   const parent = PARENTS[pathname.replace(/\/$/, "")] || {
     to: "/",
     label: "Início",
   };
 
-  // A engrenagem fica sempre no canto esquerdo do topo: flutuando na Inicio
-  // (onde nao ha "voltar") e ao lado do "voltar" nas telas internas.
+  // A engrenagem fica sempre no canto esquerdo do topo e o sininho no
+  // direito: flutuando na Inicio (onde nao ha "voltar") e na linha do
+  // "voltar" nas telas internas. (Sair da biblioteca fica nas configuracoes.)
   const gear = (
     <button
       type="button"
@@ -69,15 +82,9 @@ export default function Layout() {
       {isHome ? (
         <>
           <div className="appgear">{gear}</div>
-          <button
-            type="button"
-            className="icon-button appexit"
-            onClick={() => setConfirmExit(true)}
-            title={"Sair de " + (user?.username || "")}
-          >
-            <IconExit width={20} height={20} />
-            <span className="sr-only">Sair</span>
-          </button>
+          <div className="appbell">
+            <NotificationBell />
+          </div>
         </>
       ) : null}
 
@@ -95,6 +102,9 @@ export default function Layout() {
               <IconChevronLeft width={18} height={18} />
               {parent.label}
             </Link>
+            <div className="pagetop__end">
+              <NotificationBell />
+            </div>
           </div>
         ) : null}
         <Outlet />

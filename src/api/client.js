@@ -1,3 +1,5 @@
+import { forgetSavedBookLists } from "../hooks/useBookList.js";
+
 const BASE_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:4000"
 ).replace(/\/$/, "");
@@ -192,6 +194,13 @@ export async function api(path, options = {}) {
       response.status,
       data,
     );
+  }
+
+  // Mudou livro, emprestimo ou solicitacao: a lista do Acervo guardada para
+  // abrir rapido (hooks/useBookList.js) ja nao vale.
+  const method = String(fetchOptions.method || "GET").toUpperCase();
+  if (method !== "GET" && /^\/api\/(books|loans|requests)(\/|\?|$)/.test(path)) {
+    forgetSavedBookLists();
   }
 
   return data;

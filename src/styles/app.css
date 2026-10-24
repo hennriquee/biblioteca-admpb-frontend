@@ -2069,17 +2069,128 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface-sunk);
   color: var(--ink);
 }
-.appexit {
+/* Sininho (components/NotificationBell.jsx): canto direito do topo,
+   flutuando na Inicio e no fim da linha do "voltar" nas telas internas. */
+.appbell {
   position: absolute;
   z-index: 5;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   right: 14px;
 }
 @media (min-width: 860px) {
-  .appexit {
+  .appbell {
     top: 20px;
     right: 24px;
   }
+}
+.pagetop__end {
+  margin-left: auto;
+  margin-right: -8px;
+}
+.bell {
+  position: relative;
+}
+/* A bolinha vermelha, embaixo do sininho, com o numero de pendencias. */
+.bell__badge {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border: 2px solid var(--paper);
+  border-radius: 999px;
+  background: #d93025;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* Janela do sininho: um cartao por assunto. */
+.notices {
+  display: grid;
+  gap: 10px;
+}
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.notice:hover {
+  background: var(--surface-sunk);
+}
+.notice:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+.notice--alert {
+  border-color: var(--danger-line);
+}
+.notice__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--clay-wash);
+  color: var(--clay);
+}
+.notice__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.notice__text strong {
+  font-size: 0.98rem;
+}
+.notice__text span {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+.notice__count {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #d93025;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.notice__go {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  transform: rotate(180deg);
+}
+.notices__error {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.notices__error p {
+  margin: 0;
 }
 
 /* ---------- Indicadores: pontinhos pulando enquanto carrega ---------- */
@@ -3698,7 +3809,8 @@ span.avatar--empty {
    regra geral de parar as animacoes com o movimento reduzido: parados,
    eles diriam que travou. */
 @media (prefers-reduced-motion: reduce) {
-  .photocut__spin {
+  .photocut__spin,
+  .handoff__spin {
     animation-duration: 0.8s !important;
     animation-iteration-count: infinite !important;
   }
@@ -4480,10 +4592,19 @@ span.avatar--empty {
   display: flex;
   min-width: 0;
 }
-/* Celular estreito: o texto quebra em duas linhas, sem passar da borda. */
+/* O texto do botao nunca quebra de linha. Em celular muito estreito (menos
+   de 360 px), onde ele nao cabe ao lado da Quantidade, ele desce inteiro para
+   a linha de baixo. */
 .detail__request .btn {
-  max-width: 100%;
-  text-align: left;
+  white-space: nowrap;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+@media (max-width: 359px) {
+  .detail__data .detail__request {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 
 /* Janela do pedido */
@@ -4587,4 +4708,178 @@ span.avatar--empty {
 .books__status .segmented__item {
   padding: 9px 4px;
   font-size: 0.8rem;
+}
+
+/* Tela de login: atalho para o acervo publico, para quem so quer ver os
+   livros (o catalogo abre sem login). */
+.login__public {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.login__public span {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.login__public .btn {
+  text-decoration: none;
+}
+
+/* "Confirme a pessoa" (registrar solicitacao): rosto e nome em destaque. */
+.whoconfirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.whoconfirm__name {
+  margin-top: 6px;
+  font-size: 1.08rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.whoconfirm__meta {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.whoconfirm__text {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.whoconfirm__tip {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-wash);
+  color: var(--gold-strong);
+  font-size: 0.8rem;
+}
+
+/* "E voce?" no Solicitar emprestimo do acervo publico */
+.reqform__who {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reqform__ask {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.reqform__note {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+.reqform__note .linkish {
+  font-size: inherit;
+}
+.reqform__meicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--clay-wash);
+  color: var(--clay);
+}
+.reqform__me .reqform__meicon {
+  background: var(--surface);
+}
+
+/* Puxar para recarregar (components/PullToRefresh.jsx): bolinha preta com o
+   arco marrom, descendo do topo junto com o dedo. */
+.ptr {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 50%;
+  z-index: 70;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #000;
+  color: #a8713f;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.ptr--refreshing {
+  transition: transform 0.2s ease;
+}
+.ptr--refreshing .ptr__spin {
+  animation: ptr-spin 0.8s linear infinite;
+}
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Sinal de "estou trabalhando": gira mesmo com "menos movimento" ligado no
+   sistema (como o spinner do recorte de foto). */
+@media (prefers-reduced-motion: reduce) {
+  .ptr--refreshing .ptr__spin {
+    animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* "Solicitar empréstimo": tela de espera do "Confirmar" ate o WhatsApp abrir
+   (components/RequestLoanModal.jsx). Fica por cima de tudo, com o fundo
+   desfocado, para a troca de telas nao piscar. O girador roda mesmo com o
+   movimento reduzido (ver a excecao junto do .photocut__spin). */
+.handoff {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 30, 0.38);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  animation: handoff-in 0.18s ease-out;
+}
+@keyframes handoff-in {
+  from {
+    opacity: 0;
+  }
+}
+.handoff__card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  max-width: 320px;
+  padding: 24px 28px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+.handoff__card p {
+  margin: 0;
+}
+.handoff__cancel {
+  margin-top: 6px;
+}
+.handoff__card strong {
+  font-size: 1rem;
+}
+.handoff__spin {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+  border: 3px solid var(--clay-line);
+  border-top-color: var(--clay);
+  border-radius: 50%;
+  animation: photo-spin 0.8s linear infinite;
 }

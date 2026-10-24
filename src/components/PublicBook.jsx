@@ -8,7 +8,6 @@ import {
   IconCrown,
   IconLoans,
   IconUser,
-  IconWhatsapp,
 } from "./Icons.jsx";
 import { formatDate } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
@@ -269,7 +268,6 @@ export default function PublicBookModal({
                     className="btn btn--primary btn--sm"
                     onClick={() => setRequesting(true)}
                   >
-                    <IconWhatsapp width={16} height={16} />
                     Solicitar empréstimo
                   </button>
                 </dd>

@@ -4,7 +4,11 @@ import { useToast } from "./Toast.jsx";
 import Modal from "./Modal.jsx";
 import BookPicker, { unavailableReason } from "./BookPicker.jsx";
 import PersonPicker from "./PersonPicker.jsx";
-import { dateInputValue, todayInputValue } from "../utils/dates.js";
+import Avatar from "./Avatar.jsx";
+import { dateInputValue, formatLongDate, todayInputValue } from "../utils/dates.js";
+import { formatBookTitle } from "../utils/bookTitle.js";
+import { formatStoredPhone } from "../utils/whatsapp.js";
+import { pokeNotices } from "../utils/adminNotices.js";
 
 /**
  * REGISTRAR SOLICITACAO (painel): o administrador combinou a retirada pelo
@@ -15,11 +19,16 @@ import { dateInputValue, todayInputValue } from "../utils/dates.js";
  *
  * Abre de tres jeitos:
  * - pelo LINK da mensagem do WhatsApp (link = { token, requesterName,
- *   pickupDate, book }): o livro vem fixo, a busca de pessoa ja vem com o nome
- *   que a pessoa digitou e a data com o dia que ela escolheu. Registrado, o
- *   link para de valer (abrir de novo nao registra nada);
+ *   requesterPerson, requesterIsNew, pickupDate, book }): o livro vem fixo, a
+ *   data com o dia que a pessoa escolheu e a pessoa com a ficha em que ela
+ *   tocou no acervo publico (ou a busca ja com o nome que ela digitou).
+ *   Registrado, o link para de valer (abrir de novo nao registra nada);
  * - pela ficha do livro no Acervo (initialBook);
  * - por Emprestimos > Solicitados (sem nada preenchido).
+ *
+ * Antes de gravar, uma CONFIRMACAO SEPARADA mostra o rosto (foto ou
+ * iniciais), o nome e o WhatsApp de quem foi escolhido: e a ultima chance de
+ * perceber que a ficha e de outra pessoa com nome parecido.
  *
  * onSaved(solicitacao) recebe o que o servidor gravou.
  */
@@ -35,19 +44,26 @@ export default function RegisterRequestModal({
   const [person, setPerson] = useState(null);
   const [pickupDate, setPickupDate] = useState("");
   const [saving, setSaving] = useState(false);
+  // A pergunta "E essa pessoa?" antes de gravar.
+  const [confirming, setConfirming] = useState(false);
   const savingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setBook(link?.book || initialBook || null);
-    setPerson(null);
+    // A ficha em que a pessoa tocou no acervo publico ja vem escolhida (o
+    // administrador confere - e pode trocar no "x").
+    setPerson(link?.requesterPerson || null);
+    setConfirming(false);
     setPickupDate(
       (link?.pickupDate && dateInputValue(link.pickupDate)) || todayInputValue(),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, link?.token, initialBook?._id]);
 
-  async function handleSubmit(event) {
+  // "Registrar solicitação": confere o formulario e abre a confirmacao da
+  // pessoa. So o "Sim, é essa pessoa" grava.
+  function handleSubmit(event) {
     event.preventDefault();
     if (!book) return notify("Escolha o livro solicitado.", "error");
     const reason = unavailableReason(book);
@@ -59,7 +75,11 @@ export default function RegisterRequestModal({
       );
     }
     if (!pickupDate) return notify("Informe a retirada prevista.", "error");
+    setConfirming(true);
+    return undefined;
+  }
 
+  async function save() {
     if (savingRef.current) return undefined;
     savingRef.current = true;
     setSaving(true);
@@ -73,9 +93,12 @@ export default function RegisterRequestModal({
         },
       });
       notify("Solicitação registrada. O livro está separado para " + saved.personName + ".", "success");
+      setConfirming(false);
+      pokeNotices();
       onSaved(saved);
     } catch (error) {
       notify(error.message, "error");
+      setConfirming(false);
       const code = error instanceof ApiError ? error.payload?.code : null;
       // Link que deixou de valer no meio do caminho: nao ha o que registrar.
       if (code === "LINK_USED" || code === "LINK_GONE") onClose();
@@ -87,6 +110,7 @@ export default function RegisterRequestModal({
   }
 
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -137,6 +161,12 @@ export default function RegisterRequestModal({
             <label className="field__label" htmlFor="request-person">
               Quem solicitou
             </label>
+            {link?.requesterPerson && person?._id === link.requesterPerson._id ? (
+              <small className="field__hint">
+                A pessoa tocou neste nome do cadastro ao pedir o livro. Confira
+                se é ela mesma (o “x” troca).
+              </small>
+            ) : null}
             <PersonPicker
               key={link?.token || "manual"}
               inputId="request-person"
@@ -145,7 +175,13 @@ export default function RegisterRequestModal({
               onClear={() => setPerson(null)}
               initialQuery={link?.requesterName || ""}
             />
-            {link?.requesterName ? (
+            {link?.requesterIsNew && !person ? (
+              <small className="field__hint field__hint--warn">
+                A pessoa disse que ainda não está no cadastro: use “Cadastrar
+                nova pessoa”.
+              </small>
+            ) : null}
+            {link?.requesterName && !person ? (
               <small className="field__hint">
                 {"Nome que veio na mensagem: “" + link.requesterName + "”. "}
                 Escolha a ficha certa ou cadastre a pessoa.
@@ -168,5 +204,59 @@ export default function RegisterRequestModal({
         </form>
       ) : null}
     </Modal>
+
+    {/* Confirmacao separada da pessoa: o rosto e o nome, em destaque. */}
+    <Modal
+      open={open && confirming && Boolean(person)}
+      onClose={() => (saving ? undefined : setConfirming(false))}
+      title="Confirme a pessoa"
+      size="sm"
+      placement="center"
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => setConfirming(false)}
+            disabled={saving}
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? "Registrando…" : "Sim, é essa pessoa"}
+          </button>
+        </>
+      }
+    >
+      {person ? (
+        <div className="whoconfirm">
+          <Avatar src={person.photo} name={person.fullName} size={96} />
+          <strong className="whoconfirm__name">
+            {(person.code ? "#" + person.code + " " : "") + person.fullName}
+          </strong>
+          <span className="whoconfirm__meta">
+            {person.phone ? formatStoredPhone(person.phone) : "sem WhatsApp"}
+            {person.isAdmin ? " · admin" : ""}
+          </span>
+          <p className="whoconfirm__text">
+            O livro <strong>{formatBookTitle(book?.title)}</strong> vai ficar
+            separado para esta pessoa, com retirada prevista em{" "}
+            <strong>{formatLongDate(pickupDate)}</strong>. É ela mesma?
+          </p>
+          {link ? (
+            <p className="whoconfirm__tip">
+              Confira se o WhatsApp que mandou a mensagem é o desta pessoa: no
+              acervo, qualquer um pode tocar num nome da lista.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </Modal>
+    </>
   );
 }

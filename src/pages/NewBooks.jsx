@@ -6,6 +6,7 @@ import PublicBookModal, { PublicBookRow } from "../components/PublicBook.jsx";
 import { IconChevronLeft } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { getLastSeenBooksAt, markBooksSeenNow } from "../utils/newBooksSeen.js";
+import { useRefresh } from "../utils/refresh.js";
 
 // Nao devia existir acervo com mais novidade acumulada que isso, mas o teto
 // evita um pedido gigante se alguem ficar anos sem visitar o catalogo.
@@ -93,6 +94,21 @@ export default function NewBooks() {
     state === "ready" && selectedId
       ? books.find((book) => book.id === selectedId) || null
       : null;
+
+  // Puxar para atualizar: a mesma lista ("desde" a mesma data), com a
+  // situacao de agora. Se falhar, fica a que ja estava na tela.
+  useRefresh(async () => {
+    if (!since || state !== "ready") return;
+    const data = await publicApi(
+      "/api/public/books?since=" +
+        encodeURIComponent(since) +
+        "&sort=newest&limit=" +
+        LIST_LIMIT,
+    );
+    setBooks(data.items);
+    setTotal(data.total ?? data.items.length);
+    setMostLoanedId(data.mostLoanedId ?? null);
+  });
 
   // O "Avise-me" descobriu que o livro aberto ja voltou para a estante: busca
   // a situacao de agora so dele (a lista nao e recarregada inteira).

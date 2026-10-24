@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import SiteGate from "./components/SiteGate.jsx";
+import PullToRefresh from "./components/PullToRefresh.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { wakeBackend } from "./api/client.js";
@@ -19,6 +20,9 @@ registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    {/* Puxar para recarregar: vale em todas as telas, ate na entrada do
+        "Nao sou um robo" (ver components/PullToRefresh.jsx). */}
+    <PullToRefresh />
     <BrowserRouter>
       {/* "Nao sou um robo" na frente do site inteiro. Fica ACIMA do
           AuthProvider: o servidor recusa qualquer pedido sem o passe, entao

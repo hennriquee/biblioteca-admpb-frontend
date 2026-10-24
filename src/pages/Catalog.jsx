@@ -14,6 +14,7 @@ import { IconSearch, IconUsers } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
+import { useRefresh } from "../utils/refresh.js";
 import { getLastSeenBooksAt, markBooksSeenNow } from "../utils/newBooksSeen.js";
 
 /**
@@ -243,6 +244,10 @@ export default function Catalog() {
     return () =>
       document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [loadOverview]);
+
+  // Puxar para atualizar: a lista e o resumo vem de novo, em silencio (o
+  // livro aberto acompanha - ver o efeito do "selected" mais abaixo).
+  useRefresh(() => Promise.all([list.revalidate(), loadOverview()]));
 
   // Sem lista para o filtro atual (so acontece na primeira abertura, ou a
   // cada filtro quando o acervo e grande demais para filtrar aqui): entra o

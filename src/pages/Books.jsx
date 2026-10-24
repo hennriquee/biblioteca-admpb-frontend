@@ -12,6 +12,8 @@ import RegisterRequestModal from "../components/RegisterRequestModal.jsx";
 import { findCategory } from "../utils/categories.js";
 import { matchesPanelBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
+import { loadPanelBooks as loadBooks } from "../api/panelBooks.js";
+import { useRefresh } from "../utils/refresh.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
@@ -54,17 +56,8 @@ function groupByLetter(books) {
 
 const MAX_COPIES = 999;
 
-// Uma pagina do acervo. filters = null traz sem filtro (ver useBookList).
-function loadBooks(pageNumber, limit, filters) {
-  const params = new URLSearchParams({
-    page: String(pageNumber),
-    limit: String(limit),
-  });
-  if (filters?.search) params.set("search", filters.search);
-  if (filters?.category) params.set("category", filters.category);
-  if (filters?.status) params.set("status", filters.status);
-  return api("/api/books?" + params.toString());
-}
+// Uma pagina do acervo: api/panelBooks.js (o painel tambem a usa para baixar
+// o acervo antes de a pessoa abrir esta tela - ver components/Layout.jsx).
 
 // Situacao no painel: qualquer exemplar fora conta (ver matchesPanelBook).
 const STATUS_OPTIONS = [
@@ -183,6 +176,17 @@ export default function Books() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  // Puxar para atualizar: lista e categorias de novo, em silencio.
+  useRefresh(() => Promise.all([list.revalidate(), loadCategories()]));
+
+  // A ficha aberta acompanha a lista quando ela chega de novo (atualizar,
+  // voltar para a aba): mostra a situacao de agora sem fechar.
+  useEffect(() => {
+    setSelected((current) =>
+      current ? items.find((book) => book._id === current._id) || current : null,
+    );
+  }, [items]);
 
   function reloadFromStart() {
     loadCategories();

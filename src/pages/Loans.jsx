@@ -13,6 +13,7 @@ import RequestDetailModal, {
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { normalizeText } from "../utils/bookFilter.js";
+import { useRefresh } from "../utils/refresh.js";
 import {
   IconPlus,
   IconSearch,
@@ -303,6 +304,22 @@ export default function Loans() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Puxar para atualizar: a lista vem de novo em silencio, e o emprestimo ou a
+  // solicitacao aberta passa a mostrar o que ha de novo (sem fechar; o
+  // rascunho da observacao continua).
+  useRefresh(() => load({ silent: true }));
+  useEffect(() => {
+    if (!loans) return;
+    setSelected((current) =>
+      current ? loans.find((loan) => loan._id === current._id) || current : null,
+    );
+  }, [loans]);
+  useEffect(() => {
+    setSelectedRequest((current) =>
+      current ? requests.find((item) => item._id === current._id) || current : null,
+    );
+  }, [requests]);
 
   // Chegou pelo link do WhatsApp: busca o que o link traz e tira o
   // "?solicitacao=" do endereco (recarregar a pagina nao reabre nada). Link

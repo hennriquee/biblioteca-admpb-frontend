@@ -11,6 +11,7 @@ import { IconEdit, IconPlus, IconSearch } from "../components/Icons.jsx";
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
+import { useRefresh } from "../utils/refresh.js";
 
 /**
  * Usuarios: as pessoas do cadastro (Configuracoes > Usuarios).
@@ -95,6 +96,9 @@ export default function People() {
       if (requestId === requestRef.current) setRefreshing(false);
     }
   }, []);
+
+  // Puxar para atualizar (ver utils/refresh.js).
+  useRefresh(load);
 
   useEffect(() => {
     load();

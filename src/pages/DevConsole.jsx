@@ -21,6 +21,7 @@ import {
 import { normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
+import { useRefresh } from "../utils/refresh.js";
 
 /**
  * MANUTENCAO. Esta tela so abre com o login reservado (digitado na propria
@@ -142,6 +143,9 @@ export default function DevConsole() {
       if (requestId === requestRef.current) setRefreshing(false);
     }
   }, []);
+
+  // Puxar para atualizar (ver utils/refresh.js).
+  useRefresh(load);
 
   useEffect(() => {
     load();

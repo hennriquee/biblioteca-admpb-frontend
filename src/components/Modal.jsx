@@ -60,6 +60,9 @@ export default function Modal({
       }
       // Tab fica dando a volta dentro do modal, sem escapar para a tela de tras.
       if (event.key !== "Tab" || !panelRef.current) return;
+      // Uma camada por cima do modal (data-modal-escape, ex.: a espera do
+      // WhatsApp em RequestLoanModal) cuida do proprio foco.
+      if (document.activeElement?.closest?.("[data-modal-escape]")) return;
       const focusable = focusableNodes();
       if (!focusable.length) return;
       const first = focusable[0];
@@ -81,6 +84,7 @@ export default function Modal({
     function onFocusIn(event) {
       if (openModals[openModals.length - 1] !== token || !panelRef.current) return;
       if (panelRef.current.contains(event.target)) return;
+      if (event.target?.closest?.("[data-modal-escape]")) return;
       const focusable = focusableNodes();
       const target = focusable.length
         ? tabBackRef.current

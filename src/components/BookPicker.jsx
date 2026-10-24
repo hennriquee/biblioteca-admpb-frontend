@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import BookCover from "./BookCover.jsx";
 import { IconClose, IconSearch } from "./Icons.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { matchesBook } from "../utils/bookFilter.js";
+import { useRefresh } from "../utils/refresh.js";
 
 /**
  * Escolha do livro (Novo emprestimo e registro de solicitacao): busca pelo
@@ -55,6 +56,24 @@ export default function BookPicker({ picked, onPick, onClear, locked = false }) 
       active = false;
     };
   }, []);
+
+  // Puxar para atualizar: a situacao dos livros vem de novo (quem acabou de
+  // ser emprestado ou solicitado aparece apagado na busca).
+  // O livro ja escolhido tambem passa a mostrar a situacao de agora - mas so
+  // se ainda e o mesmo quando a resposta chega (o administrador pode ter
+  // trocado ou tirado o livro enquanto ela vinha).
+  const pickedRef = useRef(picked);
+  pickedRef.current = picked;
+  useRefresh(() =>
+    api("/api/books").then((data) => {
+      setAllBooks(data);
+      const current = pickedRef.current;
+      if (current) {
+        const fresh = data.find((item) => item._id === current._id);
+        if (fresh && pickedRef.current?._id === fresh._id) onPick(fresh);
+      }
+    }),
+  );
 
   useEffect(() => {
     if (allBooks || picked || term.length < 2) return undefined;

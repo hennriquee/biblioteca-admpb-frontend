@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { preloadCovers } from "../utils/coverPreload.js";
 
 /**
  * Lista de livros com filtros (Acervo e Catalogo publico).
@@ -33,6 +34,75 @@ const SNAPSHOT_PAGE = LOCAL_MAX;
 const STALE_AFTER_MS = 60 * 1000;
 
 const NO_ITEMS = [];
+// Capas baixadas em segundo plano: as da tela e as dos proximos "Carregar
+// mais" (ver utils/coverPreload.js).
+const PRELOAD_AHEAD = 2 * PAGE_SIZE;
+
+// ---------- Lista guardada entre uma tela e outra ----------
+//
+// O primeiro pedido do acervo (a lista sem filtro) fica guardado aqui, por
+// funcao de busca (Acervo e Catalogo tem a sua). Serve para duas coisas:
+// - prefetchBookList: o painel baixa o Acervo antes de a pessoa tocar em
+//   "Livros" (ver components/Layout.jsx), com as primeiras capas;
+// - voltar para a tela: a lista aparece na hora, com as capas, e uma copia
+//   nova e buscada em silencio.
+// Mais velha que isso, a lista guardada nao aparece (espera a copia nova).
+const SAVED_FRESH_MS = 2 * 60 * 1000;
+// funcao load -> { at, first, promise }
+const saved = new Map();
+
+/**
+ * Esquece as listas guardadas. Chamado pelo api/client.js quando um livro,
+ * emprestimo ou solicitacao muda no painel: a proxima abertura do Acervo nao
+ * mostra a situacao antiga (ex.: "disponivel" de um livro que acabou de sair).
+ */
+export function forgetSavedBookLists() {
+  saved.clear();
+  forgottenAt = Date.now();
+}
+let forgottenAt = 0;
+
+function remember(load, first) {
+  saved.set(load, { at: Date.now(), first, promise: null });
+}
+
+function freshSaved(load) {
+  const entry = saved.get(load);
+  return entry?.first && Date.now() - entry.at < SAVED_FRESH_MS ? entry : null;
+}
+
+// A lista guardada so aparece direto quando veio inteira num pedido so.
+function completeSaved(load) {
+  const entry = freshSaved(load);
+  return entry && entry.first.total <= entry.first.items.length ? entry : null;
+}
+
+/**
+ * Baixa em segundo plano a primeira lista (sem filtro) e as primeiras capas.
+ * Nao faz nada se ja ha uma copia recente ou um pedido andando.
+ */
+export function prefetchBookList(load) {
+  const entry = saved.get(load);
+  if (freshSaved(load) || entry?.promise) return;
+  const promise = load(1, SNAPSHOT_PAGE, null).then(
+    (first) => {
+      // Esquecida no meio do caminho (algo mudou): esta copia ja e velha.
+      if (saved.get(load)?.promise !== promise) return first;
+      remember(load, first);
+      preloadCovers(
+        (first.items || []).slice(0, PAGE_SIZE + PRELOAD_AHEAD).map((book) => book.cover),
+      );
+      return first;
+    },
+    (error) => {
+      if (saved.get(load)?.promise === promise) saved.delete(load);
+      throw error;
+    },
+  );
+  // Ninguem esperando: a falha nao vira erro solto no console.
+  promise.catch(() => {});
+  saved.set(load, { at: 0, first: entry?.first || null, promise });
+}
 const NO_SERVER_LIST = {
   key: null,
   items: NO_ITEMS,
@@ -60,11 +130,13 @@ export function useBookList({ load, filters, matches }) {
   const matchesRef = useRef(matches);
   matchesRef.current = matches;
 
-  const [mode, setMode] = useState("starting");
+  // Lista guardada recente e inteira: aparece ja no primeiro desenho.
+  const [initial] = useState(() => completeSaved(load));
+  const [mode, setMode] = useState(initial ? "local" : "starting");
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
-  const [all, setAll] = useState(NO_ITEMS);
+  const [all, setAll] = useState(initial ? initial.first.items : NO_ITEMS);
   // error: nao ha lista para mostrar. notice: a lista continua na tela, mas a
   // ultima atualizacao (ou o "carregar mais") falhou.
   const [error, setError] = useState("");
@@ -77,20 +149,26 @@ export function useBookList({ load, filters, matches }) {
   // Qual livro do acervo leva a coroinha de mais emprestado (quem responde e
   // o servidor, olhando o acervo inteiro; null quando ha empate no primeiro
   // lugar). Vem em toda pagina de resultado, entao acompanha a lista.
-  const [mostLoanedId, setMostLoanedId] = useState(null);
+  const [mostLoanedId, setMostLoanedId] = useState(
+    initial?.first.mostLoanedId || null,
+  );
   const [serverBusy, setServerBusy] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   // So a resposta do ultimo pedido vale: as antigas, atrasadas, sao descartadas.
   const snapshotRequest = useRef(0);
   const serverRequest = useRef(0);
-  const snapshotAt = useRef(0);
+  // Com a lista guardada, a copia nova ja e pedida ao abrir (logo abaixo):
+  // conta como recente, para a troca de filtro nao pedir outra junto.
+  const snapshotAt = useRef(initial ? Date.now() : 0);
   // Filtro (key) cuja primeira tela ja veio junto com o download inicial.
   const seededKey = useRef(null);
 
   // Baixa o acervo inteiro. silent: sem esmaecer a lista e sem avisar se falhar.
+  // useSaved: na abertura da tela, aproveita a lista que o painel ja baixou
+  // antes (ou o pedido dela que ainda esta andando).
   const loadSnapshot = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, useSaved = false, reportFailure = false } = {}) => {
       const requestId = ++snapshotRequest.current;
       if (!silent) {
         setRefreshing(true);
@@ -98,7 +176,18 @@ export function useBookList({ load, filters, matches }) {
         setNotice("");
       }
       try {
-        const first = await load(1, SNAPSHOT_PAGE, null);
+        // So o pedido que o painel ja deixou andando (e de agora). Uma lista
+        // guardada pronta so aparece pelo "initial" la em cima, e mesmo assim
+        // com a conferida logo em seguida.
+        let first = null;
+        const entry = useSaved ? saved.get(load) : null;
+        if (entry?.promise) first = await entry.promise.catch(() => null);
+        if (!first) {
+          const startedAt = Date.now();
+          first = await load(1, SNAPSHOT_PAGE, null);
+          // So guarda se nada mudou no painel enquanto esta copia vinha.
+          if (!(forgottenAt > startedAt)) remember(load, first);
+        }
         if (requestId !== snapshotRequest.current) return;
         let books = first.items;
         setMostLoanedId(first.mostLoanedId || null);
@@ -147,7 +236,7 @@ export function useBookList({ load, filters, matches }) {
       } catch (err) {
         if (requestId !== snapshotRequest.current) return;
         if (modeRef.current === "starting") setError(err.message);
-        else if (!silent) setNotice(err.message);
+        else if (!silent || reportFailure) setNotice(err.message);
       } finally {
         if (requestId === snapshotRequest.current) setRefreshing(false);
       }
@@ -216,8 +305,12 @@ export function useBookList({ load, filters, matches }) {
     [load],
   );
 
+  // Abrindo com a lista guardada na tela: so confere, em silencio, se mudou.
   useEffect(() => {
-    loadSnapshot();
+    // (Se a conferida falhar, avisa: a lista na tela pode estar velha.)
+    if (initial) loadSnapshot({ silent: true, reportFailure: true });
+    else loadSnapshot({ useSaved: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadSnapshot]);
 
   // Modo servidor: recarrega do comeco quando o filtro muda. So a digitacao
@@ -265,6 +358,16 @@ export function useBookList({ load, filters, matches }) {
   );
 
   const serverReady = server.key === key;
+
+  // Capas: as da tela e as dos proximos dois "Carregar mais", ja baixando.
+  const preloadList = useMemo(() => {
+    if (mode === "local") return filtered.slice(0, visible + PRELOAD_AHEAD);
+    if (mode === "server" && serverReady) return server.items;
+    return NO_ITEMS;
+  }, [mode, filtered, visible, serverReady, server.items]);
+  useEffect(() => {
+    preloadCovers(preloadList.map((book) => book.cover));
+  }, [preloadList]);
 
   let items = NO_ITEMS;
   let total = 0;

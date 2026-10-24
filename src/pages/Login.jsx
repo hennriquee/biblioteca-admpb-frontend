@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import ReadingScene from "../components/ReadingScene.jsx";
-import { IconEye, IconEyeOff } from "../components/Icons.jsx";
+import { IconBooks, IconEye, IconEyeOff } from "../components/Icons.jsx";
 
 export default function Login() {
   const { login, user, loading } = useAuth();
@@ -122,6 +122,16 @@ export default function Login() {
           >
             {submitting ? "Entrando…" : "Entrar"}
           </button>
+
+          {/* Quem nao administra e so quer ver os livros: o acervo publico
+              abre sem login. */}
+          <div className="login__public">
+            <span>Só quer ver os livros?</span>
+            <Link to="/catalogo" className="btn btn--ghost btn--block">
+              <IconBooks width={18} height={18} />
+              Ver o catálogo
+            </Link>
+          </div>
         </form>
 
         <footer className="login__footer">
