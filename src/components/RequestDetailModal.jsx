@@ -33,7 +33,7 @@ export function pickupWhen(pickupDate) {
  * aqui); as datas vem preenchidas - a retirada com a retirada prevista e a
  * devolucao 21 dias depois - e podem ser trocadas.
  *
- * Embaixo, as duas saidas: "Realizar empréstimo" (a solicitacao vira
+ * Embaixo, as duas saidas: "Emprestar" (a solicitacao vira
  * emprestimo) e "Excluir solicitação" (o exemplar volta para a estante), esta
  * com confirmacao, para um toque errado nao apagar nada.
  *
@@ -108,7 +108,10 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
     return run(async () => {
       try {
         await api("/api/requests/" + request._id, { method: "DELETE" });
-        notify("Solicitação excluída. O livro voltou para a estante.", "success");
+        notify(
+          "Solicitação excluída. O livro voltou para a estante.",
+          "success",
+        );
         pokeNotices();
         onChanged("deleted");
       } catch (error) {
@@ -122,7 +125,9 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
   const nameDiffers =
     request?.requesterName &&
     request.requesterName.trim().toLowerCase() !==
-      String(request.personName || "").trim().toLowerCase();
+      String(request.personName || "")
+        .trim()
+        .toLowerCase();
 
   return (
     <>
@@ -139,7 +144,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
               disabled={busy}
             >
               <IconTrash width={17} height={17} />
-              Excluir solicitação
+              Excluir
             </button>
             <button
               type="button"
@@ -148,7 +153,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
               disabled={busy}
             >
               <IconCheck width={17} height={17} />
-              {busy ? "Aguarde…" : "Realizar empréstimo"}
+              {busy ? "Aguarde…" : "Emprestar"}
             </button>
           </div>
         }
@@ -165,11 +170,16 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
             <div className="field reqdetail__fixed">
               <span className="field__label">Quem vai levar</span>
               <div className="picked">
-                <Avatar src={request.personPhoto} name={request.personName} size={44} />
+                <Avatar
+                  src={request.personPhoto}
+                  name={request.personName}
+                  size={44}
+                />
                 <div>
                   <strong title={request.personName}>
-                    {(request.personCode ? "#" + request.personCode + " " : "") +
-                      request.personName}
+                    {(request.personCode
+                      ? "#" + request.personCode + " "
+                      : "") + request.personName}
                   </strong>
                   <small>
                     {request.personPhone
@@ -263,7 +273,9 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
       <Confirm
         open={Boolean(warning)}
         title="Essa pessoa já tem um livro"
-        message={warningText(warning) + " Tem certeza que quer emprestar outro?"}
+        message={
+          warningText(warning) + " Tem certeza que quer emprestar outro?"
+        }
         confirmLabel="Sim, emprestar"
         onCancel={() => setWarning(null)}
         onConfirm={() => {
