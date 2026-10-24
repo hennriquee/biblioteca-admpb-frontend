@@ -8,8 +8,9 @@ import CoverSearchModal from "../components/CoverSearchModal.jsx";
 import CoverPicker from "../components/CoverPicker.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
+import RegisterRequestModal from "../components/RegisterRequestModal.jsx";
 import { findCategory } from "../utils/categories.js";
-import { matchesBook } from "../utils/bookFilter.js";
+import { matchesPanelBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
@@ -19,6 +20,7 @@ import {
   IconSearch,
   IconEdit,
   IconTrash,
+  IconUser,
 } from "../components/Icons.jsx";
 
 const emptyForm = {
@@ -60,28 +62,59 @@ function loadBooks(pageNumber, limit, filters) {
   });
   if (filters?.search) params.set("search", filters.search);
   if (filters?.category) params.set("category", filters.category);
+  if (filters?.status) params.set("status", filters.status);
   return api("/api/books?" + params.toString());
 }
+
+// Situacao no painel: qualquer exemplar fora conta (ver matchesPanelBook).
+const STATUS_OPTIONS = [
+  { key: "", label: "Todos" },
+  { key: "disponivel", label: "Disponíveis" },
+  { key: "emprestado", label: "Emprestados" },
+  { key: "solicitado", label: "Solicitados" },
+];
 
 // Texto da situação do livro, considerando todas as unidades.
 function loanStatusText(book) {
   const names = book.loanedNames || [];
+  const requested = book.requestedNames || [];
+  const parts = [];
+  if (names.length) parts.push("com " + names.join(", "));
+  if (requested.length) parts.push("solicitado por " + requested.join(", "));
   if ((book.copies || 1) > 1) {
     const base = book.available + " de " + book.copies + " na estante";
-    return names.length ? base + " · com " + names.join(", ") : base;
+    return parts.length ? base + " · " + parts.join(" · ") : base;
   }
-  return names.length ? "Com " + names[0] : "Na estante";
+  if (!parts.length) return "Na estante";
+  return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
 }
 
-// Selo da lista: só aparece quando há unidade emprestada.
+// Selo da lista: só aparece quando há unidade fora (emprestada ou solicitada).
 function loanChip(book) {
-  if (!book.loanedCount) return null;
-  if ((book.copies || 1) === 1) return { label: "emprestado", full: true };
-  if (book.available === 0) return { label: "todos emprestados", full: true };
-  return {
-    label: book.loanedCount + " de " + book.copies + " emprestados",
-    full: false,
-  };
+  const loaned = book.loanedCount || 0;
+  const requested = book.requestedCount || 0;
+  if (!loaned && !requested) return null;
+  const copies = book.copies || 1;
+  if (copies === 1) {
+    return requested
+      ? { label: "solicitado", tone: "req" }
+      : { label: "emprestado", tone: "out" };
+  }
+  if (book.available === 0) {
+    if (!loaned) return { label: "todos solicitados", tone: "req" };
+    if (!requested) return { label: "todos emprestados", tone: "out" };
+    return { label: "nenhum na estante", tone: "out" };
+  }
+  if (!requested) {
+    return { label: loaned + " de " + copies + " emprestados", tone: "part" };
+  }
+  if (!loaned) {
+    return {
+      label: requested + " de " + copies + (requested === 1 ? " solicitado" : " solicitados"),
+      tone: "req",
+    };
+  }
+  return { label: loaned + requested + " de " + copies + " fora", tone: "part" };
 }
 
 export default function Books() {
@@ -91,19 +124,26 @@ export default function Books() {
   // Categorias que ja existem no acervo ([{ name, count }]) e a escolhida no filtro.
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // O acervo e baixado uma vez e os filtros rodam aqui mesmo, na hora (ver
   // useBookList). "items" e o que esta na tela (10, 20, 30… conforme o
   // "carregar mais"); "total" e quantos livros o filtro atual encontra.
   const list = useBookList({
     load: loadBooks,
-    filters: { search: search.trim(), category: categoryFilter },
-    matches: matchesBook,
+    filters: {
+      search: search.trim(),
+      category: categoryFilter,
+      status: statusFilter,
+    },
+    matches: matchesPanelBook,
   });
   const { items, total, hasMore, waiting, error } = list;
 
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // "Marcar como solicitado": o livro da ficha aberta.
+  const [requestBook, setRequestBook] = useState(null);
 
   const [creating, setCreating] = useState(false);
   const [isbnInput, setIsbnInput] = useState("");
@@ -117,8 +157,9 @@ export default function Books() {
   const [coverSearchOpen, setCoverSearchOpen] = useState(false);
   const [coverSearchQuery, setCoverSearchQuery] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
-  // Unidades emprestadas agora do livro em edição: a quantidade não pode ficar
-  // abaixo disso. E o livro já cadastrado quando o ISBN digitado se repete.
+  // Unidades fora agora (emprestadas ou solicitadas) do livro em edição: a
+  // quantidade não pode ficar abaixo disso. E o livro já cadastrado quando o
+  // ISBN digitado se repete.
   const [loanedNow, setLoanedNow] = useState(0);
   const [duplicateBook, setDuplicateBook] = useState(null);
   const minCopies = Math.max(1, loanedNow);
@@ -149,7 +190,7 @@ export default function Books() {
   }
 
   const groups = useMemo(() => groupByLetter(items), [items]);
-  const isFiltering = Boolean(search.trim() || categoryFilter);
+  const isFiltering = Boolean(search.trim() || categoryFilter || statusFilter);
 
   function openCreate() {
     setForm(emptyForm);
@@ -237,7 +278,7 @@ export default function Books() {
       synopsis: book.synopsis || "",
       copies: book.copies || 1,
     });
-    setLoanedNow(book.loanedCount || 0);
+    setLoanedNow((book.loanedCount || 0) + (book.requestedCount || 0));
     setLinkOpen(false);
     setEditingId(book._id);
     setLookupState("found");
@@ -261,8 +302,7 @@ export default function Books() {
       notify(
         "Há " +
           loanedNow +
-          (loanedNow === 1 ? " emprestado" : " emprestados") +
-          " agora, então a quantidade não pode ser menor que " +
+          " fora da estante (emprestados ou solicitados) agora, então a quantidade não pode ser menor que " +
           loanedNow +
           ".",
         "error",
@@ -364,6 +404,27 @@ export default function Books() {
         />
       ) : null}
 
+      <div
+        className="segmented books__status"
+        role="group"
+        aria-label="Situação do livro"
+      >
+        {STATUS_OPTIONS.map((option) => (
+          <button
+            key={option.key || "todos"}
+            type="button"
+            aria-pressed={statusFilter === option.key}
+            className={
+              "segmented__item" +
+              (statusFilter === option.key ? " is-active" : "")
+            }
+            onClick={() => setStatusFilter(option.key)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {waiting ? <ListSkeleton label="Carregando o acervo…" /> : null}
 
       {error ? (
@@ -453,12 +514,7 @@ export default function Books() {
                         </small>
                       </span>
                       {loanChip(book) ? (
-                        <span
-                          className={
-                            "chip " +
-                            (loanChip(book).full ? "chip--out" : "chip--part")
-                          }
-                        >
+                        <span className={"chip chip--" + loanChip(book).tone}>
                           {loanChip(book).label}
                         </span>
                       ) : null}
@@ -569,6 +625,18 @@ export default function Books() {
                 </dd>
               </div>
             </dl>
+            {/* Retirada combinada pelo WhatsApp: o exemplar fica separado
+                para quem pediu (ver components/RegisterRequestModal.jsx). */}
+            {selected.available > 0 ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm detail__mark"
+                onClick={() => setRequestBook(selected)}
+              >
+                <IconUser width={16} height={16} />
+                Marcar como solicitado
+              </button>
+            ) : null}
             {selected.synopsis ? (
               <div className="detail__synopsis">
                 <h3>Sinopse</h3>
@@ -578,6 +646,17 @@ export default function Books() {
           </div>
         ) : null}
       </Modal>
+
+      <RegisterRequestModal
+        open={Boolean(requestBook)}
+        initialBook={requestBook}
+        onClose={() => setRequestBook(null)}
+        onSaved={() => {
+          setRequestBook(null);
+          setSelected(null);
+          list.reload();
+        }}
+      />
 
       {/* Modal de cadastro / edicao */}
       <Modal
@@ -798,8 +877,8 @@ export default function Books() {
                 {loanedNow > 0
                   ? loanedNow +
                     (loanedNow === 1
-                      ? " está emprestado agora; a quantidade não pode ser menor que isso."
-                      : " estão emprestados agora; a quantidade não pode ser menor que isso.")
+                      ? " está fora da estante (emprestado ou solicitado) agora; a quantidade não pode ser menor que isso."
+                      : " estão fora da estante (emprestados ou solicitados) agora; a quantidade não pode ser menor que isso.")
                   : "Quantas cópias deste livro a biblioteca tem."}
               </small>
             </div>

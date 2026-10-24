@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import ReadingScene from "../components/ReadingScene.jsx";
 import { IconEye, IconEyeOff } from "../components/Icons.jsx";
@@ -7,6 +7,16 @@ import { IconEye, IconEyeOff } from "../components/Icons.jsx";
 export default function Login() {
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
+  // Para onde a pessoa queria ir antes de cair no login (ver Protected, em
+  // App.jsx) - por exemplo, o link de uma solicitacao vindo do WhatsApp.
+  const from = useLocation().state?.from;
+  const fromPath =
+    from?.pathname && from.pathname !== "/login"
+      ? from.pathname + (from.search || "")
+      : "";
+  const fromRequest =
+    fromPath.startsWith("/solicitacao/") ||
+    /[?&]solicitacao=/.test(from?.search || "");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +30,7 @@ export default function Login() {
   // Para onde a sessao leva: o painel da biblioteca ou, no caso do login
   // reservado, a tela de manutencao (ver backend/src/services/devAccess.js).
   const homeFor = (session) =>
-    session?.role === "dev" ? "/manutencao" : "/";
+    session?.role === "dev" ? "/manutencao" : fromPath || "/";
 
   if (!loading && user) return <Navigate to={homeFor(user)} replace />;
 
@@ -54,7 +64,9 @@ export default function Login() {
 
           <h1>Entrar na biblioteca</h1>
           <p className="login__hint">
-            Acesso restrito a quem administra o acervo.
+            {fromRequest
+              ? "Entre com a sua conta de administrador para registrar a solicitação de empréstimo."
+              : "Acesso restrito a quem administra o acervo."}
           </p>
 
           <label className="field">

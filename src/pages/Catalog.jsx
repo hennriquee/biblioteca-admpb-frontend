@@ -70,6 +70,7 @@ const STATUS_OPTIONS = [
   { key: "", label: "Todos" },
   { key: "disponivel", label: "Disponíveis" },
   { key: "emprestado", label: "Emprestados" },
+  { key: "solicitado", label: "Solicitados" },
 ];
 
 // Agrupa por letra inicial (sem acento: "Oração" fica no O). Os livros ja
@@ -473,7 +474,8 @@ export default function Catalog() {
         <footer className="pub__foot">
           <p>
             A situação mostrada é a de agora. Para pegar um livro emprestado,
-            procure a equipe da biblioteca.
+            toque em “Solicitar empréstimo” na ficha dele ou procure a equipe
+            da biblioteca.
           </p>
           <p>
             © {new Date().getFullYear()} ADMP Brasil — Todos os direitos

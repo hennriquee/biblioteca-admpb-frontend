@@ -5,6 +5,11 @@ import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
 import BookCover from "../components/BookCover.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
+import OptionFilter from "../components/OptionFilter.jsx";
+import RegisterRequestModal from "../components/RegisterRequestModal.jsx";
+import RequestDetailModal, {
+  pickupWhen,
+} from "../components/RequestDetailModal.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { normalizeText } from "../utils/bookFilter.js";
@@ -12,6 +17,7 @@ import {
   IconPlus,
   IconSearch,
   IconCheck,
+  IconTag,
   IconWhatsapp,
 } from "../components/Icons.jsx";
 import {
@@ -23,6 +29,38 @@ import {
 // Lista baixada ha mais tempo que isso e atualizada (em silencio) na proxima
 // troca de filtro.
 const STALE_AFTER_MS = 60 * 1000;
+
+// Situacoes do filtro (lista suspensa). "solicitados" sao as solicitacoes de
+// emprestimo ja registradas (ver backend/src/models/LoanRequest.js), da
+// retirada prevista mais proxima para a mais distante; "todos" junta tudo.
+const STATUS_OPTIONS = [
+  { key: "ativo", label: "Em andamento" },
+  { key: "atrasados", label: "Atrasados" },
+  { key: "devolvido", label: "Devolvidos" },
+  { key: "solicitados", label: "Solicitados" },
+  { key: "todos", label: "Todos" },
+];
+const STATUS_KEYS = STATUS_OPTIONS.map((option) => option.key);
+
+function isOverdue(loan) {
+  return (
+    loan.status === "ativo" &&
+    Boolean(loan.dueDate) &&
+    loanProgress(loan.startDate, loan.dueDate).overdue
+  );
+}
+
+// Os campos de busca valem tambem para as solicitacoes.
+function matchesText(item, book, person) {
+  if (
+    book &&
+    !normalizeText(item.bookTitle).includes(book) &&
+    !String(item.bookIsbn || "").toLowerCase().includes(book)
+  ) {
+    return false;
+  }
+  return !person || normalizeText(item.personName).includes(person);
+}
 
 // O filtro roda aqui mesmo, com as mesmas regras do servidor
 // (routes/loans.js). "atrasados" = em andamento com o prazo vencido.
@@ -41,6 +79,48 @@ function matchesLoan(loan, status, book, person) {
     return false;
   }
   return !person || normalizeText(loan.personName).includes(person);
+}
+
+// Cartao de uma solicitacao (Emprestimos > Solicitados).
+function RequestCard({ request, onOpen }) {
+  const bookTitle = formatBookTitle(request.bookTitle);
+  const when = pickupWhen(request.pickupDate);
+  const late = when.startsWith("passou");
+  return (
+    <li>
+      <button
+        type="button"
+        className={"loancard loancard--request" + (late ? " loancard--late" : "")}
+        onClick={() => onOpen(request)}
+      >
+        <span className="loancard__tag loancard__tag--request">Solicitado</span>
+
+        <BookCover
+          src={request.bookCover}
+          alt={"Capa de " + bookTitle}
+          className="cover--sm"
+        />
+
+        <div className="loancard__body">
+          <div className="loancard__top">
+            <strong title={bookTitle}>{bookTitle}</strong>
+          </div>
+          <p className="loancard__person">{request.personName}</p>
+          {request.registeredByName ? (
+            <p className="loancard__approved">
+              registrada por {request.registeredByName}
+            </p>
+          ) : null}
+          <div className="loancard__dates">
+            <span>retirada prevista</span>
+            <span className={late ? "is-late" : ""}>
+              {formatDate(request.pickupDate) + " · " + when}
+            </span>
+          </div>
+        </div>
+      </button>
+    </li>
+  );
 }
 
 function LoanCard({ loan, onOpen }) {
@@ -148,10 +228,14 @@ function LoanCard({ loan, onOpen }) {
 export default function Loans() {
   const { notify } = useToast();
 
-  // Todos os emprestimos (em andamento + devolvidos dos ultimos dias) sao
-  // baixados uma vez; as abas e os dois campos filtram aqui mesmo, na hora.
-  // null = ainda baixando (a tela mostra o esqueleto).
+  // Todos os emprestimos (em andamento + devolvidos dos ultimos dias) e as
+  // solicitacoes sao baixados uma vez; o filtro e os dois campos filtram aqui
+  // mesmo, na hora. null = ainda baixando (a tela mostra o esqueleto).
   const [loans, setLoans] = useState(null);
+  const [requests, setRequests] = useState([]);
+  // As solicitacoes nao vieram (a lista de emprestimos veio): a tela avisa,
+  // em vez de dizer que nao ha nenhuma.
+  const [requestsFailed, setRequestsFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   // So a resposta da ultima chamada vale (respostas antigas atrasadas caem fora).
@@ -161,11 +245,16 @@ export default function Loans() {
   // cartoes da Inicio conseguem abrir esta tela ja filtrada.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawFilter = searchParams.get("filtro");
-  const status = ["atrasados", "devolvido", "todos"].includes(rawFilter)
-    ? rawFilter
-    : "ativo";
+  const status = STATUS_KEYS.includes(rawFilter) ? rawFilter : "ativo";
   const setStatus = (key) =>
     setSearchParams(key === "ativo" ? {} : { filtro: key }, { replace: true });
+  // Link da mensagem do WhatsApp (/solicitacao/<id> traz para ca com
+  // ?solicitacao=<id>): abre o "Registrar solicitação" ja preenchido.
+  const linkToken = searchParams.get("solicitacao");
+  const [link, setLink] = useState(null);
+  const [linkProblem, setLinkProblem] = useState("");
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [bookFilter, setBookFilter] = useState("");
   const [personFilter, setPersonFilter] = useState("");
   const [selected, setSelected] = useState(null);
@@ -188,10 +277,17 @@ export default function Loans() {
         setError("");
       }
       try {
-        const data = await api("/api/loans?status=todos");
+        // As solicitacoes nao derrubam a lista de emprestimos: se so elas
+        // falharem, os emprestimos aparecem e as solicitacoes ficam como estavam.
+        const [data, requestList] = await Promise.all([
+          api("/api/loans?status=todos"),
+          api("/api/requests").catch(() => null),
+        ]);
         if (requestId !== requestRef.current) return;
         loadedAt.current = Date.now();
         setLoans(data);
+        if (requestList) setRequests(requestList);
+        setRequestsFailed(!requestList);
         // Chegou lista nova: um aviso de falha anterior ja nao vale.
         setError("");
       } catch (err) {
@@ -207,6 +303,43 @@ export default function Loans() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Chegou pelo link do WhatsApp: busca o que o link traz e tira o
+  // "?solicitacao=" do endereco (recarregar a pagina nao reabre nada). Link
+  // ja usado, excluido ou vencido nao registra nada: so explica.
+  // (O pedido nao e cancelado quando o endereco muda - e a propria limpeza do
+  // endereco que muda linkToken. So a saida da tela descarta a resposta.)
+  const mountedRef = useRef(true);
+  const handledToken = useRef(null);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!linkToken || handledToken.current === linkToken) return;
+    handledToken.current = linkToken;
+    setLinkProblem("");
+    api("/api/requests/link/" + encodeURIComponent(linkToken))
+      .then((data) => {
+        if (!mountedRef.current) return;
+        setLink(data);
+        setRegisterOpen(true);
+        setSearchParams({ filtro: "solicitados" }, { replace: true });
+      })
+      .catch((error) => {
+        if (!mountedRef.current) return;
+        setLinkProblem(error.message);
+        // Sem resposta (rede): o link continua no endereco, e recarregar a
+        // pagina tenta de novo. Com resposta (ja usado, vencido), sai.
+        if (error.status) {
+          setSearchParams({ filtro: "solicitados" }, { replace: true });
+        }
+      });
+    // Roda quando chega um link novo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkToken]);
 
   const book = normalizeText(bookFilter);
   const person = normalizeText(personFilter);
@@ -237,9 +370,36 @@ export default function Loans() {
 
   const shownLoans = useMemo(
     () =>
-      (loans || []).filter((loan) => matchesLoan(loan, status, book, person)),
+      status === "solicitados"
+        ? []
+        : (loans || []).filter((loan) => matchesLoan(loan, status, book, person)),
     [loans, status, book, person],
   );
+  // Ja vem do servidor da retirada prevista mais proxima para a mais distante.
+  const shownRequests = useMemo(
+    () =>
+      status === "solicitados" || status === "todos"
+        ? requests.filter((item) => matchesText(item, book, person))
+        : [],
+    [requests, status, book, person],
+  );
+  const shownCount = shownLoans.length + shownRequests.length;
+
+  // Quantos ha em cada situacao (sem contar os campos de busca).
+  const statusOptions = useMemo(() => {
+    if (!loans) return STATUS_OPTIONS;
+    const counts = {
+      ativo: loans.filter((loan) => loan.status === "ativo").length,
+      atrasados: loans.filter(isOverdue).length,
+      devolvido: loans.filter((loan) => loan.status === "devolvido").length,
+      solicitados: requestsFailed ? undefined : requests.length,
+      todos: requestsFailed ? undefined : loans.length + requests.length,
+    };
+    return STATUS_OPTIONS.map((option) => ({
+      ...option,
+      count: counts[option.key],
+    }));
+  }, [loans, requests, requestsFailed]);
   // Sem lista ainda (primeira abertura): esqueleto. Com erro e sem lista: aviso.
   const waiting = loans === null && !error;
   const failed = loans === null && Boolean(error);
@@ -309,14 +469,41 @@ export default function Loans() {
               ? "Carregando…"
               : failed
                 ? "Não foi possível carregar"
-                : shownLoans.length + " registro(s) nesta lista"}
+                : shownCount + " registro(s) nesta lista"}
           </p>
         </div>
-        <Link to="/emprestimos/novo" className="btn btn--primary">
-          <IconPlus width={18} height={18} />
-          Novo empréstimo
-        </Link>
+        {status === "solicitados" ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => {
+              setLink(null);
+              setRegisterOpen(true);
+            }}
+          >
+            <IconPlus width={18} height={18} />
+            Registrar solicitação
+          </button>
+        ) : (
+          <Link to="/emprestimos/novo" className="btn btn--primary">
+            <IconPlus width={18} height={18} />
+            Novo empréstimo
+          </Link>
+        )}
       </div>
+
+      {linkProblem ? (
+        <div className="linknotice" role="alert">
+          <p>{linkProblem}</p>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setLinkProblem("")}
+          >
+            Entendi
+          </button>
+        </div>
+      ) : null}
 
       <div className="filters">
         <div className="searchbar">
@@ -339,27 +526,13 @@ export default function Loans() {
         </div>
       </div>
 
-      <div className="segmented" role="tablist">
-        {[
-          { key: "ativo", label: "Em andamento" },
-          { key: "atrasados", label: "Atrasados" },
-          { key: "devolvido", label: "Devolvidos" },
-          { key: "todos", label: "Todos" },
-        ].map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            role="tab"
-            aria-selected={status === option.key}
-            className={
-              "segmented__item" + (status === option.key ? " is-active" : "")
-            }
-            onClick={() => setStatus(option.key)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <OptionFilter
+        label="Situação"
+        icon={IconTag}
+        value={status}
+        onChange={setStatus}
+        options={statusOptions}
+      />
 
       {waiting ? <ListSkeleton label="Carregando os empréstimos…" /> : null}
 
@@ -376,16 +549,46 @@ export default function Loans() {
         </div>
       ) : null}
 
-      {loans !== null && shownLoans.length === 0 ? (
+      {requestsFailed && (status === "solicitados" || status === "todos") ? (
+        <div className="empty" role="alert">
+          <p>Não foi possível carregar as solicitações agora.</p>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => load()}
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
+
+      {loans !== null &&
+      shownCount === 0 &&
+      !(requestsFailed && status === "solicitados") ? (
         <div className="empty">
           <p>
             {status === "atrasados"
               ? "Nenhum empréstimo atrasado."
-              : "Nada por aqui ainda."}
+              : status === "solicitados"
+                ? "Nenhuma solicitação no momento."
+                : "Nada por aqui ainda."}
           </p>
-          <Link to="/emprestimos/novo" className="btn btn--ghost">
-            Registrar um empréstimo
-          </Link>
+          {status === "solicitados" ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                setLink(null);
+                setRegisterOpen(true);
+              }}
+            >
+              Registrar uma solicitação
+            </button>
+          ) : (
+            <Link to="/emprestimos/novo" className="btn btn--ghost">
+              Registrar um empréstimo
+            </Link>
+          )}
         </div>
       ) : null}
 
@@ -396,13 +599,44 @@ export default function Loans() {
         </p>
       ) : null}
 
-      {shownLoans.length > 0 ? (
+      {shownCount > 0 ? (
         <ul className={"loanlist" + (refreshing ? " is-refreshing" : "")}>
+          {shownRequests.map((item) => (
+            <RequestCard
+              key={"s" + item._id}
+              request={item}
+              onOpen={setSelectedRequest}
+            />
+          ))}
           {shownLoans.map((loan) => (
             <LoanCard key={loan._id} loan={loan} onOpen={setSelected} />
           ))}
         </ul>
       ) : null}
+
+      <RegisterRequestModal
+        open={registerOpen}
+        link={link}
+        onClose={() => {
+          setRegisterOpen(false);
+          setLink(null);
+        }}
+        onSaved={() => {
+          setRegisterOpen(false);
+          setLink(null);
+          setStatus("solicitados");
+          load();
+        }}
+      />
+
+      <RequestDetailModal
+        request={selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        onChanged={() => {
+          setSelectedRequest(null);
+          load();
+        }}
+      />
 
       <Modal
         open={Boolean(selected)}

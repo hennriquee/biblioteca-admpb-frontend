@@ -118,3 +118,23 @@ export function addDaysInputValue(days) {
   const day = String(now.getDate()).padStart(2, "0");
   return now.getFullYear() + "-" + month + "-" + day;
 }
+
+// Valor de campo de data (AAAA-MM-DD) de uma data salva (ISO ou Date),
+// pelo dia que o app mostra (ver parseDate). "" se nao for data.
+export function dateInputValue(value) {
+  const date = parseDate(value);
+  if (!date) return "";
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return date.getFullYear() + "-" + month + "-" + day;
+}
+
+// "2026-10-30" + 21 dias -> "2026-11-20".
+export function addDaysToInput(value, days) {
+  const parsed = parseDate(value);
+  if (!parsed) return "";
+  // Copia: parseDate devolve o proprio objeto quando ja recebe um Date.
+  const date = new Date(parsed);
+  date.setDate(date.getDate() + days);
+  return dateInputValue(date);
+}

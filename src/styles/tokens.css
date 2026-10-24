@@ -128,6 +128,11 @@
   --success: #3f7550;
   --success-wash: #e4efe6;
 
+  /* "Solicitado": exemplar separado para alguem (retirada combinada) */
+  --info: #2f5b7c;
+  --info-wash: #e2ecf3;
+  --info-line: #bcd2e2;
+
   /* Tipografia */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-ui:

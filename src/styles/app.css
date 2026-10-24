@@ -1541,7 +1541,8 @@ html[data-app="catalogo"] #root:empty {
   border: 1px solid var(--clay-line);
   border-radius: var(--radius-sm);
 }
-.picked div {
+/* (A capa sem imagem tambem e uma div: ela fica no tamanho dela.) */
+.picked div:not(.cover) {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -4449,4 +4450,141 @@ span.avatar--empty {
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
+}
+
+/* ===========================================================
+   Solicitar emprestimo (acervo publico) e solicitacoes (painel)
+   =========================================================== */
+
+/* "Solicitado": cor propria, diferente de "disponivel" (verde) e de
+   "emprestado" (dourado). O texto sozinho ja diz tudo. */
+.avail--req {
+  background: var(--info-wash);
+  color: var(--info);
+}
+.chip--req {
+  background: var(--info-wash);
+  color: var(--info);
+}
+.combo__item .combo__status--req {
+  color: var(--info);
+}
+
+/* Botao "Solicitar emprestimo" no lugar da previsao de entrega da ficha
+   do livro (acervo publico): alinhado em baixo, na altura do valor da
+   Quantidade, que fica do lado. */
+.detail__data .detail__request {
+  justify-content: flex-end;
+}
+.detail__request dd {
+  display: flex;
+  min-width: 0;
+}
+/* Celular estreito: o texto quebra em duas linhas, sem passar da borda. */
+.detail__request .btn {
+  max-width: 100%;
+  text-align: left;
+}
+
+/* Janela do pedido */
+.reqform {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reqform__trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.reqdone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.reqdone .muted {
+  font-size: 0.86rem;
+}
+.modal__foot a.btn {
+  text-decoration: none;
+}
+
+/* Registrar solicitacao (painel) */
+.reqregister__intro {
+  font-size: 0.86rem;
+}
+.field__hint--warn {
+  color: var(--gold-strong);
+  font-weight: 500;
+}
+
+/* Solicitacao aberta (painel): pessoa e livro fixos, datas editaveis. Fica
+   em coluna tambem na tela larga (a capa sozinha ao lado deixava um vazio). */
+.detail.reqdetail {
+  flex-direction: column;
+  align-items: center;
+}
+.reqdetail .detail__title {
+  text-align: center;
+}
+.reqdetail__fixed,
+.reqdetail__form {
+  width: 100%;
+}
+.reqdetail__when {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+.btn--ghost-danger {
+  color: var(--danger);
+  border-color: var(--danger-line);
+}
+.btn--ghost-danger:hover:not(:disabled) {
+  background: var(--danger-wash);
+}
+
+/* Cartao de solicitacao na lista de emprestimos */
+.loancard__tag--request {
+  background: var(--info-wash);
+  color: var(--info);
+}
+
+/* Aviso de link de solicitacao que nao vale mais */
+.linknotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--gold-wash);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--gold-strong);
+  font-size: 0.88rem;
+}
+.linknotice p {
+  flex: 1 1 220px;
+}
+
+/* "Marcar como solicitado" na ficha do livro (painel) */
+.detail__mark {
+  align-self: flex-start;
+}
+
+/* Filtro de situacao dos emprestimos (lista suspensa) */
+.optfilter .catpicker__value {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Situacao no acervo do painel: quatro opcoes, como no acervo publico */
+.books__status .segmented__item {
+  padding: 9px 4px;
+  font-size: 0.8rem;
 }
