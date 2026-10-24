@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, getToken } from "../api/client.js";
 import Modal from "./Modal.jsx";
@@ -127,6 +128,10 @@ export default function NotificationBell() {
         ) : null}
       </button>
 
+      {/* No corpo da pagina (portal): na Inicio o sininho fica dentro de um
+          bloco flutuante com camada propria (.appbell), e a janela ficaria
+          presa nela, por baixo da barra de abas do celular. */}
+      {createPortal(
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -225,7 +230,9 @@ export default function NotificationBell() {
             </button>
           </div>
         )}
-      </Modal>
+      </Modal>,
+        document.body,
+      )}
     </>
   );
 }
