@@ -96,14 +96,15 @@ export function requestLinkUrl(token) {
  * A mensagem que a pessoa manda para a biblioteca. link pode faltar (o
  * servidor nao respondeu): a equipe registra a solicitacao na mao. isNew: a
  * pessoa nao esta no cadastro (tocou em "Nao sou nenhuma dessas pessoas", ou
- * o nome nao foi achado) - vai "(novo cadastro)" logo depois do nome.
+ * o nome nao foi achado) - vai "(novo cadastro)" logo depois do nome, em
+ * NEGRITO no WhatsApp (os asteriscos em volta), para a equipe ver de cara.
  */
 export function buildRequestMessage({ book, name, isNew = false, pickupDate, link }) {
   const authors = joinNames(book.authors);
   return (
     "Olá, meu nome é " +
     name +
-    (isNew ? " (novo cadastro)" : "") +
+    (isNew ? " *(novo cadastro)*" : "") +
     ' e gostaria de pegar emprestado o livro "' +
     formatBookTitle(book.title) +
     '"' +

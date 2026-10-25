@@ -61,37 +61,33 @@ export default function Layout() {
     label: "Início",
   };
 
-  // A engrenagem fica sempre no canto esquerdo do topo e o sininho no
-  // direito: flutuando na Inicio (onde nao ha "voltar") e na linha do
-  // "voltar" nas telas internas. (Sair da biblioteca fica nas configuracoes.)
-  const gear = (
-    <button
-      type="button"
-      className="icon-button"
-      onClick={() => setSettingsOpen(true)}
-      title="Configurações"
-      aria-haspopup="dialog"
-    >
-      <IconSettings width={20} height={20} />
-      <span className="sr-only">Configurações</span>
-    </button>
-  );
-
+  // A engrenagem (canto esquerdo) e o sininho (direito) ficam FORA da tela
+  // que troca a cada aba, sempre no mesmo lugar: na Inicio e nas telas
+  // internas, no celular e no computador (no computador, nos cantos da
+  // coluna do conteudo). Antes cada tela desenhava os seus e eles pulavam de
+  // posicao ao trocar de aba. O "voltar" das telas internas fica ao lado da
+  // engrenagem. (Sair da biblioteca fica nas configuracoes.)
   return (
     <div className="shell">
-      {isHome ? (
-        <>
-          <div className="appgear">{gear}</div>
-          <div className="appbell">
-            <NotificationBell />
-          </div>
-        </>
-      ) : null}
+      <div className="apptop">
+        <div className="apptop__bar">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setSettingsOpen(true)}
+            title="Configurações"
+            aria-haspopup="dialog"
+          >
+            <IconSettings width={20} height={20} />
+            <span className="sr-only">Configurações</span>
+          </button>
+          <NotificationBell />
+        </div>
+      </div>
 
       <main className="content" key={pathname}>
         {!isHome ? (
           <div className="pagetop">
-            {gear}
             <Link
               to={parent.to}
               className={
@@ -102,9 +98,6 @@ export default function Layout() {
               <IconChevronLeft width={18} height={18} />
               {parent.label}
             </Link>
-            <div className="pagetop__end">
-              <NotificationBell />
-            </div>
           </div>
         ) : null}
         <Outlet />

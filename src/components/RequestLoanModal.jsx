@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
-import { IconClose, IconUser, IconWhatsapp } from "./Icons.jsx";
-import { publicApi } from "../api/client.js";
+import Avatar from "./Avatar.jsx";
+import { IconClose, IconWhatsapp } from "./Icons.jsx";
+import { getToken, publicApi } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
+import { shortName } from "../utils/names.js";
 import { addDaysInputValue, todayInputValue } from "../utils/dates.js";
 import {
   buildRequestMessage,
@@ -35,6 +39,16 @@ import {
  *
  * Se o servidor nao responder, da para mandar a mensagem mesmo assim, sem o
  * link: a equipe registra a solicitacao na mao.
+ *
+ * A lista do "E voce?" mostra so o PRIMEIRO E O SEGUNDO NOME, a foto e o
+ * telefone mascarado ("+55 *******51") - o servidor nem manda o resto.
+ *
+ * ADMINISTRADOR: quem toca num nome da equipe (admin: true na busca) nao
+ * passa pelo WhatsApp. A janela pede o login do painel (usuario e senha; se
+ * este aparelho ja tem a sessao de um administrador, nem isso), o botao vira
+ * "Confirmar" e, com o login certo, o app cria o link da solicitacao e vai
+ * direto para o "Registrar solicitação" do painel, ja preenchido (o mesmo
+ * caminho do link da mensagem: /solicitacao/<id>).
  */
 
 // O dia de preferencia vai de hoje ate 60 dias (o servidor confere o mesmo).
@@ -204,8 +218,36 @@ function HandoffOverlay({ waiting, onCancel }) {
   );
 }
 
+// Telefone mascarado do cartao ("+55 *******51"). (O hint e o texto do
+// servidor ainda nao atualizado: "WhatsApp terminado em 51".)
+function phoneLabel(person) {
+  if (person.phone) return "Telefone: " + person.phone;
+  return person.hint || "";
+}
+
+// O mesmo, para o leitor de tela (que leria "asterisco" sete vezes).
+function PhoneText({ person }) {
+  const label = phoneLabel(person);
+  const last = String(person.phone || "").slice(-2);
+  if (!person.phone || !/^\d\d$/.test(last)) return label;
+  return (
+    <>
+      <span aria-hidden="true">{label}</span>
+      <span className="sr-only">{"Telefone terminado em " + last}</span>
+    </>
+  );
+}
+
 export default function RequestLoanModal({ book, open, onClose, onStale }) {
+  const navigate = useNavigate();
+  const { user, login, logout, refreshUser, switchToken } = useAuth();
   const [name, setName] = useState("");
+  // Login do painel, quando a pessoa escolhida e da equipe.
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const usernameRef = useRef(null);
+  // Entrando no painel ha um tempo: a tela explica a demora.
+  const [slow, setSlow] = useState(false);
   const [pickupDate, setPickupDate] = useState("");
   // Campo-isca escondido (robo preenche, pessoa nao ve).
   const [website, setWebsite] = useState("");
@@ -243,6 +285,9 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
     setSending(false);
     clearTimeout(handoffTimer.current);
     setHandoff(false);
+    // Fechou a janela (ou trocou de livro) sem chegar ao painel: a sessao que
+    // o login daqui abriu termina junto (ver dropModalSession).
+    dropModalSession();
     if (!open) return;
     setName(savedName());
     setPickupDate("");
@@ -252,8 +297,45 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
     setDone(null);
     setResults(NO_RESULTS);
     setChoice(null);
+    setUsername("");
+    setPassword("");
     setHandoff(false);
   }, [open, book?.id]);
+
+  // A sessao de administrador aberta pelo login DESTA janela so vale para ir
+  // ao painel agora. Se a pessoa desiste (fecha, toca no "x", sai da tela)
+  // ou o caminho para no meio, ela termina: o admin nao fica logado sem
+  // saber num celular emprestado.
+  // So mexe na sessao que e DELA: guarda o token que o login daqui recebeu.
+  // Se o token guardado no aparelho ja e outro (alguem entrou no painel em
+  // outra aba no meio do caminho), nao apaga nada - so confere quem esta
+  // logado agora. E se o aparelho ja tinha um token antes deste login (o
+  // painel ainda nao tinha confirmado a sessao, ex.: servidor acordando),
+  // esse token antigo volta no lugar.
+  // modalSessionRef = { mine, prior } | null
+  const modalSessionRef = useRef(null);
+  function dropModalSession() {
+    const session = modalSessionRef.current;
+    if (!session) return;
+    modalSessionRef.current = null;
+    if (getToken() !== session.mine) refreshUser();
+    else if (session.prior) switchToken(session.prior);
+    else logout();
+  }
+  useEffect(
+    () => () => dropModalSession(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  useEffect(() => {
+    if (!sending) {
+      setSlow(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [sending]);
 
   // A tela de espera sai quando a pagina deixa a frente (o WhatsApp abriu),
   // ou no tempo maximo, ou se a janela fechar.
@@ -318,7 +400,13 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
 
   // "(novo cadastro)" so quando a pessoa diz que nao esta no cadastro.
   const isNew = choice?.type === "new";
-  const finalName = choice?.type === "person" ? choice.person.name : cleanName;
+  const finalName =
+    choice?.type === "person" ? shortName(choice.person.name) : cleanName;
+  // Tocou num nome da equipe: vai para o painel, sem WhatsApp.
+  const asAdmin = choice?.type === "person" && choice.person.admin === true;
+  // Este aparelho ja tem a sessao de um administrador: nao pede o login.
+  const signedIn = user?.role === "admin";
+  const needsLogin = asAdmin && !signedIn;
 
   function validate() {
     if (!choice && !cleanName.split(" ")[1]) {
@@ -327,6 +415,9 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
     if (searching) return WAIT_MESSAGE;
     if (!choice && matches.length > 0) {
       return "Toque no seu nome na lista ou em “Não sou nenhuma dessas pessoas”.";
+    }
+    if (needsLogin && (!username.trim() || !password)) {
+      return "Digite o seu usuário e a senha do painel.";
     }
     if (!pickupDate) return "Escolha o dia em que quer pegar o livro.";
     if (pickupDate < today || pickupDate > lastDay) {
@@ -351,14 +442,37 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+    // Ja havia sessao guardada no aparelho antes deste login?
+    const priorToken = getToken();
+    // Fixo para esta tentativa (a escolha pode mudar enquanto espera).
+    const admin = asAdmin;
+    const loginFirst = needsLogin;
     sendingRef.current = true;
     setSending(true);
+    // A espera do WhatsApp (tela cheia) e so para quem vai pelo WhatsApp.
     clearTimeout(handoffTimer.current);
-    setHandoff(true);
+    setHandoff(!admin);
     setError("");
     setOfferWithoutLink(false);
     rememberName(finalName);
     try {
+      if (loginFirst) {
+        const signed = await login(username.trim(), password, {
+          signal: controller.signal,
+        });
+        // A conta de manutencao nao registra solicitacao: sai dela.
+        if (signed?.role !== "admin") {
+          logout();
+          throw new Error("Essa conta não é de administrador da biblioteca.");
+        }
+        modalSessionRef.current = { mine: getToken(), prior: priorToken };
+        // Desistiu enquanto entrava: nao fica logado.
+        if (attempt !== attemptRef.current) {
+          dropModalSession();
+          return;
+        }
+        setPassword("");
+      }
       const data = await publicApi("/api/public/requests", {
         method: "POST",
         signal: controller.signal,
@@ -373,9 +487,18 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       });
       // A pessoa cancelou ou fechou a janela enquanto esperava.
       if (attempt !== attemptRef.current) return;
+      if (admin) {
+        // Direto para o "Registrar solicitação" do painel, ja preenchido.
+        // (Daqui em diante a sessao e do painel: nao termina com a janela.)
+        modalSessionRef.current = null;
+        navigate("/solicitacao/" + encodeURIComponent(data.token));
+        return;
+      }
       const text = buildRequestMessage({
         book,
-        name: data.name || finalName,
+        // Quem tocou num nome do cadastro: o primeiro e o segundo nome (o
+        // servidor antigo ainda devolve o nome completo).
+        name: choice?.type === "person" ? finalName : data.name || finalName,
         isNew,
         pickupDate,
         link: requestLinkUrl(data.token),
@@ -402,7 +525,7 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       } else if (err.status === 409) {
         // O livro acabou de sair: a ficha na tela esta velha.
         onStale?.(book.id);
-      } else if (err.status === 0 || err.status >= 500) {
+      } else if (!admin && (err.status === 0 || err.status >= 500)) {
         setOfferWithoutLink(true);
       }
     } finally {
@@ -418,6 +541,7 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
   // "Cancelar" na tela de espera: desiste deste envio e volta para a janela,
   // com tudo preenchido, para tentar de novo.
   function cancelSending() {
+    dropModalSession();
     attemptRef.current += 1;
     controllerRef.current?.abort();
     controllerRef.current = null;
@@ -488,14 +612,22 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
             <button type="button" className="btn btn--ghost" onClick={onClose}>
               Voltar
             </button>
+            {/* Da equipe: "Confirmar" (vai para o painel). Os outros:
+                "Combinar", com o simbolo do WhatsApp. */}
             <button
               type="submit"
               form="request-loan-form"
               className="btn btn--primary"
               disabled={sending}
             >
-              <IconWhatsapp width={18} height={18} />
-              {sending ? "Preparando…" : "Confirmar"}
+              {asAdmin ? (
+                sending ? "Entrando…" : "Confirmar"
+              ) : (
+                <>
+                  <IconWhatsapp width={18} height={18} />
+                  {sending ? "Preparando…" : "Combinar"}
+                </>
+              )}
             </button>
           </>
         )
@@ -540,15 +672,17 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
                 // Tocou no proprio nome: ele fica marcado (o "x" volta a
                 // digitar).
                 <div className="picked reqform__me">
-                  <span className="reqform__meicon" aria-hidden="true">
-                    <IconUser width={18} height={18} />
-                  </span>
+                  <Avatar src={choice.person.photo} name={finalName} size={40} decorative />
                   <div>
-                    <strong title={choice.person.name}>{choice.person.name}</strong>
+                    <strong title={finalName}>{finalName}</strong>
+                    {/* (So o telefone: com "Você no cadastro ·" antes, ele
+                        era cortado no celular.) */}
                     <small>
-                      {choice.person.hint
-                        ? "Você no cadastro · " + choice.person.hint
-                        : "Você no cadastro da biblioteca"}
+                      {phoneLabel(choice.person) ? (
+                        <PhoneText person={choice.person} />
+                      ) : (
+                        "Você no cadastro da biblioteca"
+                      )}
                     </small>
                   </div>
                   <button
@@ -556,8 +690,16 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
                     className="icon-button"
                     aria-label="Não sou eu: digitar de novo"
                     onClick={() => {
-                      setName(choice.person.name);
+                      // No meio do envio: desiste dele (senao a resposta
+                      // ainda levaria ao painel com a escolha antiga).
+                      // O foco vai para o campo do nome, que volta.
+                      if (sendingRef.current) {
+                        cancelSending();
+                        setTimeout(() => document.getElementById("request-name")?.focus(), 0);
+                      }
+                      setName(finalName);
                       setChoice(null);
+                      setPassword("");
                     }}
                   >
                     <IconClose width={18} height={18} />
@@ -595,15 +737,28 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
                               onClick={() => {
                                 setChoice({ type: "person", person });
                                 setError("");
-                                setTimeout(() => dateRef.current?.focus(), 0);
+                                // Da equipe sem sessao: o proximo campo e o
+                                // usuario do painel.
+                                const next =
+                                  person.admin === true && !signedIn
+                                    ? usernameRef
+                                    : dateRef;
+                                setTimeout(() => next.current?.focus(), 0);
                               }}
                             >
-                              <span className="reqform__meicon" aria-hidden="true">
-                                <IconUser width={16} height={16} />
-                              </span>
+                              <Avatar
+                                src={person.photo}
+                                name={shortName(person.name)}
+                                size={36}
+                                decorative
+                              />
                               <span>
-                                <strong>{person.name}</strong>
-                                {person.hint ? <small>{person.hint}</small> : null}
+                                <strong>{shortName(person.name)}</strong>
+                                {phoneLabel(person) ? (
+                                  <small>
+                                    <PhoneText person={person} />
+                                  </small>
+                                ) : null}
                               </span>
                             </button>
                           </li>
@@ -663,6 +818,61 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
               )}
             </div>
 
+            {asAdmin ? (
+              signedIn ? (
+                <p className="reqform__note">
+                  Você já entrou no painel como{" "}
+                  <strong>{shortName(user.name)}</strong>. Escolha o dia e toque
+                  em “Confirmar” para registrar a solicitação.
+                </p>
+              ) : (
+                <div
+                  className="reqform__login"
+                  role="group"
+                  aria-labelledby="request-login-title"
+                >
+                  <p className="reqform__ask" id="request-login-title">
+                    Você é da equipe da biblioteca: entre com o seu login do
+                    painel para registrar a solicitação direto, sem WhatsApp.
+                  </p>
+                  <label className="field">
+                    <span>Usuário</span>
+                    <input
+                      ref={usernameRef}
+                      type="text"
+                      name="username"
+                      value={username}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        setError("");
+                      }}
+                      autoComplete="username"
+                      readOnly={sending}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      maxLength={60}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Senha</span>
+                    <input
+                      type="password"
+                      name="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setError("");
+                      }}
+                      autoComplete="current-password"
+                      readOnly={sending}
+                      maxLength={200}
+                    />
+                  </label>
+                </div>
+              )
+            ) : null}
+
             <label className="field">
               <span>Dia que você quer pegar o livro</span>
               <input
@@ -671,12 +881,14 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
                 value={pickupDate}
                 min={today}
                 max={lastDay}
+                readOnly={sending}
                 onChange={(e) => setPickupDate(e.target.value)}
                 required
               />
               <small className="field__hint">
-                Você combina a retirada com um dos nossos administradores pelo
-                WhatsApp.
+                {asAdmin
+                  ? "Depois de entrar, você confere e registra a solicitação no painel."
+                  : "Você combina a retirada com um dos nossos administradores pelo WhatsApp."}
               </small>
             </label>
 
@@ -695,6 +907,16 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
             {error ? (
               <p className="form-error" role="alert">
                 {error}
+              </p>
+            ) : null}
+
+            {asAdmin && sending ? (
+              <p className="reqform__note" role="status">
+                {slow
+                  ? "O servidor está demorando para responder (pode levar até um minuto quando ninguém usou o site há um tempo). Para desistir, toque em “Voltar”."
+                  : needsLogin
+                    ? "Entrando no painel…"
+                    : "Abrindo o painel…"}
               </p>
             ) : null}
 

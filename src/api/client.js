@@ -182,7 +182,15 @@ export async function api(path, options = {}) {
       setSitePass(null);
       window.dispatchEvent(new Event(SITE_PASS_EVENT));
     }
-    if (response.status === 401 && auth && !path.includes("/auth/login")) {
+    // (So se o token recusado ainda e o guardado: a resposta atrasada de um
+    // pedido feito com um token velho nao apaga a sessao que alguem acabou de
+    // abrir.)
+    if (
+      response.status === 401 &&
+      auth &&
+      !path.includes("/auth/login") &&
+      getToken() === token
+    ) {
       setToken(null);
       if (redirectOnExpired) window.location.href = "/login";
     }

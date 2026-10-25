@@ -128,15 +128,17 @@ export default function NotificationBell() {
         ) : null}
       </button>
 
-      {/* No corpo da pagina (portal): na Inicio o sininho fica dentro de um
-          bloco flutuante com camada propria (.appbell), e a janela ficaria
-          presa nela, por baixo da barra de abas do celular. */}
+      {/* No corpo da pagina (portal): o sininho fica dentro da barra do topo,
+          que tem camada propria (.apptop), e a janela ficaria presa nela, por
+          baixo da barra de abas do celular. Abre no MEIO da tela (tambem no
+          celular, em vez de subir de baixo) e no tamanho medio. */}
       {createPortal(
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         title="Notificações"
-        size="sm"
+        size="md"
+        placement="center"
       >
         {counts === undefined ? (
           <p className="muted" role="status">

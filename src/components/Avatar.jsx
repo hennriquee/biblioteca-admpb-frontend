@@ -21,7 +21,8 @@ function initialsOf(name) {
   return (first + last).toUpperCase();
 }
 
-export default function Avatar({ src, name, size = 44, className = "" }) {
+// decorative: o nome ja esta escrito do lado (o leitor de tela nao le duas vezes).
+export default function Avatar({ src, name, size = 44, className = "", decorative = false }) {
   const [failed, setFailed] = useState(false);
 
   // Foto trocada: tenta carregar a nova mesmo que a anterior tenha falhado.
@@ -36,7 +37,7 @@ export default function Avatar({ src, name, size = 44, className = "" }) {
         className={classes}
         style={style}
         src={src}
-        alt={name ? "Foto de " + name : ""}
+        alt={decorative || !name ? "" : "Foto de " + name}
         loading="lazy"
         draggable={false}
         onContextMenu={(e) => e.preventDefault()}

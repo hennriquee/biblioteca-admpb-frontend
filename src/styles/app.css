@@ -1895,6 +1895,13 @@ html[data-app="catalogo"] #root:empty {
 }
 
 @media (min-width: 860px) {
+  /* O espaco da barra de rolagem fica sempre reservado: sem isso, tela curta
+     (sem barra) e tela longa (com barra) tinham larguras diferentes, e a
+     engrenagem e o sininho do topo pulavam ao trocar de aba ou ao abrir uma
+     janela (que trava a rolagem). */
+  html {
+    scrollbar-gutter: stable;
+  }
   /* Desktop tem espaco e mouse: a barra de rolagem volta ao normal aqui,
      o esconde-barra do topo do arquivo e so para o mobile. */
   html,
@@ -2069,24 +2076,8 @@ html[data-app="catalogo"] #root:empty {
   background: var(--surface-sunk);
   color: var(--ink);
 }
-/* Sininho (components/NotificationBell.jsx): canto direito do topo,
-   flutuando na Inicio e no fim da linha do "voltar" nas telas internas. */
-.appbell {
-  position: absolute;
-  z-index: 5;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: 14px;
-}
-@media (min-width: 860px) {
-  .appbell {
-    top: 20px;
-    right: 24px;
-  }
-}
-.pagetop__end {
-  margin-left: auto;
-  margin-right: -8px;
-}
+/* Sininho (components/NotificationBell.jsx): canto direito do topo (ver
+   .apptop, mais abaixo). */
 .bell {
   position: relative;
 }
@@ -2110,16 +2101,18 @@ html[data-app="catalogo"] #root:empty {
   pointer-events: none;
 }
 /* Janela do sininho: um cartao por assunto. */
+/* (Janela no meio da tela, tamanho medio: cartoes maiores, com folga.) */
 .notices {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 .notice {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px;
+  min-height: 84px;
+  padding: 16px 18px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
@@ -2146,8 +2139,8 @@ html[data-app="catalogo"] #root:empty {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   background: var(--clay-wash);
   color: var(--clay);
@@ -2159,11 +2152,11 @@ html[data-app="catalogo"] #root:empty {
   min-width: 0;
 }
 .notice__text strong {
-  font-size: 0.98rem;
+  font-size: 1.05rem;
 }
 .notice__text span {
   color: var(--ink-soft);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 .notice__count {
   flex-shrink: 0;
@@ -4061,25 +4054,48 @@ span.avatar--empty {
 }
 
 /* ---------- Engrenagem de configuracoes e menu lateral ---------- */
-/* Na Inicio a engrenagem flutua no canto esquerdo, espelhando o botao de
-   sair; nas telas internas ela fica na mesma altura do "voltar". */
-.appgear {
+/* Engrenagem (esquerda) e sininho (direita) do painel: uma barra so, fora
+   da tela que troca a cada aba (components/Layout.jsx), entao os dois ficam
+   no MESMO lugar em todas as telas. A barra tem a largura e o recuo da
+   coluna do conteudo (.content), e a linha do "voltar" das telas internas
+   (.pagetop) fica na mesma altura, com espaco para a engrenagem. Rola junto
+   com a pagina, como antes. */
+.apptop {
   position: absolute;
   z-index: 5;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  left: 14px;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.apptop__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  /* = recuo da .content (20px 16px) menos o ajuste de 6px/8px do botao */
+  padding: 14px 8px 0;
+}
+.apptop__bar > * {
+  pointer-events: auto;
 }
 @media (min-width: 860px) {
-  .appgear {
-    top: 20px;
-    left: 24px;
+  .apptop__bar {
+    /* .content no computador: 32px 24px */
+    padding: 26px 16px 0;
   }
 }
 .pagetop {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* a altura da engrenagem (a linha existe mesmo sem o "voltar") */
+  min-height: 38px;
   margin: -6px 0 6px -8px;
+  /* espaco da engrenagem (38px) + o vao de antes (2px) */
+  padding-left: 40px;
+  /* e do sininho, do outro lado */
+  padding-right: 32px;
 }
 .pagetop .backlink {
   margin: 0;
@@ -4778,19 +4794,15 @@ span.avatar--empty {
 .reqform__note .linkish {
   font-size: inherit;
 }
-.reqform__meicon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--clay-wash);
-  color: var(--clay);
-}
-.reqform__me .reqform__meicon {
-  background: var(--surface);
+/* Tocou num nome da equipe: o login do painel, logo abaixo do nome. */
+.reqform__login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
 }
 
 /* Puxar para recarregar (components/PullToRefresh.jsx): bolinha preta com o
