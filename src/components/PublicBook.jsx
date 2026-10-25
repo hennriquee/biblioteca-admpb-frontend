@@ -3,12 +3,7 @@ import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
 import ReturnAlert from "./ReturnAlert.jsx";
 import RequestLoanModal from "./RequestLoanModal.jsx";
-import {
-  IconCheck,
-  IconCrown,
-  IconLoans,
-  IconUser,
-} from "./Icons.jsx";
+import { IconCheck, IconCrown, IconLoans, IconUser } from "./Icons.jsx";
 import { formatDate } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 
@@ -42,10 +37,18 @@ function availabilityOf(book) {
       : { tone: "out", label: "Emprestado" };
   }
   if (!loaned) {
-    return { tone: "req", label: "Todos solicitados", note: copies + " exemplares" };
+    return {
+      tone: "req",
+      label: "Todos solicitados",
+      note: copies + " exemplares",
+    };
   }
   if (!requested) {
-    return { tone: "out", label: "Todos emprestados", note: copies + " exemplares" };
+    return {
+      tone: "out",
+      label: "Todos emprestados",
+      note: copies + " exemplares",
+    };
   }
   return {
     tone: "out",
@@ -74,7 +77,9 @@ function situationText(book) {
       return "Os " + copies + " exemplares estão emprestados no momento.";
     }
     return (
-      "Os " + copies + " exemplares estão emprestados ou solicitados no momento."
+      "Os " +
+      copies +
+      " exemplares estão emprestados ou solicitados no momento."
     );
   }
   return (
@@ -183,115 +188,115 @@ export default function PublicBookModal({
 
   return (
     <>
-    <Modal
-      open={Boolean(book)}
-      onClose={onClose}
-      title={formatBookTitle(book?.title)}
-      variant="pub"
-    >
-      {book ? (
-        <div className="detail">
-          <BookCover
-            src={book.cover}
-            alt={"Capa de " + formatBookTitle(book.title)}
-            className="cover--lg"
-          />
-          <dl className="detail__data">
-            <div className="detail__wide">
-              <dt>Situação</dt>
-              <dd>
-                {/* A coroinha do mais emprestado fica aqui, ao lado da
+      <Modal
+        open={Boolean(book)}
+        onClose={onClose}
+        title={formatBookTitle(book?.title)}
+        variant="pub"
+      >
+        {book ? (
+          <div className="detail">
+            <BookCover
+              src={book.cover}
+              alt={"Capa de " + formatBookTitle(book.title)}
+              className="cover--lg"
+            />
+            <dl className="detail__data">
+              <div className="detail__wide">
+                <dt>Situação</dt>
+                <dd>
+                  {/* A coroinha do mais emprestado fica aqui, ao lado da
                     situacao: ela diz que o livro e o mais procurado do
                     acervo, sem dizer quantas vezes ele saiu. */}
-                <span className="pub__avail">
-                  <Availability book={book} />
-                  {mostLoaned ? (
-                    <span className="detail__crown">
-                      <IconCrown width={15} height={15} />
-                      mais emprestado
-                    </span>
-                  ) : null}
-                </span>
-                <span className="pub__situation">{situationText(book)}</span>
-                {/* Todos os exemplares fora: da para pedir o aviso de quando
+                  <span className="pub__avail">
+                    <Availability book={book} />
+                    {mostLoaned ? (
+                      <span className="detail__crown">
+                        <IconCrown width={15} height={15} />
+                        mais emprestado
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="pub__situation">{situationText(book)}</span>
+                  {/* Todos os exemplares fora: da para pedir o aviso de quando
                     um deles voltar. */}
-                {book.available === 0 ? (
-                  <ReturnAlert key={book.id} book={book} onStale={onStale} />
-                ) : null}
-              </dd>
-            </div>
-            <div>
-              <dt>Autor</dt>
-              <dd>{book.authors.join(", ") || "—"}</dd>
-            </div>
-            <div>
-              <dt>Categoria</dt>
-              <dd>{book.categories.join(", ") || "—"}</dd>
-            </div>
-            <div>
-              <dt>Editora</dt>
-              <dd>{book.publisher || "—"}</dd>
-            </div>
-            <div>
-              <dt>Ano</dt>
-              <dd>{book.year || "—"}</dd>
-            </div>
-            <div>
-              <dt>Páginas</dt>
-              <dd>{book.pages || "—"}</dd>
-            </div>
-            <div>
-              <dt>ISBN</dt>
-              <dd>{book.isbn || "—"}</dd>
-            </div>
-            <div>
-              <dt>Quantidade</dt>
-              <dd>{book.copies}</dd>
-            </div>
-            {/* Ultimo item da lista, do lado da Quantidade. So aparece com
-                exemplar emprestado. */}
-            {delivery ? (
-              <div>
-                <dt>{delivery.label}</dt>
-                <dd>{delivery.value}</dd>
-              </div>
-            ) : null}
-            {/* Livro com exemplar na estante: no lugar da previsao de entrega
-                (que so existe para livro emprestado), o pedido de emprestimo.
-                Com varios exemplares e algum fora, vem logo depois dela. */}
-            {canRequest ? (
-              <div className="detail__request">
-                <dt className="sr-only">Pegar emprestado</dt>
-                <dd>
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    onClick={() => setRequesting(true)}
-                  >
-                    Solicitar empréstimo
-                  </button>
+                  {book.available === 0 ? (
+                    <ReturnAlert key={book.id} book={book} onStale={onStale} />
+                  ) : null}
                 </dd>
               </div>
+              <div>
+                <dt>Autor</dt>
+                <dd>{book.authors.join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt>Categoria</dt>
+                <dd>{book.categories.join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt>Editora</dt>
+                <dd>{book.publisher || "—"}</dd>
+              </div>
+              <div>
+                <dt>Ano</dt>
+                <dd>{book.year || "—"}</dd>
+              </div>
+              <div>
+                <dt>Páginas</dt>
+                <dd>{book.pages || "—"}</dd>
+              </div>
+              <div>
+                <dt>ISBN</dt>
+                <dd>{book.isbn || "—"}</dd>
+              </div>
+              <div>
+                <dt>Quantidade</dt>
+                <dd>{book.copies}</dd>
+              </div>
+              {/* Ultimo item da lista, do lado da Quantidade. So aparece com
+                exemplar emprestado. */}
+              {delivery ? (
+                <div>
+                  <dt>{delivery.label}</dt>
+                  <dd>{delivery.value}</dd>
+                </div>
+              ) : null}
+              {/* Livro com exemplar na estante: no lugar da previsao de entrega
+                (que so existe para livro emprestado), o pedido de emprestimo.
+                Com varios exemplares e algum fora, vem logo depois dela. */}
+              {canRequest ? (
+                <div className="detail__request">
+                  <dt className="sr-only">Pegar emprestado</dt>
+                  <dd>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => setRequesting(true)}
+                    >
+                      Solicitar empréstimo
+                    </button>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            {book.synopsis ? (
+              <div className="detail__synopsis">
+                <h3>Sinopse</h3>
+                <p>{book.synopsis}</p>
+              </div>
             ) : null}
-          </dl>
-          {book.synopsis ? (
-            <div className="detail__synopsis">
-              <h3>Sinopse</h3>
-              <p>{book.synopsis}</p>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </Modal>
+          </div>
+        ) : null}
+      </Modal>
 
-    <RequestLoanModal
-      book={book}
-      // Nao depende de o livro continuar livre: se ele sair da estante bem
-      // na hora do "Confirmar", a janela fica aberta mostrando o motivo.
-      open={requesting && Boolean(book)}
-      onClose={() => setRequesting(false)}
-      onStale={onStale}
-    />
+      <RequestLoanModal
+        book={book}
+        // Nao depende de o livro continuar livre: se ele sair da estante bem
+        // na hora do "Confirmar", a janela fica aberta mostrando o motivo.
+        open={requesting && Boolean(book)}
+        onClose={() => setRequesting(false)}
+        onStale={onStale}
+      />
     </>
   );
 }
