@@ -120,7 +120,7 @@ export default function NotificationBell() {
         aria-label={label}
         aria-haspopup="dialog"
       >
-        <IconBell width={21} height={21} aria-hidden="true" />
+        <IconBell width={20} height={20} aria-hidden="true" />
         {badge > 0 ? (
           <span className="bell__badge" aria-hidden="true">
             {badgeText}

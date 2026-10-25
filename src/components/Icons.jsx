@@ -234,10 +234,14 @@ export const IconWhatsapp = (props) => (
   </svg>
 );
 
+// Desenhado ate perto das bordas do quadro, como a engrenagem (IconSettings):
+// os dois formam o par do topo do painel (components/Layout.jsx) e, no mesmo
+// tamanho de SVG, tem a mesma altura na tela (~19px a 20px). Com a margem dos
+// outros icones ele ficava visivelmente menor que a engrenagem.
 export const IconBell = (props) => (
   <svg {...base} {...props}>
-    <path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z" />
-    <path d="M10.2 20.5a2 2 0 0 0 3.6 0" />
+    <path d="M4.9 15.8V8.7a7.1 7.1 0 0 1 14.2 0v7.1l1.9 1.9H3z" />
+    <path d="M9.7 21a2.6 2.6 0 0 0 4.6 0" />
   </svg>
 );
 

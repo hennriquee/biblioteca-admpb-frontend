@@ -253,7 +253,14 @@ export default function ReturnAlert({ book, onStale }) {
             aria-disabled={status === "enabling" || undefined}
             onClick={enable}
           >
-            <IconBell width={16} height={16} aria-hidden="true" />
+            {/* 13px e traco 2: o sino ocupa o quadro todo (ver Icons.jsx) e assim
+                fica do tamanho e da espessura de antes neste botao. */}
+            <IconBell
+              width={13}
+              height={13}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
             {status === "enabling" ? (
               <span>
                 Ativando
