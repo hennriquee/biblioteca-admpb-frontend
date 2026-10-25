@@ -4787,6 +4787,24 @@ span.avatar--empty {
   font-size: 0.85rem;
   font-weight: 500;
 }
+/* "Não sou nenhuma dessas pessoas": fundo na cor de destaque (os nomes ficam
+   sem fundo), para quem nao se achou na lista ver logo a saida. Escopo so no
+   catalogo publico - o PersonPicker do painel usa a mesma classe e fica como
+   esta. A regra de hover repete o ":not(:disabled)" para vencer a do
+   ".combo__item:hover". */
+.reqform__who .combo__item--create {
+  background: var(--clay-wash);
+  border-top: 1px solid var(--clay-line);
+}
+.reqform__who .combo__item--create:hover:not(:disabled) {
+  background: var(--clay-line);
+}
+.reqform__who .combo__item--create strong {
+  font-weight: 600;
+}
+.reqform__who .combo__item--create small {
+  color: var(--clay-strong);
+}
 .reqform__note {
   color: var(--ink-soft);
   font-size: 0.82rem;
