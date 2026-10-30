@@ -65,7 +65,7 @@ export function whatsappLink(loan) {
 // ---------- Solicitar emprestimo (acervo publico) ----------
 
 // WhatsApp da biblioteca: para onde vai a mensagem de "Solicitar empréstimo".
-export const LIBRARY_WHATSAPP = "5534996560351";
+export const LIBRARY_WHATSAPP = "5534984241556";
 
 // "sexta-feira, 30 de outubro de 2026"
 export function formatPickupDay(value) {
@@ -99,7 +99,13 @@ export function requestLinkUrl(token) {
  * o nome nao foi achado) - vai "(novo cadastro)" logo depois do nome, em
  * NEGRITO no WhatsApp (os asteriscos em volta), para a equipe ver de cara.
  */
-export function buildRequestMessage({ book, name, isNew = false, pickupDate, link }) {
+export function buildRequestMessage({
+  book,
+  name,
+  isNew = false,
+  pickupDate,
+  link,
+}) {
   const authors = joinNames(book.authors);
   return (
     "Olá, meu nome é " +
@@ -130,6 +136,9 @@ export function libraryWhatsappUrl(text) {
 // direto, sem a aba em branco do wa.me (ver components/RequestLoanModal.jsx).
 export function libraryWhatsappAppUrl(text) {
   return (
-    "whatsapp://send?phone=" + LIBRARY_WHATSAPP + "&text=" + encodeURIComponent(text)
+    "whatsapp://send?phone=" +
+    LIBRARY_WHATSAPP +
+    "&text=" +
+    encodeURIComponent(text)
   );
 }
