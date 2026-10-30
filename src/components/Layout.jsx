@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import Confirm from "./Confirm.jsx";
 import SettingsDrawer from "./SettingsDrawer.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import PickupReminders from "./PickupReminders.jsx";
 import { prefetchBookList } from "../hooks/useBookList.js";
 import { loadPanelBooks } from "../api/panelBooks.js";
 import {
@@ -111,6 +112,9 @@ export default function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Ao entrar no painel: "entregas de hoje" e "solicitacoes em atraso". */}
+      <PickupReminders />
 
       <SettingsDrawer
         open={settingsOpen}

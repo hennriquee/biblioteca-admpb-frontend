@@ -9,6 +9,13 @@ const openModals = [];
 // depois de enviar), cada um devolver o "seu" valor deixaria a pagina presa.
 let pageOverflow = "";
 
+// Ha algum modal aberto agora? Avisos que abrem sozinhos (ex.: o lembrete de
+// retiradas, em PickupReminders.jsx) esperam a tela ficar livre, para nao
+// abrir por cima do que a pessoa esta fazendo.
+export function isAnyModalOpen() {
+  return openModals.length > 0;
+}
+
 export default function Modal({
   open,
   onClose,
@@ -23,8 +30,13 @@ export default function Modal({
   // "bottom" (padrao): no celular a janela sobe de baixo, como uma folha; "center":
   // abre no meio da tela em qualquer tamanho (para avisos que precisam de atencao).
   placement = "bottom",
+  // Classe a mais no painel, para uma janela com aparencia propria.
+  className = "",
+  // id do texto que explica a janela (leitor de tela le junto com o titulo).
+  describedBy,
 }) {
   const panelRef = useRef(null);
+  const backdropRef = useRef(null);
   // Direcao do ultimo Tab (para o guarda de foco e as sentinelas).
   const tabBackRef = useRef(false);
   const onCloseRef = useRef(onClose);
@@ -36,6 +48,15 @@ export default function Modal({
     const token = {};
     if (!openModals.length) pageOverflow = document.body.style.overflow;
     openModals.push(token);
+    // A janela aberta por ULTIMO fica por cima, mesmo que venha antes no HTML
+    // (ex.: o lembrete de retiradas abre e, logo depois, o "Registrar
+    // solicitação" do link do WhatsApp): o que se ve por cima e o mesmo que
+    // recebe o foco e o Esc. Teto abaixo do menu de configuracoes (60).
+    if (backdropRef.current) {
+      backdropRef.current.style.zIndex = String(
+        Math.min(59, 50 + openModals.length - 1),
+      );
+    }
 
     function focusableNodes() {
       return [
@@ -146,6 +167,7 @@ export default function Modal({
 
   return (
     <div
+      ref={backdropRef}
       className={
         "modal-backdrop" + (placement === "center" ? " modal-backdrop--center" : "")
       }
@@ -155,11 +177,15 @@ export default function Modal({
     >
       <div
         className={
-          "modal modal--" + size + (variant === "default" ? "" : " modal--" + variant)
+          "modal modal--" +
+          size +
+          (variant === "default" ? "" : " modal--" + variant) +
+          (className ? " " + className : "")
         }
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-describedby={describedBy}
         tabIndex={-1}
         ref={panelRef}
       >

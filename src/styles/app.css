@@ -2186,6 +2186,129 @@ html[data-app="catalogo"] #root:empty {
   margin: 0;
 }
 
+/* Lembrete ao entrar no painel: entregas de hoje / solicitacoes em atraso
+   (components/PickupReminders.jsx). */
+/* A janela do lembrete: no MEIO da tela em qualquer tamanho (tambem no
+   celular, nunca como folha que sobe de baixo), mais larga que as outras e
+   com letra maior. Entra so crescendo um pouco, sem deslizar. */
+.modal-backdrop--center:has(.modal--reminder) {
+  padding: 14px;
+}
+.modal-backdrop--center .modal.modal--reminder {
+  width: 100%;
+  max-width: 680px;
+  border-radius: var(--radius-lg);
+  animation: reminder-in 0.22s ease-out both;
+}
+@keyframes reminder-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.modal--reminder .modal__head {
+  padding: 20px 16px 16px 24px;
+}
+.modal--reminder .modal__head h2 {
+  font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+}
+.modal--reminder .modal__body {
+  padding: 20px 24px;
+}
+.modal--reminder .modal__foot {
+  padding: 16px 24px;
+}
+.modal--reminder .modal__foot .btn {
+  min-height: 46px;
+}
+@media (max-width: 520px) {
+  .modal--reminder .modal__head {
+    padding: 16px 12px 14px 18px;
+  }
+  .modal--reminder .modal__body {
+    padding: 16px 16px;
+  }
+  .modal--reminder .modal__foot {
+    padding: 14px 16px;
+  }
+  /* Os dois botoes dividem a largura (no celular nao ficam espremidos no canto). */
+  .modal--reminder .modal__foot .btn {
+    flex: 1;
+  }
+}
+.reminder {
+  display: grid;
+  gap: 16px;
+}
+.reminder__lead {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  border-radius: 12px;
+  border: 1px solid var(--clay-line);
+  background: var(--clay-wash);
+  color: var(--ink);
+}
+.reminder--late .reminder__lead {
+  border-color: var(--danger-line);
+  background: var(--danger-wash);
+}
+.reminder__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reminder__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.reminder--late .reminder__item {
+  border-left: 3px solid var(--danger);
+}
+.reminder__item .cover--sm {
+  width: 56px;
+  height: 80px;
+}
+.reminder__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+/* Titulo comprido: ate duas linhas (no celular uma linha so cortava cedo). */
+.reminder__text strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.reminder__text span {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.reminder__text .reminder__when {
+  color: var(--clay);
+  font-size: 0.88rem;
+}
+.reminder--late .reminder__text .reminder__when {
+  color: var(--danger);
+}
+
 /* ---------- Indicadores: pontinhos pulando enquanto carrega ---------- */
 .stat__value {
   display: flex;
