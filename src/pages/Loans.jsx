@@ -12,7 +12,7 @@ import RequestDetailModal, {
 } from "../components/RequestDetailModal.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
-import { normalizeText } from "../utils/bookFilter.js";
+import { hasAllWords, normalizeText } from "../utils/bookFilter.js";
 import { useRefresh } from "../utils/refresh.js";
 import {
   IconPlus,
@@ -55,12 +55,12 @@ function isOverdue(loan) {
 function matchesText(item, book, person) {
   if (
     book &&
-    !normalizeText(item.bookTitle).includes(book) &&
+    !hasAllWords(item.bookTitle, book) &&
     !String(item.bookIsbn || "").toLowerCase().includes(book)
   ) {
     return false;
   }
-  return !person || normalizeText(item.personName).includes(person);
+  return !person || hasAllWords(item.personName, person);
 }
 
 // O filtro roda aqui mesmo, com as mesmas regras do servidor
@@ -74,12 +74,12 @@ function matchesLoan(loan, status, book, person) {
   }
   if (
     book &&
-    !normalizeText(loan.bookTitle).includes(book) &&
+    !hasAllWords(loan.bookTitle, book) &&
     !String(loan.bookIsbn || "").toLowerCase().includes(book)
   ) {
     return false;
   }
-  return !person || normalizeText(loan.personName).includes(person);
+  return !person || hasAllWords(loan.personName, person);
 }
 
 // Cartao de uma solicitacao (Emprestimos > Solicitados).

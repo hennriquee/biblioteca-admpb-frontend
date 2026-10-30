@@ -18,7 +18,7 @@ import {
   IconShield,
   IconUser,
 } from "../components/Icons.jsx";
-import { normalizeText } from "../utils/bookFilter.js";
+import { hasAllWords, normalizeText } from "../utils/bookFilter.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { useRefresh } from "../utils/refresh.js";
@@ -62,7 +62,7 @@ function matchesPerson(person, term) {
   if (!term) return true;
   if (term.startsWith("#")) return String(person.code || "") === term.slice(1);
   return (
-    normalizeText(person.fullName).includes(term) ||
+    hasAllWords(person.fullName, term) ||
     String(person.username || "").includes(term) ||
     String(person.phone || "").includes(term.replace(/\D/g, "")) ||
     String(person.code || "") === term

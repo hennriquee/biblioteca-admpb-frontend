@@ -8,7 +8,7 @@ import Avatar from "../components/Avatar.jsx";
 import PersonFormModal from "../components/PersonFormModal.jsx";
 import ListSkeleton from "../components/ListSkeleton.jsx";
 import { IconEdit, IconPlus, IconSearch } from "../components/Icons.jsx";
-import { normalizeText } from "../utils/bookFilter.js";
+import { hasAllWords, normalizeText } from "../utils/bookFilter.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { useRefresh } from "../utils/refresh.js";
@@ -57,7 +57,7 @@ function matchesPerson(person, term) {
   // quando sobrou pelo menos um digito para comparar.
   const digits = term.replace(/\D/g, "");
   return (
-    normalizeText(person.fullName).includes(term) ||
+    hasAllWords(person.fullName, term) ||
     (digits.length > 0 && String(person.phone || "").includes(digits)) ||
     String(person.code || "") === term
   );

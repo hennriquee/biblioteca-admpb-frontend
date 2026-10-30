@@ -3,7 +3,7 @@ import { api } from "../api/client.js";
 import BookCover from "./BookCover.jsx";
 import { IconClose, IconSearch } from "./Icons.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
-import { matchesBook } from "../utils/bookFilter.js";
+import { matchesBook, rankBooks } from "../utils/bookFilter.js";
 import { useRefresh } from "../utils/refresh.js";
 
 /**
@@ -82,7 +82,7 @@ export default function BookPicker({ picked, onPick, onClear, locked = false }) 
       let items = [];
       try {
         const data = await api("/api/books?search=" + encodeURIComponent(term));
-        items = data.slice(0, 8);
+        items = rankBooks(data, term).slice(0, 8);
       } catch {
         items = [];
       }
@@ -99,9 +99,10 @@ export default function BookPicker({ picked, onPick, onClear, locked = false }) 
   const items = useMemo(() => {
     if (!searchOn) return [];
     if (allBooks) {
-      return allBooks
-        .filter((item) => matchesBook(item, { search: term }))
-        .slice(0, 8);
+      return rankBooks(
+        allBooks.filter((item) => matchesBook(item, { search: term })),
+        term,
+      ).slice(0, 8);
     }
     return results.term === term ? results.items : [];
   }, [searchOn, allBooks, term, results]);

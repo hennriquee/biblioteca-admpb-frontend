@@ -11,6 +11,57 @@ export function normalizeText(value) {
     .trim();
 }
 
+// Busca por PALAVRAS: cada palavra do termo precisa aparecer no texto, em
+// qualquer ordem e em qualquer ponto. "Maria Alessandra Dias" acha "Maria
+// Alessandra Arantes Dias" (pulou um sobrenome); "senhor aneis" acha "O Senhor
+// dos Anéis". Tudo o que o texto inteiro, junto, achava continua achando.
+// (A mesma regra existe no servidor: backend/src/services/search.js.)
+export function hasAllWords(text, term) {
+  // Mesmo teto do servidor: 200 caracteres, 12 palavras diferentes.
+  const words = [
+    ...new Set(normalizeText(term).slice(0, 200).split(/\s+/).filter(Boolean)),
+  ].slice(0, 12);
+  if (!words.length) return true;
+  const haystack = normalizeText(text);
+  return words.every((word) => haystack.includes(word));
+}
+
+// Quao bem o texto bate com o termo. Menor = melhor: 0 igual | 1 comeca com
+// o digitado | 2 tem o digitado junto | 3 cada palavra no comeco de uma
+// palavra | 4 o resto. Usado nas listas curtas de sugestoes, para o que foi
+// digitado inteiro nao ficar de fora do corte.
+// (A mesma regra existe no servidor: backend/src/services/search.js.)
+export function matchRank(text, term) {
+  const words = normalizeText(term).split(/\s+/).filter(Boolean);
+  const joined = words.join(" ");
+  const value = normalizeText(text).replace(/\s+/g, " ");
+  if (!joined) return 4;
+  if (value === joined) return 0;
+  if (value.startsWith(joined)) return 1;
+  if (value.includes(joined)) return 2;
+  const tokens = value.split(/[\s'’.-]+/);
+  if (words.every((word) => tokens.some((token) => token.startsWith(word)))) {
+    return 3;
+  }
+  return 4;
+}
+
+// Livros na ordem de quao bem batem (titulo ou autor, o melhor dos dois);
+// empate mantem a ordem que ja tinham (a alfabetica).
+export function rankBooks(books, term) {
+  return books
+    .map((book, index) => ({
+      book,
+      index,
+      rank: Math.min(
+        matchRank(book.title, term),
+        ...(book.authors || []).map((name) => matchRank(name, term)),
+      ),
+    }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.book);
+}
+
 // Quantos exemplares estao fora: o acervo publico manda "loaned"/"requested",
 // o painel manda "loanedCount"/"requestedCount".
 export function outCounts(book) {
@@ -25,9 +76,11 @@ function matchesSearch(book, search) {
   if (!term) return true;
 
   const isbn = String(book.isbn || "").toLowerCase();
-  if (normalizeText(book.title).includes(term)) return true;
+  // Titulo e autor por palavras (todas no titulo, ou todas no MESMO autor);
+  // o ISBN, pelo termo inteiro.
+  if (hasAllWords(book.title, term)) return true;
   if (isbn.includes(term)) return true;
-  if ((book.authors || []).some((name) => normalizeText(name).includes(term)))
+  if ((book.authors || []).some((name) => hasAllWords(name, term)))
     return true;
 
   const digits = term.replace(/[\s-]/g, "");

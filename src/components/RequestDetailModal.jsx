@@ -8,7 +8,6 @@ import Avatar from "./Avatar.jsx";
 import { IconCheck, IconTrash } from "./Icons.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import {
-  addDaysToInput,
   dateInputValue,
   daysBetween,
   formatLongDate,
@@ -43,7 +42,10 @@ export function pickupWhen(pickupDate) {
 export default function RequestDetailModal({ request, onClose, onChanged }) {
   const { notify } = useToast();
   const [startDate, setStartDate] = useState("");
+  // A devolucao comeca VAZIA de proposito (como no Novo emprestimo): o
+  // administrador combina a data com a pessoa e preenche.
   const [dueDate, setDueDate] = useState("");
+  const dueDateRef = useRef(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
@@ -54,7 +56,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
     if (!request) return;
     const start = dateInputValue(request.pickupDate);
     setStartDate(start);
-    setDueDate(addDaysToInput(start, 21));
+    setDueDate("");
     setNotes("");
     setAskDelete(false);
     setWarning(null);
@@ -74,7 +76,11 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
 
   function makeLoan(extra = {}) {
     if (!startDate) return notify("Informe a data da retirada.", "error");
-    if (dueDate && dueDate < startDate) {
+    if (!dueDate) {
+      dueDateRef.current?.focus();
+      return notify("Preencha a data de devolução combinada com a pessoa.", "error");
+    }
+    if (dueDate < startDate) {
       return notify(
         "A data de devolução não pode ser anterior à retirada.",
         "error",
@@ -235,6 +241,7 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
                 <label className="field">
                   <span>Devolução combinada</span>
                   <input
+                    ref={dueDateRef}
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
