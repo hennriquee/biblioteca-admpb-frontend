@@ -4677,6 +4677,10 @@ span.avatar--empty {
   color: var(--ink-soft);
   font-size: 0.8rem;
 }
+/* Retirada prevista ja passou: o "passou ha N dias" tambem fica vermelho. */
+.reqdetail__when.is-late {
+  color: var(--danger);
+}
 .btn--ghost-danger {
   color: var(--danger);
   border-color: var(--danger-line);

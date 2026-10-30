@@ -11,6 +11,7 @@ import {
   dateInputValue,
   daysBetween,
   formatLongDate,
+  todayInputValue,
 } from "../utils/dates.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { warningText } from "../pages/NewLoan.jsx";
@@ -29,8 +30,8 @@ export function pickupWhen(pickupDate) {
 /**
  * Uma SOLICITACAO aberta em Emprestimos > Solicitados: e o "Novo empréstimo"
  * dela. A pessoa e o livro vem fixos (sao os da solicitacao e nao mudam
- * aqui); as datas vem preenchidas - a retirada com a retirada prevista e a
- * devolucao 21 dias depois - e podem ser trocadas.
+ * aqui); a retirada vem preenchida com a retirada prevista (ou com hoje, se
+ * a prevista ja passou) e pode ser trocada; a devolucao comeca vazia.
  *
  * Embaixo, as duas saidas: "Emprestar" (a solicitacao vira
  * emprestimo) e "Excluir solicitação" (o exemplar volta para a estante), esta
@@ -54,8 +55,11 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
 
   useEffect(() => {
     if (!request) return;
-    const start = dateInputValue(request.pickupDate);
-    setStartDate(start);
+    // Retirada prevista ja passou: a pessoa vem buscar hoje, entao a data
+    // comeca com hoje. Ainda nao chegou: comeca com a prevista.
+    const planned = dateInputValue(request.pickupDate);
+    const today = todayInputValue();
+    setStartDate(planned && planned > today ? planned : today);
     setDueDate("");
     setNotes("");
     setAskDelete(false);
@@ -128,6 +132,9 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
   }
 
   const title = formatBookTitle(request?.bookTitle);
+  // A pessoa ainda nao levou o livro e o dia combinado ja passou: alerta.
+  const pickupLate =
+    Boolean(request) && daysBetween(new Date(), request.pickupDate) < 0;
   const nameDiffers =
     request?.requesterName &&
     request.requesterName.trim().toLowerCase() !==
@@ -202,9 +209,13 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
             <dl className="detail__data">
               <div>
                 <dt>Retirada prevista</dt>
-                <dd>
+                <dd className={pickupLate ? "is-late" : ""}>
                   {formatLongDate(request.pickupDate)}
-                  <small className="reqdetail__when">
+                  <small
+                    className={
+                      "reqdetail__when" + (pickupLate ? " is-late" : "")
+                    }
+                  >
                     {pickupWhen(request.pickupDate)}
                   </small>
                 </dd>
