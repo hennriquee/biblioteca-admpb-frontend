@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useToast } from "./Toast.jsx";
 import Modal from "./Modal.jsx";
 import Confirm from "./Confirm.jsx";
 import BookCover from "./BookCover.jsx";
 import Avatar from "./Avatar.jsx";
-import { IconCheck, IconTrash } from "./Icons.jsx";
+import { IconBook, IconCheck, IconTrash } from "./Icons.jsx";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import {
   dateInputValue,
@@ -173,11 +174,18 @@ export default function RequestDetailModal({ request, onClose, onChanged }) {
       >
         {request ? (
           <div className="detail reqdetail">
-            <BookCover
-              src={request.bookCover}
-              alt={"Capa de " + title}
-              className="cover--lg"
-            />
+            {/* A capa leva a ficha do livro no Acervo (como nos emprestimos). */}
+            <Link
+              to={"/livros?livro=" + encodeURIComponent(String(request.book))}
+              className="detail__cover detail__coverlink"
+              aria-label={"Ver “" + title + "” no acervo"}
+              title="Ver o livro no acervo"
+            >
+              <BookCover src={request.bookCover} alt="" className="cover--lg" />
+              <span className="detail__coverbadge" aria-hidden="true">
+                <IconBook width={19} height={19} />
+              </span>
+            </Link>
             <h3 className="detail__title">{title}</h3>
 
             <div className="field reqdetail__fixed">

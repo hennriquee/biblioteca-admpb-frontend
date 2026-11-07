@@ -19,6 +19,35 @@ export function reminderKind(loan) {
   return "ok";
 }
 
+// ---------- Cobranca de atraso ----------
+// No maximo uma cobranca a cada 30 dias por emprestimo (a regra vale no
+// servidor: routes/loans.js). O botao so aparece com o livro atrasado.
+export const CHARGE_INTERVAL_DAYS = 30;
+
+export function isLoanOverdue(loan) {
+  return reminderKind(loan) === "late";
+}
+
+// O dia (inicio do dia) em que a proxima cobranca fica liberada, ou null se
+// ja pode. Conta por DIA, como o servidor: cobrado no dia 7, libera no dia 7
+// do mes seguinte, a qualquer hora.
+export function nextChargeAt(loan) {
+  if (!loan.overdueSentAt) return null;
+  const sent = new Date(loan.overdueSentAt);
+  if (Number.isNaN(sent.getTime())) return null;
+  const next = new Date(
+    sent.getFullYear(),
+    sent.getMonth(),
+    sent.getDate() + CHARGE_INTERVAL_DAYS,
+  );
+  return next > new Date() ? next : null;
+}
+
+// Pode cobrar agora: em atraso, com WhatsApp e sem cobranca nos ultimos 30 dias.
+export function canCharge(loan) {
+  return isLoanOverdue(loan) && Boolean(loan.personPhone) && !nextChargeAt(loan);
+}
+
 export function buildMessage(loan) {
   const first = String(loan.personName || "").split(" ")[0];
   const book = '"' + formatBookTitle(loan.bookTitle) + '"';

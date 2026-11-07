@@ -10,6 +10,9 @@ import RegisterRequestModal from "../components/RegisterRequestModal.jsx";
 import RequestDetailModal, {
   pickupWhen,
 } from "../components/RequestDetailModal.jsx";
+import Confirm from "../components/Confirm.jsx";
+import ChargeModal from "../components/ChargeModal.jsx";
+import ExtendDueModal from "../components/ExtendDueModal.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { hasAllWords, normalizeText } from "../utils/bookFilter.js";
@@ -20,11 +23,14 @@ import {
   IconCheck,
   IconTag,
   IconWhatsapp,
+  IconBook,
+  IconEdit,
 } from "../components/Icons.jsx";
 import {
+  canCharge,
   formatStoredPhone,
-  reminderKind,
-  whatsappLink,
+  isLoanOverdue,
+  nextChargeAt,
 } from "../utils/whatsapp.js";
 
 // Lista baixada ha mais tempo que isso e atualizada (em silencio) na proxima
@@ -82,13 +88,39 @@ function matchesLoan(loan, status, book, person) {
   return !person || hasAllWords(loan.personName, person);
 }
 
+// Ficha do livro no Acervo (pages/Books.jsx abre a ficha pelo ?livro=).
+function bookPath(bookId) {
+  return "/livros?livro=" + encodeURIComponent(String(bookId));
+}
+
+// O ultimo prazo estendido (ou null).
+function lastExtension(loan) {
+  const list = loan.dueExtensions || [];
+  return list.length ? list[list.length - 1] : null;
+}
+
+// A capa do card leva a ficha do livro. O link fica FORA do botao do card
+// (link dentro de botao nao vale no HTML) e cobre so a capa: o <li> e a
+// referencia de posicao (ver .loancard__coverlink).
+function CoverLink({ bookId, title }) {
+  if (!bookId) return null;
+  return (
+    <Link
+      to={bookPath(bookId)}
+      className="loancard__coverlink"
+      aria-label={"Ver “" + title + "” no acervo"}
+      title="Ver o livro no acervo"
+    />
+  );
+}
+
 // Cartao de uma solicitacao (Emprestimos > Solicitados).
 function RequestCard({ request, onOpen }) {
   const bookTitle = formatBookTitle(request.bookTitle);
   const when = pickupWhen(request.pickupDate);
   const late = when.startsWith("passou");
   return (
-    <li>
+    <li className="loanitem">
       <button
         type="button"
         className={"loancard loancard--request" + (late ? " loancard--late" : "")}
@@ -120,6 +152,7 @@ function RequestCard({ request, onOpen }) {
           </div>
         </div>
       </button>
+      <CoverLink bookId={request.book} title={bookTitle} />
     </li>
   );
 }
@@ -132,9 +165,13 @@ function LoanCard({ loan, onOpen }) {
     loan.dueDate,
     loan.returnedAt,
   );
+  const extension = lastExtension(loan);
+  const late = !isReturned && isLoanOverdue(loan);
+  const charged = late && Boolean(loan.overdueSentAt);
+  const chargeLocked = charged && Boolean(nextChargeAt(loan));
 
   return (
-    <li>
+    <li className="loanitem">
       <button
         type="button"
         className={
@@ -183,20 +220,31 @@ function LoanCard({ loan, onOpen }) {
             />
           </div>
 
-          {!isReturned && loan.personPhone && reminderKind(loan) !== "ok" ? (
+          {/* Cobranca no WhatsApp: so com o livro atrasado. Cobrado nos
+              ultimos 30 dias: quem cobrou e quando. */}
+          {late && loan.personPhone ? (
             <p
-              className={
-                "loancard__notice" +
-                (reminderKind(loan) === "late" ? " is-late" : "")
-              }
+              className={"loancard__notice" + (chargeLocked ? "" : " is-late")}
             >
-              {(reminderKind(loan) === "late"
-                ? loan.overdueSentAt
-                : loan.reminderSentAt)
-                ? "WhatsApp aberto para avisar"
-                : reminderKind(loan) === "late"
-                  ? "Avisar atraso no WhatsApp"
-                  : "Avisar devolução no WhatsApp"}
+              <IconWhatsapp width={14} height={14} aria-hidden="true" />
+              {chargeLocked
+                ? "Cobrado" +
+                  (loan.overdueSentByName
+                    ? " por " + loan.overdueSentByName
+                    : "") +
+                  " em " +
+                  formatDate(loan.overdueSentAt)
+                : charged
+                  ? "Cobrar de novo no WhatsApp"
+                  : "Cobrar atraso no WhatsApp"}
+            </p>
+          ) : null}
+
+          {extension ? (
+            <p className="loancard__extended">
+              {"Prazo estendido" +
+                (extension.byName ? " por " + extension.byName : "") +
+                (extension.from ? " · era " + formatDate(extension.from) : "")}
             </p>
           ) : null}
 
@@ -222,6 +270,7 @@ function LoanCard({ loan, onOpen }) {
           </div>
         </div>
       </button>
+      <CoverLink bookId={loan.book} title={bookTitle} />
     </li>
   );
 }
@@ -262,12 +311,30 @@ export default function Loans() {
   const [returning, setReturning] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  // Janelas sobre os detalhes: "Cobrar no WhatsApp", "Estender prazo" e a
+  // observacao (guardam o emprestimo aberto).
+  const [chargeLoan, setChargeLoan] = useState(null);
+  const [extendLoan, setExtendLoan] = useState(null);
+  const [noteLoan, setNoteLoan] = useState(null);
+  // "Descartar a observação?" (fechou a janela com texto nao salvo).
+  const [askDiscard, setAskDiscard] = useState(false);
 
-  // O rascunho acompanha o emprestimo aberto; troca de emprestimo (ou fecha o
-  // modal) descarta o que nao foi salvo.
+  // A observacao e escrita numa janela no meio da tela, com o resto
+  // desfocado. Abre com o texto salvo; "Cancelar" descarta o rascunho.
+  function openNote(loan) {
+    setNotesDraft(loan.notes || "");
+    setNoteLoan(loan);
+  }
+  // O cursor ja entra no campo, no fim do texto. (Roda depois de o Modal
+  // levar o foco para a propria janela.)
+  const noteFieldRef = useRef(null);
+  const noteOpenId = noteLoan?._id;
   useEffect(() => {
-    setNotesDraft(selected?.notes || "");
-  }, [selected?._id]);
+    const field = noteFieldRef.current;
+    if (!noteOpenId || !field) return;
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }, [noteOpenId]);
 
   // silent: sem esmaecer a lista e sem avisar se falhar (a lista continua).
   const load = useCallback(
@@ -435,35 +502,32 @@ export default function Loans() {
     }
   }
 
-  async function openWhatsapp() {
-    const kind = reminderKind(selected) === "late" ? "overdue" : "reminder";
-    // Abre primeiro (o navegador so permite no clique) e registra depois.
-    window.open(whatsappLink(selected), "_blank", "noopener");
-    try {
-      const updated = await api("/api/loans/" + selected._id + "/notified", {
-        method: "PATCH",
-        body: { kind },
-      });
-      setSelected(updated);
-      setLoans((list) =>
-        (list || []).map((item) => (item._id === updated._id ? updated : item)),
-      );
-    } catch {
-      /* o aviso ja foi aberto; falhar em registrar nao atrapalha */
-    }
+  // O emprestimo mudou (cobranca, prazo, observacao): a ficha aberta e a
+  // lista passam a mostrar a versao nova.
+  function replaceLoan(updated) {
+    // Uma atualizacao da lista que ja estava a caminho traz a versao de
+    // ANTES desta mudanca: a resposta dela passa a ser ignorada.
+    requestRef.current += 1;
+    setRefreshing(false);
+    setSelected((current) =>
+      current && current._id === updated._id ? updated : current,
+    );
+    setLoans((list) =>
+      (list || []).map((item) => (item._id === updated._id ? updated : item)),
+    );
   }
 
-  async function saveNotes() {
+  async function saveNotes(event) {
+    event?.preventDefault();
+    if (!noteLoan || savingNotes) return;
     setSavingNotes(true);
     try {
-      const updated = await api("/api/loans/" + selected._id + "/notes", {
+      const updated = await api("/api/loans/" + noteLoan._id + "/notes", {
         method: "PATCH",
         body: { notes: notesDraft },
       });
-      setSelected(updated);
-      setLoans((list) =>
-        (list || []).map((item) => (item._id === updated._id ? updated : item)),
-      );
+      replaceLoan(updated);
+      setNoteLoan(null);
       notify("Observação salva.", "success");
     } catch (error) {
       notify(error.message, "error");
@@ -475,6 +539,10 @@ export default function Loans() {
   const details = selected
     ? loanProgress(selected.startDate, selected.dueDate, selected.returnedAt)
     : null;
+  const selectedActive = selected?.status === "ativo";
+  const selectedLate = Boolean(selected) && isLoanOverdue(selected);
+  const selectedExtension = selected ? lastExtension(selected) : null;
+  const selectedNextCharge = selected ? nextChargeAt(selected) : null;
 
   return (
     <div className="page">
@@ -684,23 +752,35 @@ export default function Loans() {
       >
         {selected ? (
           <div className="detail">
-            <div className="detail__cover">
-              <BookCover
-                src={selected.bookCover}
-                alt={"Capa de " + formatBookTitle(selected.bookTitle)}
-                className="cover--lg"
-              />
-              {selected.status === "ativo" && selected.personPhone ? (
-                <button
-                  type="button"
-                  className="detail__whatsapp"
-                  onClick={openWhatsapp}
-                  aria-label="Avisar no WhatsApp"
-                >
-                  <IconWhatsapp width={20} height={20} />
-                </button>
-              ) : null}
-            </div>
+            {/* A capa leva a ficha do livro no Acervo. A bolinha no canto e
+                so o sinal de que da para tocar. */}
+            {selected.book ? (
+              <Link
+                to={bookPath(selected.book)}
+                className="detail__cover detail__coverlink"
+                aria-label={
+                  "Ver “" + formatBookTitle(selected.bookTitle) + "” no acervo"
+                }
+                title="Ver o livro no acervo"
+              >
+                <BookCover
+                  src={selected.bookCover}
+                  alt=""
+                  className="cover--lg"
+                />
+                <span className="detail__coverbadge" aria-hidden="true">
+                  <IconBook width={19} height={19} />
+                </span>
+              </Link>
+            ) : (
+              <div className="detail__cover">
+                <BookCover
+                  src={selected.bookCover}
+                  alt={"Capa de " + formatBookTitle(selected.bookTitle)}
+                  className="cover--lg"
+                />
+              </div>
+            )}
             <h3 className="detail__title">
               {formatBookTitle(selected.bookTitle)}
             </h3>
@@ -741,6 +821,19 @@ export default function Loans() {
                   {selected.dueDate
                     ? formatLongDate(selected.dueDate)
                     : "não combinada"}
+                  {selectedExtension ? (
+                    <small className="detail__extended">
+                      {"estendida" +
+                        (selectedExtension.byName
+                          ? " por " + selectedExtension.byName
+                          : "") +
+                        " em " +
+                        formatDate(selectedExtension.at) +
+                        (selectedExtension.from
+                          ? " · era " + formatDate(selectedExtension.from)
+                          : "")}
+                    </small>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -762,25 +855,91 @@ export default function Loans() {
                 </dd>
               </div>
             </dl>
-            {selected.status === "ativo" ? (
-              <div className="detail__notes">
-                <label className="field">
-                  <span>Observações</span>
-                  <textarea
-                    rows={3}
-                    placeholder="Anote algo sobre esse empréstimo…"
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                  />
-                </label>
+
+            {selectedActive ? (
+              <div className="detail__row">
                 <button
                   type="button"
-                  className="btn btn--ghost btn--sm detail__notes-save"
-                  onClick={saveNotes}
-                  disabled={savingNotes || notesDraft === (selected.notes || "")}
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => setExtendLoan(selected)}
                 >
-                  {savingNotes ? "Salvando…" : "Salvar observação"}
+                  <IconPlus width={16} height={16} aria-hidden="true" />
+                  Estender prazo
                 </button>
+              </div>
+            ) : null}
+
+            {/* Cobranca: so com o livro atrasado. Uma a cada 30 dias, com
+                quem cobrou por ultimo (ver components/ChargeModal.jsx). */}
+            {selectedLate ? (
+              <div className="charge-box">
+                <div className="charge-box__text">
+                  <strong>
+                    {Math.abs(details.daysLeft) +
+                      (Math.abs(details.daysLeft) === 1
+                        ? " dia de atraso"
+                        : " dias de atraso")}
+                  </strong>
+                  <span>
+                    {selected.overdueSentAt
+                      ? "Cobrado no WhatsApp" +
+                        (selected.overdueSentByName
+                          ? " por " + selected.overdueSentByName
+                          : "") +
+                        " em " +
+                        formatDate(selected.overdueSentAt) +
+                        "."
+                      : "Ninguém cobrou ainda."}
+                    {selectedNextCharge
+                      ? " Nova cobrança liberada em " +
+                        formatDate(selectedNextCharge) +
+                        "."
+                      : ""}
+                    {!selected.personPhone
+                      ? " Sem WhatsApp no cadastro para cobrar."
+                      : ""}
+                  </span>
+                </div>
+                {selected.personPhone ? (
+                  <button
+                    type="button"
+                    className="btn btn--whatsapp btn--sm charge-box__btn"
+                    onClick={() => setChargeLoan(selected)}
+                    disabled={!canCharge(selected)}
+                  >
+                    <IconWhatsapp width={17} height={17} aria-hidden="true" />
+                    Cobrar no WhatsApp
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* Em andamento: a observacao aparece aqui e e escrita na janela
+                do meio da tela (ver "Observação do empréstimo", abaixo). */}
+            {selectedActive ? (
+              <div className="detail__notes">
+                <div className="detail__notes-head">
+                  <h3>Observações</h3>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => openNote(selected)}
+                  >
+                    {selected.notes ? (
+                      <IconEdit width={15} height={15} aria-hidden="true" />
+                    ) : (
+                      <IconPlus width={15} height={15} aria-hidden="true" />
+                    )}
+                    {selected.notes ? "Editar" : "Adicionar"}
+                  </button>
+                </div>
+                {selected.notes ? (
+                  <p className="detail__notes-text">{selected.notes}</p>
+                ) : (
+                  <p className="detail__notes-empty">
+                    Nenhuma observação sobre esse empréstimo.
+                  </p>
+                )}
               </div>
             ) : selected.notes ? (
               <div className="detail__synopsis">
@@ -791,6 +950,120 @@ export default function Loans() {
           </div>
         ) : null}
       </Modal>
+
+      {/* Observacao: no meio da tela, com tudo atras desfocado. */}
+      <Modal
+        open={Boolean(noteLoan)}
+        onClose={() => {
+          if (savingNotes) return;
+          // O "x" e o Esc perguntam antes de jogar fora o que foi escrito.
+          if (notesDraft !== (noteLoan?.notes || "")) setAskDiscard(true);
+          else setNoteLoan(null);
+        }}
+        // Tocar sem querer no fundo desfocado nao apaga o texto.
+        closeOnBackdrop={false}
+        title="Observação do empréstimo"
+        size="sm"
+        placement="center"
+        className="modal--note"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setNoteLoan(null)}
+              disabled={savingNotes}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="note-form"
+              className="btn btn--primary"
+              disabled={
+                savingNotes || notesDraft === (noteLoan?.notes || "")
+              }
+            >
+              <IconCheck width={17} height={17} aria-hidden="true" />
+              {savingNotes ? "Salvando…" : "Salvar"}
+            </button>
+          </>
+        }
+      >
+        {noteLoan ? (
+          <form id="note-form" className="note" onSubmit={saveNotes}>
+            <p className="note__about">
+              <strong>“{formatBookTitle(noteLoan.bookTitle)}”</strong> com{" "}
+              {noteLoan.personName}
+            </p>
+            <textarea
+              className="note__field"
+              rows={6}
+              maxLength={2000}
+              placeholder="Escreva aqui a observação sobre esse empréstimo…"
+              aria-label="Observação"
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              ref={noteFieldRef}
+            />
+            <small className="note__count" aria-hidden="true">
+              {notesDraft.length + " / 2000"}
+            </small>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Confirm
+        open={askDiscard}
+        title="Descartar a observação?"
+        message="O que você escreveu ainda não foi salvo e vai se perder."
+        cancelLabel="Continuar escrevendo"
+        confirmLabel="Descartar"
+        tone="danger"
+        onCancel={() => {
+          setAskDiscard(false);
+          // Volta a escrever: o cursor retorna ao campo (o Modal nao devolve
+          // o foco a campo de texto).
+          requestAnimationFrame(() => noteFieldRef.current?.focus());
+        }}
+        onConfirm={() => {
+          setAskDiscard(false);
+          setNoteLoan(null);
+        }}
+      />
+
+      <ExtendDueModal
+        loan={extendLoan}
+        notify={notify}
+        onClose={() => setExtendLoan(null)}
+        onSaved={(updated) => {
+          setExtendLoan(null);
+          replaceLoan(updated);
+        }}
+        onChanged={(fresh) => {
+          // Outro administrador mudou o prazo (ou devolveu): a janela passa
+          // a mostrar o de agora; devolvido, ela fecha.
+          replaceLoan(fresh);
+          setExtendLoan(fresh.status === "ativo" ? fresh : null);
+        }}
+      />
+
+      <ChargeModal
+        loan={chargeLoan}
+        onClose={() => setChargeLoan(null)}
+        onCharged={(updated, options) => {
+          // keepOpen: a aba nao abriu; a janela fica com o link do WhatsApp.
+          if (!options?.keepOpen) setChargeLoan(null);
+          replaceLoan(updated);
+        }}
+        onRefused={(message, fresh, noAnswer) => {
+          setChargeLoan(null);
+          notify(message, "error");
+          if (fresh) replaceLoan(fresh);
+          // Sem resposta: a cobranca pode ter sido gravada; a lista vem de novo.
+          if (noAnswer) load({ silent: true });
+        }}
+      />
     </div>
   );
 }

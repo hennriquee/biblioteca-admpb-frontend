@@ -935,55 +935,20 @@ html[data-app="catalogo"] #root:empty {
   line-height: 1.65;
 }
 
-/* Observacoes editaveis (emprestimo em andamento): mesmo espaco do bloco so
-   leitura acima, com o campo e o botao de salvar. Sempre aparece (mesmo
-   vazio) para dar para anotar a qualquer momento, nao so na criacao. */
+/* Observacoes do emprestimo em andamento: o texto salvo e o botao que abre a
+   janela de escrever (ver .modal--note). Sempre aparece (mesmo vazio) para
+   dar para anotar a qualquer momento, nao so na criacao. */
 .detail__notes {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.detail__notes-save {
-  align-self: flex-end;
-}
 
-/* Bolinha de WhatsApp no canto da capa (emprestimo em andamento, com
-   telefone salvo): mesmo padrao da bolinha de camera da capa de livro, sem
-   depender de posicao fixa/absoluta sobre o conteudo que rola (por isso nao
-   disputa espaco com as Observacoes, por maior que fiquem). */
+/* Capa dos detalhes: referencia da bolinha no canto (ver .detail__coverbadge). */
 .detail__cover {
   position: relative;
   display: inline-flex;
-}
-.detail__whatsapp {
-  position: absolute;
-  right: -10px;
-  bottom: -10px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 3px solid var(--surface);
-  border-radius: 50%;
-  background: #25d366;
-  color: #fff;
-  box-shadow: var(--shadow-card);
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    transform 0.15s ease;
-}
-.detail__whatsapp:hover {
-  background: #1fb858;
-}
-.detail__whatsapp:active {
-  transform: scale(0.94);
-}
-.detail__whatsapp:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
 }
 
 /* ---------- Formulario de livro ---------- */
@@ -5039,4 +5004,379 @@ span.avatar--empty {
   border-top-color: var(--clay);
   border-radius: 50%;
   animation: photo-spin 0.8s linear infinite;
+}
+
+/* ---------- Emprestimos: capa que leva ao livro, prazo estendido e cobranca ---------- */
+
+/* A capa do card leva a ficha do livro no Acervo. O link fica por cima da
+   capa, fora do botao do card (ver CoverLink em pages/Loans.jsx): 1px da
+   borda + 12px do respiro do card = 13px. */
+.loanitem {
+  position: relative;
+}
+.loancard__coverlink {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  width: 46px;
+  height: 66px;
+  border-radius: 6px;
+  transition: box-shadow 0.15s ease;
+}
+.loancard__coverlink:hover {
+  box-shadow: 0 0 0 2px var(--clay);
+}
+.loancard__coverlink:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.loancard__notice {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.loancard__notice svg {
+  flex-shrink: 0;
+}
+/* Prazo estendido: quem estendeu e qual era a data anterior. */
+.loancard__extended {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gold-strong);
+}
+
+/* Capa dos detalhes: tocar leva ao livro. A bolinha no canto e o sinal. */
+.detail__coverlink {
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.detail__coverlink:hover {
+  transform: translateY(-2px);
+}
+.detail__coverlink:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.detail__coverbadge {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--clay);
+  color: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.detail__coverlink:hover .detail__coverbadge {
+  background: var(--clay-strong);
+}
+
+.detail__extended {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gold-strong);
+}
+
+/* Botao verde do WhatsApp (cobranca). Verde mais escuro que o da marca, para
+   o texto branco ter contraste. */
+.btn--whatsapp {
+  background: #1e874b;
+  color: #fff;
+}
+.btn--whatsapp:hover:not(:disabled) {
+  background: #176e3d;
+}
+.btn--whatsapp:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Faixa da cobranca nos detalhes (so com o livro atrasado). */
+.charge-box {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  background: var(--danger-wash);
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-sm);
+}
+.charge-box__text {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.charge-box__text strong {
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.charge-box__text span {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.charge-box__btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Janela "Cobrar no WhatsApp": no meio da tela, simbolo grande em cima. */
+.modal-backdrop--center .modal.modal--charge {
+  width: 100%;
+  max-width: 440px;
+}
+.charge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 22px 22px;
+  text-align: center;
+}
+.charge__icon {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 10px 24px -12px rgba(18, 140, 78, 0.7);
+}
+.charge__title {
+  margin-top: 4px;
+  font-size: 1.3rem;
+}
+.charge__text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.charge__text strong {
+  color: var(--ink);
+}
+.charge__rule {
+  padding: 10px 12px;
+  background: var(--gold-wash);
+  border-radius: var(--radius-sm);
+  color: var(--gold-strong);
+}
+.charge__rule strong {
+  color: inherit;
+}
+.charge__who {
+  font-size: 0.8rem;
+}
+.modal--charge .modal__foot .btn {
+  flex: 1;
+  min-height: 46px;
+}
+
+/* Janela "Estender prazo" */
+.extend {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.extend__lead {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.extend__lead strong {
+  color: var(--ink);
+}
+.extend__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.extend__chip {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.extend__chip:hover {
+  background: var(--surface-sunk);
+}
+.extend__chip.is-active {
+  border-color: var(--clay);
+  background: var(--clay-wash);
+  color: var(--clay-strong);
+}
+.extend .field__hint {
+  margin-top: -6px;
+}
+
+/* Rodape da ficha do livro (painel): Excluir e Editar a esquerda, Emprestar
+   a direita. */
+.bookfoot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bookfoot__side {
+  display: flex;
+  gap: 8px;
+}
+.bookfoot .btn--primary:disabled {
+  cursor: not-allowed;
+}
+/* Celular estreito: os dois da esquerda ficam so com o icone. */
+@media (max-width: 420px) {
+  .bookfoot__icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .bookfoot__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Observacoes nos detalhes do emprestimo: o texto salvo e o botao que abre
+   a janela de escrever. */
+.detail__notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.detail__notes-head h3 {
+  font-size: 1rem;
+}
+.detail__notes-text {
+  padding: 10px 12px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.detail__notes-empty {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+
+/* Janela da observacao: no meio da tela, com TUDO atras desfocado (a lista
+   e os detalhes do emprestimo). */
+.modal-backdrop:has(.modal--note) {
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+.modal-backdrop--center .modal.modal--note {
+  width: 100%;
+  max-width: 480px;
+}
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.note__about {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+.note__about strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.note__field {
+  width: 100%;
+  min-height: 150px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  resize: vertical;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+.note__field::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+.note__field:focus {
+  outline: none;
+  border-color: var(--clay);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--clay-wash);
+}
+.note__count {
+  align-self: flex-end;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.modal--note .modal__foot .btn {
+  min-width: 112px;
+}
+
+/* Rodape da cobranca: "Voltar" so do tamanho do texto; o botao verde ocupa o
+   resto, sem quebrar a linha. */
+.modal--charge .modal__foot .btn--ghost {
+  flex: 0 0 auto;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+.modal--charge .modal__foot .btn--whatsapp {
+  white-space: nowrap;
+}
+
+/* Linha propria nos detalhes (ex.: "Estender prazo"): na tela larga os
+   detalhes ficam lado a lado, e um botao solto apertaria os dados. */
+.detail__row {
+  width: 100%;
+  display: flex;
+}
+/* Celular estreito: os dois botoes da cobranca empilham (o verde em cima),
+   cada um na largura toda; lado a lado eles nao cabem. */
+@media (max-width: 400px) {
+  .modal--charge .modal__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal--charge .modal__foot .btn,
+  .modal--charge .modal__foot .btn--ghost {
+    flex: 0 0 auto;
+    width: 100%;
+  }
 }

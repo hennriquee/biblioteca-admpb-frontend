@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Confirm from "../components/Confirm.jsx";
@@ -44,7 +44,14 @@ export default function NewLoan() {
   // O livro escolhido. Livro sem exemplar na estante (emprestado ou
   // SOLICITADO) nao pode ser escolhido aqui: o solicitado so sai pela propria
   // solicitacao, em Emprestimos > Solicitados (ver components/BookPicker.jsx).
-  const [book, setBook] = useState(null);
+  // O "Emprestar" da ficha do livro (pages/Books.jsx) abre esta tela com ele
+  // ja escolhido. (Se o exemplar sair nesse meio tempo, o servidor recusa o
+  // registro com o aviso de que nao sobrou exemplar.)
+  const location = useLocation();
+  const [book, setBook] = useState(() => {
+    const initial = location.state?.book;
+    return initial && initial.available > 0 ? initial : null;
+  });
 
   // Quem e a pessoa, de verdade: a ficha escolhida na lista de sugestoes (ou
   // recem-cadastrada pelo "Cadastrar nova pessoa") - digitar o nome NAO basta

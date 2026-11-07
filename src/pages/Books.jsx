@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -18,6 +19,7 @@ import { formatBookTitle } from "../utils/bookTitle.js";
 import { parseCoverInput } from "../api/imageSearch.js";
 import {
   IconCrown,
+  IconLoans,
   IconPlus,
   IconSearch,
   IconEdit,
@@ -135,10 +137,63 @@ export default function Books() {
 
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const navigate = useNavigate();
+
+  // Ficha aberta pelo endereco (?livro=<id>): a capa de um emprestimo ou de
+  // uma solicitacao (pages/Loans.jsx) traz para ca. O livro vem do servidor
+  // (pode nao estar entre os da tela) e o ?livro= sai do endereco, para
+  // recarregar a pagina nao reabrir a ficha.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedBookId = searchParams.get("livro");
+  // (O pedido nao e cancelado quando o endereco muda - e a propria limpeza do
+  // ?livro= que muda linkedBookId. So a saida da tela descarta a resposta.)
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  // Enquanto o livro do link vem (o servidor pode estar acordando), o topo
+  // diz "Abrindo o livro…". Se nesse meio tempo a pessoa abrir outra ficha
+  // ou o cadastro, a resposta e deixada de lado.
+  const [openingLinked, setOpeningLinked] = useState(false);
+  const screenRef = useRef({});
+  useEffect(() => {
+    if (!linkedBookId) return;
+    setSearchParams({}, { replace: true });
+    setOpeningLinked(true);
+    const before = screenRef.current;
+    const untouched = () =>
+      screenRef.current.selected === before.selected &&
+      screenRef.current.creating === before.creating;
+    api("/api/books/" + encodeURIComponent(linkedBookId))
+      .then((book) => {
+        if (mountedRef.current && untouched()) setSelected(book);
+      })
+      .catch((error) => {
+        if (!mountedRef.current || !untouched()) return;
+        notify(
+          // Sem resposta, a mensagem do app (internet); qualquer recusa do
+          // servidor (apagado, endereco estragado) e "nao esta mais".
+          error.status
+            ? "Esse livro não está mais no acervo."
+            : error.message,
+          "error",
+        );
+      })
+      .finally(() => {
+        if (mountedRef.current) setOpeningLinked(false);
+      });
+    // Roda quando chega um livro novo pelo endereco.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedBookId]);
   // "Marcar como solicitado": o livro da ficha aberta.
   const [requestBook, setRequestBook] = useState(null);
 
   const [creating, setCreating] = useState(false);
+  // O que a tela mostra agora (para a ficha do link nao cair por cima).
+  screenRef.current = { selected: selected?._id || null, creating };
   const [isbnInput, setIsbnInput] = useState("");
   const [lookupState, setLookupState] = useState("idle"); // idle | loading | found | manual
   const [form, setForm] = useState(emptyForm);
@@ -363,8 +418,10 @@ export default function Books() {
       <div className="page__head">
         <div>
           <h1>Acervo</h1>
-          <p className="page__sub">
-            {waiting
+          <p className="page__sub" aria-live="polite">
+            {openingLinked
+              ? "Abrindo o livro…"
+              : waiting
               ? "Carregando…"
               : error
                 ? "Não foi possível carregar"
@@ -556,24 +613,49 @@ export default function Books() {
         onClose={() => setSelected(null)}
         title={formatBookTitle(selected?.title)}
         footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setConfirmDelete(selected)}
-            >
-              <IconTrash width={17} height={17} />
-              Excluir
-            </button>
+          // Excluir e Editar a esquerda; Emprestar, a acao principal, a
+          // direita. No celular estreito os dois da esquerda ficam so com o
+          // icone (o nome continua para o leitor de tela).
+          <div className="bookfoot">
+            <div className="bookfoot__side">
+              <button
+                type="button"
+                className="btn btn--ghost bookfoot__icon"
+                onClick={() => setConfirmDelete(selected)}
+                title="Excluir"
+              >
+                <IconTrash width={17} height={17} aria-hidden="true" />
+                <span className="bookfoot__label">Excluir</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost bookfoot__icon"
+                onClick={() => startEdit(selected)}
+                title="Editar"
+              >
+                <IconEdit width={17} height={17} aria-hidden="true" />
+                <span className="bookfoot__label">Editar</span>
+              </button>
+            </div>
+            {/* Sem exemplar na estante (emprestado ou solicitado) nao ha o
+                que emprestar: a Situacao, acima, diz com quem esta. */}
             <button
               type="button"
               className="btn btn--primary"
-              onClick={() => startEdit(selected)}
+              disabled={!(selected?.available > 0)}
+              title={
+                selected?.available > 0
+                  ? undefined
+                  : "Nenhum exemplar na estante agora"
+              }
+              onClick={() =>
+                navigate("/emprestimos/novo", { state: { book: selected } })
+              }
             >
-              <IconEdit width={17} height={17} />
-              Editar
+              <IconLoans width={17} height={17} aria-hidden="true" />
+              Emprestar
             </button>
-          </>
+          </div>
         }
       >
         {selected ? (
