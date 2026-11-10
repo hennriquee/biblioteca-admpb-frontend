@@ -8,7 +8,7 @@ import WelcomeModal from "../components/WelcomeModal.jsx";
 import NewBooksModal from "../components/NewBooksModal.jsx";
 import StaffModal from "../components/StaffModal.jsx";
 import CatalogMenu from "../components/CatalogMenu.jsx";
-import SupportModal from "../components/SupportModal.jsx";
+// APOIE (desativado por enquanto): import SupportModal from "../components/SupportModal.jsx";
 import SuggestBookModal from "../components/SuggestBookModal.jsx";
 import { IconSearch, IconUsers } from "../components/Icons.jsx";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
@@ -119,7 +119,7 @@ export default function Catalog() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
+  // APOIE (desativado por enquanto): const [supportOpen, setSupportOpen] = useState(false);
   // null = nada para avisar | { total, items, since } = ha novidade para mostrar.
   const [newBooks, setNewBooks] = useState(null);
 
@@ -505,7 +505,7 @@ export default function Catalog() {
         hasStaff={staff.length > 0}
         onStaff={() => setStaffOpen(true)}
         onSuggest={() => setSuggestOpen(true)}
-        onSupport={() => setSupportOpen(true)}
+        // APOIE (desativado por enquanto): onSupport={() => setSupportOpen(true)}
       />
 
       <StaffModal
@@ -514,7 +514,9 @@ export default function Catalog() {
         staff={staff}
       />
 
+      {/* APOIE (desativado por enquanto):
       <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+      */}
 
       <SuggestBookModal
         open={suggestOpen}

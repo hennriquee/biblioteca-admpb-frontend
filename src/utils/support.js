@@ -19,4 +19,4 @@ export const PIX_LINK =
 
 // Convite do grupo de novidades no WhatsApp.
 export const WHATSAPP_GROUP =
-  "https://chat.whatsapp.com/FwqXcwLESk1BH9SKe5lr6t?s=cl&p=a&mlu=4&ilr=4";
+  "https://chat.whatsapp.com/FVmlY79t5uzAlc8lEfqkrf?s=cl&p=a&iam=2";

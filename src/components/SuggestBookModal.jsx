@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal.jsx";
 import BookCover from "./BookCover.jsx";
 import CoverPicker from "./CoverPicker.jsx";
-import ContributeModal from "./ContributeModal.jsx";
-import SupportModal from "./SupportModal.jsx";
-import { preloadSuggestScene } from "./SuggestScene.jsx";
+// CONVITE PARA CONTRIBUIR (desativado por enquanto): descomente estas tres
+// linhas e tudo o que estiver marcado "CONVITE" mais abaixo.
+// import ContributeModal from "./ContributeModal.jsx";
+// import SupportModal from "./SupportModal.jsx";
+// import { preloadSuggestScene } from "./SuggestScene.jsx";
 import { useToast } from "./Toast.jsx";
 import { publicApi } from "../api/client.js";
 
@@ -46,18 +48,20 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
-  // Depois de enviar: { title, duplicate } enquanto o convite estiver aberto.
-  const [thanks, setThanks] = useState(null);
-  const [supportOpen, setSupportOpen] = useState(false);
+  // CONVITE (desativado por enquanto):
+  // // Depois de enviar: { title, duplicate } enquanto o convite estiver aberto.
+  // const [thanks, setThanks] = useState(null);
+  // const [supportOpen, setSupportOpen] = useState(false);
   // Envio em andamento: { controller, timedOut } (para cancelar ou estourar o prazo).
   const sendRef = useRef(null);
   useEffect(() => () => sendRef.current?.controller.abort(), []);
 
-  // Baixa a animacao do convite enquanto a pessoa preenche (sem rede ou sem
-  // suporte, o convite aparece mesmo assim, sem o desenho).
-  useEffect(() => {
-    if (open) preloadSuggestScene().catch(() => {});
-  }, [open]);
+  // CONVITE (desativado por enquanto):
+  // // Baixa a animacao do convite enquanto a pessoa preenche (sem rede ou sem
+  // // suporte, o convite aparece mesmo assim, sem o desenho).
+  // useEffect(() => {
+  //   if (open) preloadSuggestScene().catch(() => {});
+  // }, [open]);
 
   // A ficha e limpa ao FECHAR, para a proxima abertura ja comecar em branco
   // (limpando ao abrir, o rascunho anterior aparecia por um instante).
@@ -109,7 +113,16 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
           website: form.website,
         },
       });
-      setThanks({ title: form.title, duplicate: Boolean(result?.duplicate) });
+      // CONVITE (desativado por enquanto): no lugar do aviso abaixo, volta a
+      // abrir o convite para contribuir.
+      // setThanks({ title: form.title, duplicate: Boolean(result?.duplicate) });
+      // Sem o convite, este aviso e a unica confirmacao de que a sugestao chegou.
+      notify(
+        result?.duplicate
+          ? "Esse livro já estava na lista: obrigado por reforçar!"
+          : "Sugestão enviada! Obrigado.",
+        "success",
+      );
       setConfirming(false);
       onSent();
     } catch (error) {
@@ -294,6 +307,7 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
         </div>
       </Modal>
 
+      {/* CONVITE (desativado por enquanto):
       <ContributeModal
         open={Boolean(thanks)}
         title={thanks?.title}
@@ -305,6 +319,7 @@ export default function SuggestBookModal({ open, onClose, onSent }) {
         }}
       />
       <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+      */}
     </>
   );
 }

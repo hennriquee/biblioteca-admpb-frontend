@@ -3,7 +3,8 @@ import {
   IconBookPlus,
   IconChat,
   IconExternal,
-  IconHeart,
+  // APOIE (desativado por enquanto): descomente junto com o botao mais abaixo.
+  // IconHeart,
   IconWhatsapp,
 } from "./Icons.jsx";
 import { WHATSAPP_GROUP } from "../utils/support.js";
@@ -21,7 +22,8 @@ export default function CatalogMenu({
   hasStaff,
   onStaff,
   onSuggest,
-  onSupport,
+  // APOIE (desativado por enquanto): descomente junto com o botao mais abaixo.
+  // onSupport,
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Participe" variant="pub" size="sm">
@@ -53,6 +55,9 @@ export default function CatalogMenu({
           </span>
         </button>
 
+        {/* APOIE O NOSSO PROJETO (desativado por enquanto). Para voltar:
+            descomente este botao, o IconHeart e o onSupport la em cima, e o
+            que estiver marcado "APOIE" em pages/Catalog.jsx.
         <button type="button" className="pubmenu__item" onClick={onSupport}>
           <span className="pubmenu__icon">
             <IconHeart width={20} height={20} />
@@ -62,6 +67,7 @@ export default function CatalogMenu({
             <small>Contribua com qualquer valor pelo PIX</small>
           </span>
         </button>
+        */}
 
         <a
           className="pubmenu__item"
