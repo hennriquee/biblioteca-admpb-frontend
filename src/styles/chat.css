@@ -402,6 +402,23 @@
   font-weight: 700;
   letter-spacing: 0;
 }
+/* Mensagem que o proprio sistema mandou (robo, aviso de atraso) */
+.msg__bubble--auto {
+  border-style: dashed;
+}
+/* "Aguardando administrador" na lista */
+.chatrow__waiting {
+  flex: none;
+  align-self: center;
+  padding: 1px 7px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: var(--gold-wash);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 /* ---------- Campo de escrever ---------- */
 .composer {
@@ -457,6 +474,43 @@
   align-self: flex-end;
   color: var(--ink-soft);
   font-size: 0.74rem;
+}
+
+/* Faixa de quem atende (robo ou administrador), em cima do campo */
+.attbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  font-size: 0.8rem;
+}
+.attbar--human {
+  border-color: #c9dfce;
+  background: var(--success-wash);
+}
+.attbar--waiting {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+}
+.attbar__text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.attbar__text span {
+  color: var(--ink-soft);
+}
+.attbar__action {
+  flex: none;
+  padding: 4px 0;
+  font-size: 0.8rem;
+  text-align: left;
 }
 
 /* Faixa da cobranca de atraso, em cima do campo */

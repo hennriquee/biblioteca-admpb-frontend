@@ -15,7 +15,10 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  * Props:
  * - status: o que vem de GET /api/whatsapp/status (undefined = carregando,
  *   null = nao deu para carregar)
- * - onChange(status): uma acao (conectar, desconectar) devolveu a situacao nova
+ * - onChange(status): uma acao (conectar, recuperar a sessao) devolveu a situacao nova
+ *
+ * NUMERO FIXO: nao ha "Desconectar". O servidor reconecta sozinho; a sessao so
+ * pode ser apagada quando ela ja quebrou (status.broken), para ler o QR de novo.
  * - onRetry(): tentar carregar a situacao de novo
  * - autoConnect: ao abrir a tela sem conexao, ja pede o QR (uma vez)
  */
@@ -45,7 +48,7 @@ export default function WhatsappConnect({
   const [busy, setBusy] = useState("");
   const busyRef = useRef("");
   const [code, setCode] = useState("");
-  const [askDisconnect, setAskDisconnect] = useState(false);
+  const [askReset, setAskReset] = useState(false);
   const autoRef = useRef(false);
   const mountedRef = useRef(true);
 
@@ -94,14 +97,12 @@ export default function WhatsappConnect({
     });
   }
 
-  function disconnect({ thenConnect = false } = {}) {
-    return run("disconnect", async () => {
-      const next = await api("/api/whatsapp/disconnect", { method: "POST" });
+  // So com a sessao quebrada: apaga e o servidor ja abre o QR novo.
+  function resetBroken() {
+    return run("reset", async () => {
+      const next = await api("/api/whatsapp/recover-session", { method: "POST" });
       onChange?.(next);
-      notify("WhatsApp desconectado.", "success");
       return next;
-    }).then(async (next) => {
-      if (next && thenConnect && mountedRef.current) await connect();
     });
   }
 
@@ -162,27 +163,7 @@ export default function WhatsappConnect({
               </>
             ) : null}
           </span>
-          <button
-            type="button"
-            className="linkish"
-            onClick={() => setAskDisconnect(true)}
-            disabled={Boolean(busy)}
-          >
-            Desconectar
-          </button>
         </div>
-        <Confirm
-          open={askDisconnect}
-          title="Desconectar o WhatsApp?"
-          message="O aparelho será desvinculado e será preciso ler o QR code de novo para voltar. As conversas continuam salvas aqui."
-          confirmLabel="Desconectar"
-          tone="danger"
-          onCancel={() => setAskDisconnect(false)}
-          onConfirm={() => {
-            setAskDisconnect(false);
-            disconnect();
-          }}
-        />
       </>
     );
   }
@@ -273,7 +254,9 @@ export default function WhatsappConnect({
 
   // idle, logged-out, wrong-number, unreadable, error
   const danger = state === "wrong-number" || state === "unreadable" || state === "error";
-  const resetFirst = state === "unreadable";
+  // Sessao quebrada (ilegivel ou recusada varias vezes): a unica saida e
+  // apagar e ler o QR de novo. Fora disso, o botao so tenta conectar.
+  const resetFirst = Boolean(status.broken);
   return (
     <>
       <section
@@ -293,10 +276,10 @@ export default function WhatsappConnect({
         <button
           type="button"
           className="btn btn--primary"
-          onClick={() => (resetFirst ? setAskDisconnect(true) : connect())}
+          onClick={() => (resetFirst ? setAskReset(true) : connect())}
           disabled={Boolean(busy)}
         >
-          {busy === "connect" || busy === "disconnect"
+          {busy === "connect" || busy === "reset"
             ? "Conectando…"
             : resetFirst
               ? "Apagar a sessão e conectar de novo"
@@ -306,15 +289,19 @@ export default function WhatsappConnect({
         </button>
       </section>
       <Confirm
-        open={askDisconnect}
+        open={askReset}
         title="Apagar a sessão salva?"
-        message="A sessão guardada não pôde ser lida. Ela será apagada e será preciso ler o QR code de novo. As conversas continuam salvas."
+        message={
+          "A sessão guardada não funciona mais. Ela será apagada e será preciso ler o QR code de novo com o celular do número " +
+          number +
+          ". As conversas continuam salvas."
+        }
         confirmLabel="Apagar e conectar"
         tone="danger"
-        onCancel={() => setAskDisconnect(false)}
+        onCancel={() => setAskReset(false)}
         onConfirm={() => {
-          setAskDisconnect(false);
-          disconnect({ thenConnect: true });
+          setAskReset(false);
+          resetBroken();
         }}
       />
     </>

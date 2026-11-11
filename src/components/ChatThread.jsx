@@ -27,6 +27,12 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  * - chargeLoanId: id do emprestimo, enviado junto quando e cobranca
  * - onChargeSent(emprestimo) / onChargeRefused(mensagem, emprestimo|null, idDaConversa)
  * - onRead(chatId), onBack()
+ * - onChatChange(conversa): o servidor devolveu a conversa atualizada (quem
+ *   atende: o robo ou um administrador)
+ *
+ * ATENDIMENTO: a faixa em cima do campo diz se o atendimento automatico (o
+ * robo do menu) esta respondendo nesta conversa. Responder por aqui pausa o
+ * robo; "Devolver ao atendimento automatico" o liga de novo.
  */
 
 const KIND_LABEL = {
@@ -64,11 +70,38 @@ function firstName(name) {
   return String(name || "").trim().split(/\s+/)[0] || "";
 }
 
-function Ticks({ status }) {
+// Quem mandou as mensagens do proprio sistema.
+const AUTO_LABEL = {
+  bot: "Atendimento automático",
+  overdue: "Aviso de atraso",
+  handoff: "Aviso ao administrador",
+};
+
+// *negrito* do WhatsApp, como no celular. So vira <strong> (elemento do
+// React, nunca HTML): o resto do texto continua texto puro.
+function RichText({ text }) {
+  // Como no WhatsApp: o asterisco de abrir e o de fechar ficam colados no
+  // texto ("*1*", "*Dom Casmurro*"); "2 * 3" continua texto comum.
+  const parts = String(text).split(/(\*[^\s*](?:[^*\n]*[^\s*])?\*)/g);
+  return parts.map((part, index) =>
+    /^\*[^\s*](?:[^*\n]*[^\s*])?\*$/.test(part) ? (
+      <strong key={index}>{part.slice(1, -1)}</strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+function Ticks({ status, errorCode }) {
   if (status === 0) {
     return (
-      <span className="msg__ticks msg__ticks--err" role="img" aria-label="Não foi enviada">
-        !
+      <span
+        className="msg__ticks msg__ticks--err"
+        role="img"
+        aria-label="Não entregue: o WhatsApp recusou a mensagem"
+        title={"O WhatsApp recusou esta mensagem" + (errorCode ? " (código " + errorCode + ")" : "") + ". Ela não chegou à pessoa."}
+      >
+        ! não entregue
       </span>
     );
   }
@@ -98,13 +131,23 @@ function Message({ message }) {
   const label = KIND_LABEL[message.kind];
   return (
     <div className={"msg " + (mine ? "msg--me" : "msg--them")}>
-      <div className={"msg__bubble" + (message.charge ? " msg__bubble--charge" : "")}>
+      <div
+        className={
+          "msg__bubble" +
+          (message.charge ? " msg__bubble--charge" : "") +
+          (message.auto ? " msg__bubble--auto" : "")
+        }
+      >
         {message.deleted ? (
           <em className="msg__deleted">Mensagem apagada</em>
         ) : (
           <>
             {label ? <span className="msg__kind">{label}</span> : null}
-            {message.text ? <span className="msg__text">{message.text}</span> : null}
+            {message.text ? (
+              <span className="msg__text">
+                <RichText text={message.text} />
+              </span>
+            ) : null}
             {label ? (
               <small className="msg__hint">Abra no celular para ver.</small>
             ) : null}
@@ -112,10 +155,15 @@ function Message({ message }) {
         )}
         <span className="msg__meta">
           {message.charge ? <b>Cobrança · </b> : null}
-          {mine ? (message.sentByName ? firstName(message.sentByName) : "pelo celular") + " · " : ""}
+          {mine
+            ? (AUTO_LABEL[message.auto] ||
+                (message.sentByName ? firstName(message.sentByName) : "pelo celular")) + " · "
+            : ""}
           {formatClock(message.at)}
           {message.edited && !message.deleted ? " · editada" : ""}
-          {mine && !message.deleted ? <Ticks status={message.status} /> : null}
+          {mine && !message.deleted ? (
+            <Ticks status={message.status} errorCode={message.errorCode} />
+          ) : null}
         </span>
       </div>
     </div>
@@ -134,8 +182,10 @@ export default function ChatThread({
   onChargeRefused,
   onRead,
   onBack,
+  onChatChange,
 }) {
   const { notify } = useToast();
+  const [switching, setSwitching] = useState(false);
   // null = carregando
   const [messages, setMessages] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -346,6 +396,7 @@ export default function ChatThread({
       // mensagem saiu mesmo assim, e o rascunho e limpo SO da conversa que enviou.)
       setMessages((current) => mergeMessages(current, [result.message]));
       onDraftChange(id, "");
+      if (result.chat) onChatChange?.(result.chat);
       if (result.loan) onChargeSent?.(result.loan);
       requestAnimationFrame(() => fieldRef.current?.focus());
     } catch (error) {
@@ -357,6 +408,30 @@ export default function ChatThread({
     } finally {
       sendingRef.current = false;
       setSending(false);
+    }
+  }
+
+  // Quem atende: "human" (o administrador assume) ou "bot" (devolve ao robo).
+  async function setAttendance(mode) {
+    if (switching) return;
+    setSwitching(true);
+    const id = chatId;
+    try {
+      const result = await api("/api/whatsapp/chats/" + id + "/attendance", {
+        method: "POST",
+        body: { mode },
+      });
+      onChatChange?.(result.chat);
+      notify(
+        mode === "bot"
+          ? "O atendimento automático voltou a responder nesta conversa."
+          : "Atendimento assumido: o robô não responde nesta conversa.",
+        "success",
+      );
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setSwitching(false);
     }
   }
 
@@ -377,6 +452,7 @@ export default function ChatThread({
   const name = chat?.person?.fullName || chat?.pushName || "";
   const phone = chat?.phone ? formatStoredPhone(chat.phone) : "";
   const title = name || phone || "Número oculto";
+  const attendance = chat?.attendance || null;
 
   let lastDay = "";
   return (
@@ -481,6 +557,56 @@ export default function ChatThread({
           send();
         }}
       >
+        {attendance ? (
+          <div
+            className={
+              "attbar" +
+              (attendance.waiting || attendance.muted
+                ? " attbar--waiting"
+                : attendance.mode === "human"
+                  ? " attbar--human"
+                  : "")
+            }
+            role="status"
+          >
+            <span className="attbar__text">
+              {attendance.waiting ? (
+                <>
+                  <strong>Pediu para falar com um administrador</strong>
+                  <span>O robô está pausado. Responda por aqui.</span>
+                </>
+              ) : attendance.mode === "human" ? (
+                <>
+                  <strong>Atendimento por administrador</strong>
+                  <span>O robô está pausado nesta conversa.</span>
+                </>
+              ) : attendance.muted ? (
+                <>
+                  <strong>Atendimento automático silenciado</strong>
+                  <span>Muitas mensagens seguidas nesta conversa. Responda por aqui ou devolva ao robô.</span>
+                </>
+              ) : (
+                <>
+                  <strong>Atendimento automático ativo</strong>
+                  <span>O robô responde com o menu. Ao responder por aqui, ele pausa.</span>
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              className="linkish attbar__action"
+              onClick={() =>
+                setAttendance(attendance.mode === "human" || attendance.muted ? "bot" : "human")
+              }
+              disabled={switching}
+            >
+              {attendance.mode === "human" || attendance.muted
+                ? "Devolver ao atendimento automático"
+                : "Assumir atendimento"}
+            </button>
+          </div>
+        ) : null}
+
         {charge ? (
           <div
             className={"chargebar chargebar--" + charge.mode}

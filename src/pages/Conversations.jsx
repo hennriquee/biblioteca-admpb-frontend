@@ -48,8 +48,10 @@ function chatTitle(chat) {
 function ChatRow({ chat, active }) {
   const title = chatTitle(chat);
   const unread = chat.unread || 0;
+  // (sem os asteriscos do *negrito* do WhatsApp)
   const preview = chat.lastMessageText
-    ? (chat.lastMessageFromMe ? "Você: " : "") + chat.lastMessageText
+    ? (chat.lastMessageFromMe ? "Você: " : "") +
+      chat.lastMessageText.replace(/\*([^\s*](?:[^*\n]*[^\s*])?)\*/g, "$1")
     : "";
   return (
     <li>
@@ -69,6 +71,11 @@ function ChatRow({ chat, active }) {
           </span>
           <span className="chatrow__bottom">
             <span className="chatrow__preview">{preview || "Sem mensagens"}</span>
+            {chat.attendance?.waiting ? (
+              <span className="chatrow__waiting">Aguardando administrador</span>
+            ) : chat.attendance?.muted ? (
+              <span className="chatrow__waiting">Robô silenciado</span>
+            ) : null}
             {unread ? (
               <span className="chatrow__badge">
                 <span aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
@@ -242,6 +249,15 @@ export default function Conversations() {
     },
     [],
   );
+
+  // O servidor devolveu a conversa atualizada (ex.: quem atende agora).
+  const handleChatChange = useCallback((updated) => {
+    if (!updated?._id) return;
+    setChats((current) =>
+      current ? current.map((c) => (c._id === updated._id ? { ...c, ...updated } : c)) : current,
+    );
+    setFetchedChat((current) => (current?._id === updated._id ? { ...current, ...updated } : current));
+  }, []);
 
   // ---------- cobranca (vem de Emprestimos > Cobrar no WhatsApp) ----------
   const cobrarId = params.get("cobrar") || "";
@@ -552,6 +568,7 @@ export default function Conversations() {
                 if (fresh) setLoan({ data: fresh });
               }}
               onRead={handleRead}
+              onChatChange={handleChatChange}
               onBack={() => {
                 // Voltar de verdade (o botao Voltar do navegador nao reabre a
                 // conversa); sem historico (endereco aberto direto), vai para a lista.

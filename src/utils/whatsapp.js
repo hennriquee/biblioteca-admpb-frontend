@@ -3,9 +3,13 @@ import { formatDate, formatLongDate, loanProgress, parseDate } from "./dates.js"
 import { formatBookTitle } from "./bookTitle.js";
 
 // Mostra o numero salvo (so digitos com DDI) de forma legivel:
-// 5534997885466 -> +55 34 99788-5466
+// 5534997885466 -> +55 34 99788 5466
+// O WhatsApp guarda alguns celulares brasileiros SEM o 9 (553496560351):
+// para mostrar, poe o 9 de volta (+55 34 99656-0351), como a pessoa conhece.
 export function formatStoredPhone(phone) {
-  const parsed = phone ? parsePhoneNumberFromString("+" + phone) : null;
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (/^55\d{2}[6-9]\d{7}$/.test(digits)) digits = digits.slice(0, 4) + "9" + digits.slice(4);
+  const parsed = digits ? parsePhoneNumberFromString("+" + digits) : null;
   return parsed ? parsed.formatInternational() : phone || "";
 }
 
