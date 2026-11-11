@@ -135,8 +135,64 @@
   color: inherit;
   text-decoration: none;
 }
-.chatrow:hover {
+.chatrow {
+  /* Segurar a conversa abre o menu do painel: sem o menu do navegador no
+     iPhone ("abrir em nova aba", previa do link) e sem selecionar o texto. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.chatrow:hover,
+.chatrow.is-menu {
   background: var(--surface-sunk);
+}
+
+/* ---------- Menu da conversa (segurar / botao direito) ---------- */
+.rowmenu {
+  position: fixed;
+  z-index: 45;
+  min-width: 220px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.rowmenu__title {
+  margin: 2px 10px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+}
+.rowmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+}
+.rowmenu__item:hover,
+.rowmenu__item:focus-visible {
+  background: var(--surface-sunk);
+}
+.rowmenu__item--danger {
+  color: var(--danger);
 }
 .chatrow.is-active {
   background: var(--clay-wash);
@@ -245,9 +301,77 @@
   }
 }
 .chathead__who {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+/* Mensagens temporarias: quando a conversa some do painel. */
+.chathead__timer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.chathead__timer svg {
+  flex: none;
+}
+.chathead__delete {
+  flex: none;
+  margin-left: -4px;
+}
+.chathead__delete:hover {
+  color: var(--danger);
+}
+.chathead__who .chathead__timer-inline {
+  display: none;
+}
+.chathead__timer-inline svg {
+  vertical-align: -2px;
+  margin-right: 3px;
+}
+/* Celular estreito: o prazo vai para a linha de baixo do nome (a pilula
+   espremia o nome). */
+@media (max-width: 479px) {
+  .chathead {
+    gap: 8px;
+  }
+  .chathead__timer {
+    display: none;
+  }
+  .chathead__who .chathead__timer-inline {
+    display: block;
+  }
+}
+/* Aviso no comeco da conversa, como o do WhatsApp. */
+.chat__notice {
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 460px;
+  margin: auto auto 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+.chat__notice svg {
+  flex: none;
+  margin-top: 1px;
+}
+.chat__notice + .chat__list {
+  margin-top: 0;
 }
 .chathead__who strong {
   overflow: hidden;
@@ -306,7 +430,7 @@
   justify-content: center;
   margin: 12px 0 6px;
 }
-.chat__day span {
+.chat__day > span {
   padding: 2px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;

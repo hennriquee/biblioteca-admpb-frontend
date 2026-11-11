@@ -47,6 +47,27 @@ export function dayLabel(value, now = new Date()) {
   });
 }
 
+/** Quando a mensagem (enviada em `value`) some, com `days` dias de prazo. */
+export function disappearAt(value, days) {
+  const date = toDate(value);
+  if (!date || !(days > 0)) return null;
+  return new Date(date.getTime() + days * 86400000);
+}
+
+/**
+ * Quanto falta para sumir (mensagens temporarias), para seguir "some ...":
+ * "em 6 dias", "amanhã", "hoje" (clock: "hoje às 14:30"), "em instantes".
+ */
+export function disappearLabel(value, now = new Date(), { clock = false } = {}) {
+  const date = toDate(value);
+  if (!date) return "";
+  if (date <= now) return "em instantes";
+  const diff = daysBetween(date, now);
+  if (diff <= 0) return clock ? "hoje às " + formatClock(date) : "hoje";
+  if (diff === 1) return "amanhã";
+  return "em " + diff + " dias";
+}
+
 /** Hora que aparece na lista de conversas: "14:32", "Ontem", "seg.", "12/10/2026". */
 export function listTime(value, now = new Date()) {
   const date = toDate(value);

@@ -17,6 +17,8 @@ export default function Login() {
   const fromRequest =
     fromPath.startsWith("/solicitacao/") ||
     /[?&]solicitacao=/.test(from?.search || "");
+  // Link de uma conversa do WhatsApp (botao "Copiar link" em Conversas).
+  const fromChat = fromPath.startsWith("/conversas/");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -66,7 +68,9 @@ export default function Login() {
           <p className="login__hint">
             {fromRequest
               ? "Entre com a sua conta de administrador para registrar a solicitação de empréstimo."
-              : "Acesso restrito a quem administra o acervo."}
+              : fromChat
+                ? "Entre com a sua conta de administrador para abrir a conversa."
+                : "Acesso restrito a quem administra o acervo."}
           </p>
 
           <label className="field">

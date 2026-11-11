@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { api } from "../api/client.js";
 import Avatar from "../components/Avatar.jsx";
 import ChargeModal from "../components/ChargeModal.jsx";
+import ChatRowMenu from "../components/ChatRowMenu.jsx";
 import ChatThread from "../components/ChatThread.jsx";
+import Confirm from "../components/Confirm.jsx";
 import Modal from "../components/Modal.jsx";
 import PersonPicker from "../components/PersonPicker.jsx";
 import WhatsappConnect from "../components/WhatsappConnect.jsx";
@@ -14,6 +16,7 @@ import { listTime } from "../utils/chatTime.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
 import { formatDate, loanProgress } from "../utils/dates.js";
 import { useRefresh } from "../utils/refresh.js";
+import { copyText } from "../utils/clipboard.js";
 import {
   buildMessage,
   canCharge,
@@ -45,9 +48,68 @@ function chatTitle(chat) {
   );
 }
 
-function ChatRow({ chat, active }) {
+// Segurar a conversa por este tempo (celular) abre o menu dela.
+const LONG_PRESS_MS = 500;
+
+function ChatRow({ chat, active, menuOpen, onMenu }) {
   const title = chatTitle(chat);
   const unread = chat.unread || 0;
+  // Toque segurado: { x, y, timer }. suppress: o toque que abriu o menu nao
+  // abre a conversa ao soltar o dedo.
+  const press = useRef(null);
+  const suppress = useRef(false);
+
+  function cancelPress() {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
+  }
+  useEffect(() => cancelPress, []);
+
+  function onPointerDown(event) {
+    suppress.current = false;
+    cancelPress();
+    // Mouse usa o botao direito (onContextMenu); aqui so dedo e caneta.
+    if (event.pointerType === "mouse") return;
+    const x = event.clientX;
+    const y = event.clientY;
+    const target = event.currentTarget;
+    press.current = {
+      x,
+      y,
+      timer: setTimeout(() => {
+        press.current = null;
+        suppress.current = true;
+        navigator.vibrate?.(12);
+        onMenu(chat, { x, y }, target);
+      }, LONG_PRESS_MS),
+    };
+  }
+
+  function onPointerMove(event) {
+    // Arrastou (rolando a lista): nao e "segurar".
+    if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) {
+      cancelPress();
+    }
+  }
+
+  function onContextMenu(event) {
+    // Nunca o menu do navegador. No Android o "segurar" tambem chega aqui.
+    event.preventDefault();
+    const touch = Boolean(press.current) || suppress.current;
+    cancelPress();
+    if (menuOpen) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Pela tecla de menu (sem ponteiro) abre embaixo do nome.
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    if (touch) suppress.current = true;
+    onMenu(
+      chat,
+      fromKeyboard ? { x: rect.left + 60, y: rect.top + rect.height / 2 } : { x: event.clientX, y: event.clientY },
+      event.currentTarget,
+    );
+  }
+
+
   // (sem os asteriscos do *negrito* do WhatsApp. O nome de quem enviou pelo
   // painel o servidor ja tira da previa: ver saveMessage, "preview".)
   const preview = chat.lastMessageText
@@ -59,8 +121,28 @@ function ChatRow({ chat, active }) {
       <Link
         to={"/conversas/" + chat._id}
         data-chat-id={chat._id}
-        className={"chatrow" + (active ? " is-active" : "") + (unread ? " is-unread" : "")}
+        className={
+          "chatrow" +
+          (active ? " is-active" : "") +
+          (unread ? " is-unread" : "") +
+          (menuOpen ? " is-menu" : "")
+        }
         aria-current={active ? "page" : undefined}
+        aria-describedby="chatrow-menu-hint"
+        // Sem o menu do navegador e sem selecionar texto ao segurar.
+        draggable={false}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={cancelPress}
+        onPointerCancel={cancelPress}
+        onPointerLeave={cancelPress}
+        onContextMenu={onContextMenu}
+        onClick={(event) => {
+          if (suppress.current) {
+            event.preventDefault();
+            suppress.current = false;
+          }
+        }}
       >
         <Avatar src={chat.person?.photo} name={title} size={46} decorative />
         <span className="chatrow__body">
@@ -117,6 +199,10 @@ export default function Conversations() {
   hasMoreRef.current = hasMore;
   const termRef = useRef("");
   termRef.current = term;
+  // Conversas apagadas por aqui: uma consulta que ja estava a caminho nao as
+  // traz de volta. (Se a pessoa escrever de novo, a conversa nova tem outro id.)
+  const deletedRef = useRef(new Set());
+  const notDeleted = (list) => list.filter((c) => !deletedRef.current.has(c._id));
 
   useEffect(() => {
     const timer = setTimeout(() => setTerm(search.trim()), 300);
@@ -132,16 +218,33 @@ export default function Conversations() {
         );
         if (requestId !== listRequest.current) return;
         const current = chatsRef.current;
+        const page = notDeleted(data.chats);
         if (silent && current) {
           // Atualizacao em segundo plano: renova a primeira pagina e MANTEM as
           // conversas mais antigas que "Carregar mais" ja trouxe (antes, a lista
           // encolhia sozinha para 100 a cada 6 s).
-          const fresh = new Set(data.chats.map((c) => c._id));
-          const tail = current.filter((c) => !fresh.has(c._id));
-          setChats([...data.chats, ...tail]);
+          // So fica o que e MAIS ANTIGO que a ultima da pagina nova (o que
+          // "Carregar mais" trouxe). Conversa que saiu da primeira pagina por
+          // ter sido apagada ou vencido (mensagens temporarias) sai da tela.
+          const fresh = new Set(page.map((c) => c._id));
+          const lastAt = page.length ? Date.parse(page[page.length - 1].lastMessageAt) : NaN;
+          const nowMs = Date.now();
+          const tail =
+            data.hasMore && !Number.isNaN(lastAt)
+              ? notDeleted(
+                  current.filter(
+                    (c) =>
+                      !fresh.has(c._id) &&
+                      c.lastMessageAt &&
+                      Date.parse(c.lastMessageAt) <= lastAt &&
+                      !(c.expiresAt && Date.parse(c.expiresAt) <= nowMs),
+                  ),
+                )
+              : [];
+          setChats([...page, ...tail]);
           setHasMore(tail.length ? hasMoreRef.current : data.hasMore);
         } else {
-          setChats(data.chats);
+          setChats(page);
           setHasMore(data.hasMore);
         }
         setListError("");
@@ -188,7 +291,7 @@ export default function Conversations() {
       if (termRef.current !== startedTerm) return;
       setChats((current) => {
         const known = new Set((current || []).map((c) => c._id));
-        return [...(current || []), ...data.chats.filter((c) => !known.has(c._id))];
+        return [...(current || []), ...notDeleted(data.chats).filter((c) => !known.has(c._id))];
       });
       setHasMore(data.hasMore);
     } catch (error) {
@@ -261,6 +364,116 @@ export default function Conversations() {
     );
     setFetchedChat((current) => (current?._id === updated._id ? { ...current, ...updated } : current));
   }, []);
+
+  // ---------- menu da conversa (segurar / botao direito) e apagar ----------
+  // menu = { chat, title, x, y }; menuRowRef = a linha que o abriu (o foco
+  // volta para ela).
+  const [menu, setMenu] = useState(null);
+  const menuRowRef = useRef(null);
+  const openMenu = useCallback((chat, point, row) => {
+    menuRowRef.current = row;
+    setMenu({ chat, title: chatTitle(chat), x: point.x, y: point.y });
+  }, []);
+  // A conversa do menu saiu da lista (outro administrador apagou, ou venceu):
+  // o menu fecha junto.
+  useEffect(() => {
+    if (menu && chats && !chats.some((c) => c._id === menu.chat._id)) setMenu(null);
+  }, [menu, chats]);
+  function closeMenu(restoreFocus) {
+    setMenu(null);
+    if (restoreFocus) menuRowRef.current?.focus({ preventScroll: true });
+  }
+
+  async function copyLink(chat) {
+    setMenu(null);
+    menuRowRef.current?.focus({ preventScroll: true });
+    // So abre para quem entrar como administrador (o painel pede o login e
+    // volta para a conversa).
+    const ok = await copyText(window.location.origin + "/conversas/" + chat._id);
+    notify(
+      ok
+        ? "Link da conversa copiado. Só abre para quem entrar como administrador."
+        : "Não foi possível copiar o link.",
+      ok ? "success" : "error",
+    );
+  }
+
+  // Conversa a apagar (a confirmacao esta aberta) e se o pedido esta em curso.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const deletingRef = useRef(false);
+  const listHeadingRef = useRef(null);
+  // De onde veio o pedido de apagar (a linha da lista ou a lixeira), para o
+  // foco voltar la se desistir.
+  const deleteFromRef = useRef(null);
+
+  function askDelete(chat, from) {
+    setMenu(null);
+    deleteFromRef.current = from || null;
+    setDeleteTarget({ _id: chat._id, title: chatTitle(chat) });
+  }
+
+  function cancelDelete() {
+    if (deletingRef.current) return;
+    setDeleteTarget(null);
+    const from = deleteFromRef.current;
+    requestAnimationFrame(() => from?.isConnected && from.focus({ preventScroll: true }));
+  }
+
+  // A conversa saiu do painel: sai da lista e, se era a aberta, a tela volta
+  // para a lista. O foco vai para o titulo "Conversas" (senao cairia no nada).
+  const handleDeleted = useCallback(
+    (id) => {
+      deletedRef.current.add(id);
+      delete draftsRef.current[id];
+      setChats((current) => (current ? current.filter((c) => c._id !== id) : current));
+      setFetchedChat((current) => (current?._id === id ? null : current));
+      window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
+      if (chatIdRef.current === id) {
+        lastOpenRef.current = "";
+        navigate("/conversas", { replace: true });
+      }
+      // O foco vai para o titulo DEPOIS que a conversa apagada sai da tela (o
+      // modal devolve o foco a lixeira ao fechar, e ela some logo depois).
+      focusAfterDeleteRef.current = id;
+      setFocusTick((n) => n + 1);
+    },
+    [navigate],
+  );
+  const focusAfterDeleteRef = useRef("");
+  const [focusTick, setFocusTick] = useState(0);
+  useEffect(() => {
+    const id = focusAfterDeleteRef.current;
+    if (!id || chatId === id) return undefined;
+    focusAfterDeleteRef.current = "";
+    const timer = setTimeout(() => listHeadingRef.current?.focus({ preventScroll: true }), 0);
+    return () => clearTimeout(timer);
+  }, [focusTick, chatId]);
+
+  async function confirmDelete() {
+    const target = deleteTarget;
+    if (!target || deletingRef.current) return;
+    deletingRef.current = true;
+    setDeleting(true);
+    try {
+      await api("/api/whatsapp/chats/" + target._id, { method: "DELETE" });
+      notify("Conversa apagada do painel.", "success");
+      setDeleteTarget(null);
+      handleDeleted(target._id);
+    } catch (error) {
+      if (error.status === 404) {
+        // Outro administrador (ou o tempo) ja apagou: o resultado e o mesmo.
+        notify("Essa conversa já tinha saído do painel.", "success");
+        setDeleteTarget(null);
+        handleDeleted(target._id);
+      } else {
+        notify(error.message, "error");
+      }
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
+    }
+  }
 
   // ---------- cobranca (vem de Emprestimos > Cobrar no WhatsApp) ----------
   const cobrarId = params.get("cobrar") || "";
@@ -468,7 +681,9 @@ export default function Conversations() {
       <div className="chatpage__body">
         <aside className="chatlist" aria-label="Conversas">
           <div className="chatlist__head">
-            <h1>Conversas</h1>
+            <h1 ref={listHeadingRef} tabIndex={-1}>
+              Conversas
+            </h1>
             <button
               type="button"
               className="btn btn--primary btn--sm"
@@ -490,6 +705,11 @@ export default function Conversations() {
               maxLength={80}
             />
           </div>
+
+          {/* (lido pelo leitor de tela em cada conversa: aria-describedby) */}
+          <p id="chatrow-menu-hint" className="sr-only">
+            Para copiar o link ou apagar, segure a conversa ou use Shift+F10.
+          </p>
 
           <div className="chatlist__scroll">
             {chats === null && !listError ? (
@@ -530,7 +750,13 @@ export default function Conversations() {
             {chats && chats.length ? (
               <ul className="chatlist__items">
                 {chats.map((chat) => (
-                  <ChatRow key={chat._id} chat={chat} active={chat._id === chatId} />
+                  <ChatRow
+                    key={chat._id}
+                    chat={chat}
+                    active={chat._id === chatId}
+                    menuOpen={menu?.chat._id === chat._id}
+                    onMenu={openMenu}
+                  />
                 ))}
               </ul>
             ) : null}
@@ -572,6 +798,7 @@ export default function Conversations() {
               }}
               onRead={handleRead}
               onChatChange={handleChatChange}
+              onAskDelete={() => askDelete(selected, document.activeElement)}
               onBack={() => {
                 // Voltar de verdade (o botao Voltar do navegador nao reabre a
                 // conversa); sem historico (endereco aberto direto), vai para a lista.
@@ -645,6 +872,31 @@ export default function Conversations() {
         </p>
         <PersonPicker picked={null} onPick={startWith} onClear={() => {}} inputId="newchat-person" />
       </Modal>
+
+      <ChatRowMenu
+        menu={menu}
+        anchor={menuRowRef.current}
+        onClose={closeMenu}
+        onCopy={copyLink}
+        onDelete={(chat) => askDelete(chat, menuRowRef.current)}
+      />
+
+      <Confirm
+        open={Boolean(deleteTarget)}
+        title="Apagar esta conversa do painel?"
+        message={
+          "A conversa com " +
+          (deleteTarget?.title || "") +
+          " e todas as mensagens dela saem do painel agora, para todos os administradores. " +
+          "No celular da biblioteca e no da pessoa nada muda. Se a pessoa escrever de novo, " +
+          "a conversa volta, só com as mensagens novas."
+        }
+        confirmLabel={deleting ? "Apagando…" : "Apagar conversa"}
+        cancelLabel="Voltar"
+        tone="danger"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
 
       <ChargeModal
         loan={phoneCharge}

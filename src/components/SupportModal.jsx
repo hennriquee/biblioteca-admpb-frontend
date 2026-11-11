@@ -10,31 +10,6 @@ import { PIX_CODE, PIX_LINK, PIX_RECEIVER } from "../utils/support.js";
  * e o codigo "copia e cola". Quem doa escolhe o valor no app do banco.
  */
 
-// Copia o texto. O jeito novo (clipboard) so existe em https e pode ser
-// recusado; o antigo (selecionar e copiar) cobre navegadores mais velhos.
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const area = document.createElement("textarea");
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.opacity = "0";
-    document.body.appendChild(area);
-    area.select();
-    let ok = false;
-    try {
-      ok = document.execCommand("copy");
-    } catch {
-      ok = false;
-    }
-    area.remove();
-    return ok;
-  }
-}
-
 export default function SupportModal({ open, onClose }) {
   const { notify } = useToast();
   const [copied, setCopied] = useState(false);

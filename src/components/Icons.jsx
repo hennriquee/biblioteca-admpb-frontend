@@ -201,6 +201,15 @@ export const IconChat = (props) => (
   </svg>
 );
 
+// Mensagens temporarias: um relogio com o circulo aberto (o tempo correndo).
+export const IconTimer = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 3.5a8.5 8.5 0 1 1-7.4 4.3" />
+    <path d="M12 8v4.2l2.8 1.8" />
+    <path d="M4.6 3.6v4.2h4.2" />
+  </svg>
+);
+
 export const IconCrown = (props) => (
   <svg {...base} {...props}>
     <path d="M5.6 16.6 4.3 7.5l4.3 3.4L12 5.3l3.4 5.6 4.3-3.4-1.3 9.1z" />

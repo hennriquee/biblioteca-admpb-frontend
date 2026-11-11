@@ -4,8 +4,14 @@ import { api } from "../api/client.js";
 import Avatar from "./Avatar.jsx";
 import { useToast } from "./Toast.jsx";
 import RegisterRequestModal from "./RegisterRequestModal.jsx";
-import { IconChevronLeft, IconSend } from "./Icons.jsx";
-import { dayKey, dayLabel, formatClock } from "../utils/chatTime.js";
+import { IconChevronLeft, IconSend, IconTimer, IconTrash } from "./Icons.jsx";
+import {
+  dayKey,
+  dayLabel,
+  disappearAt,
+  disappearLabel,
+  formatClock,
+} from "../utils/chatTime.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
 
 /**
@@ -31,6 +37,12 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  * - onRead(chatId), onBack()
  * - onChatChange(conversa): o servidor devolveu a conversa atualizada (quem
  *   atende: o robo ou um administrador)
+ * - onAskDelete(): a lixeira do cabecalho (a pagina pergunta e apaga)
+ *
+ * MENSAGENS TEMPORARIAS: cada mensagem some do painel chat.disappearDays dias
+ * depois de enviada (como no WhatsApp da biblioteca). O cabecalho diz quando a
+ * conversa inteira some (se ninguem mais escrever) e cada dia diz quando as
+ * mensagens dele somem; o que ja venceu sai da tela na hora.
  *
  * ATENDIMENTO: a faixa em cima do campo diz se o atendimento automatico (o
  * robo do menu) esta respondendo nesta conversa. Responder por aqui pausa o
@@ -225,9 +237,19 @@ export default function ChatThread({
   onRead,
   onBack,
   onChatChange,
+  onAskDelete,
 }) {
   const { notify } = useToast();
   const [switching, setSwitching] = useState(false);
+  // A conversa saiu do painel (outro administrador apagou ou as mensagens
+  // sumiram pelo tempo) enquanto estava aberta.
+  const [gone, setGone] = useState(false);
+  // Relogio da tela: as mensagens vencidas saem e "some em ..." se atualiza.
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
   // null = carregando
   const [messages, setMessages] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -321,6 +343,7 @@ export default function ChatThread({
     scrolledFor.current = null;
     lastIdRef.current = null;
     sinceRef.current = "";
+    setGone(false);
     (async () => {
       try {
         const data = await api("/api/whatsapp/chats/" + chatId + "/messages?limit=50");
@@ -329,7 +352,9 @@ export default function ChatThread({
         setHasMore(data.hasMore);
         setMessages(data.messages);
       } catch (error) {
-        if (!cancelled) setLoadError(error.message);
+        if (cancelled) return;
+        if (error.status === 404) setGone(true);
+        else setLoadError(error.message);
       }
     })();
     return () => {
@@ -377,12 +402,15 @@ export default function ChatThread({
           setMessages((current) => mergeMessages(current, data.messages));
           if (arrived) markRead();
         }
-      } catch {
+      } catch (error) {
+        // A conversa nao existe mais (apagada ou sumiu pelo tempo).
+        if (!cancelled && error.status === 404) setGone(true);
         /* sem rede por um instante: a proxima tentativa resolve */
       } finally {
         busy = false;
       }
     }
+    if (gone) return undefined;
     const timer = setInterval(poll, POLL_MS);
     document.addEventListener("visibilitychange", poll);
     return () => {
@@ -390,7 +418,7 @@ export default function ChatThread({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", poll);
     };
-  }, [chatId, loaded, markRead]);
+  }, [chatId, loaded, markRead, gone]);
 
   // ---------- rolagem ----------
   useLayoutEffect(() => {
@@ -471,7 +499,7 @@ export default function ChatThread({
 
   async function send() {
     const text = draft.trim();
-    if (!text || sendingRef.current || !connected) return;
+    if (!text || sendingRef.current || !connected || gone) return;
     sendingRef.current = true;
     setSending(true);
     const id = chatId;
@@ -542,6 +570,21 @@ export default function ChatThread({
   const title = name || phone || "Número oculto";
   const attendance = chat?.attendance || null;
 
+  // Mensagens temporarias: o que ja venceu sai da tela (a limpeza do servidor
+  // passa de meia em meia hora).
+  const days = chat?.disappearDays > 0 ? chat.disappearDays : 0;
+  const now = new Date(clock);
+  const shown =
+    messages && days
+      ? messages.filter((message) => {
+          const end = disappearAt(message.at, days);
+          return !end || end > now;
+        })
+      : messages;
+  const daysText = days === 1 ? "1 dia" : days + " dias";
+  const expiresAt = days && chat?.expiresAt && !gone ? chat.expiresAt : null;
+  const expiresLabel = expiresAt ? disappearLabel(expiresAt, now, { clock: true }) : "";
+
   let lastDay = "";
   return (
     <section className="chat" aria-label={"Conversa com " + title} ref={sectionRef} tabIndex={-1}>
@@ -558,7 +601,44 @@ export default function ChatThread({
             {chat?.person?.code ? " · cadastro #" + chat.person.code : chat ? " · fora do cadastro" : ""}
             {chat?.shared ? " · número de mais " + chat.shared + " pessoa(s)" : ""}
           </small>
+          {/* Celular estreito: o prazo vem numa linha propria (a pilula ao lado some). */}
+          {expiresLabel ? (
+            <small className="chathead__timer-inline">
+              <IconTimer width={12} height={12} aria-hidden="true" />
+              Some {expiresLabel}
+              <span className="sr-only">, se ninguém mais escrever</span>
+            </small>
+          ) : null}
         </div>
+        {expiresLabel ? (
+          <span
+            className="chathead__timer"
+            title={
+              "Se ninguém mais escrever, esta conversa some do painel " +
+              expiresLabel +
+              ". Cada mensagem some " +
+              daysText +
+              " depois de enviada, como no WhatsApp da biblioteca."
+            }
+          >
+            <IconTimer width={15} height={15} aria-hidden="true" />
+            <span>Some {expiresLabel}</span>
+            <span className="sr-only">, se ninguém mais escrever</span>
+          </span>
+        ) : null}
+        {!gone ? (
+          <button
+            type="button"
+            className="icon-button chathead__delete"
+            onClick={() => onAskDelete?.()}
+            // (no meio de um envio, espera ele terminar)
+            disabled={sending}
+            title="Apagar conversa do painel"
+          >
+            <IconTrash width={19} height={19} aria-hidden="true" />
+            <span className="sr-only">Apagar conversa do painel</span>
+          </button>
+        ) : null}
       </header>
 
       <div className="chat__viewport">
@@ -569,7 +649,20 @@ export default function ChatThread({
         tabIndex={0}
         aria-label="Histórico da conversa (use as setas para rolar)"
       >
-        {!loaded && !loadError ? (
+        {gone ? (
+          <div className="chat__state" role="status">
+            <p>Esta conversa saiu do painel.</p>
+            <p className="muted">
+              Foi apagada por um administrador ou as mensagens sumiram pelo tempo. Se a pessoa
+              escrever de novo, ela volta para a lista.
+            </p>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={onBack}>
+              Voltar às conversas
+            </button>
+          </div>
+        ) : null}
+
+        {!loaded && !loadError && !gone ? (
           <p className="muted chat__state" role="status">
             Carregando a conversa
             <span className="loadingdots" aria-hidden="true">
@@ -593,7 +686,7 @@ export default function ChatThread({
           </div>
         ) : null}
 
-        {loaded && hasMore ? (
+        {loaded && !gone && hasMore ? (
           <button
             type="button"
             className="btn btn--ghost btn--sm chat__older"
@@ -604,23 +697,41 @@ export default function ChatThread({
           </button>
         ) : null}
 
-        {loaded && messages.length === 0 ? (
-          <p className="muted chat__state">
-            Ainda não há mensagens nesta conversa. Escreva abaixo para começar.
+        {loaded && !gone && !hasMore && days ? (
+          <p className="chat__notice">
+            <IconTimer width={15} height={15} aria-hidden="true" />
+            <span>
+              Mensagens temporárias: cada mensagem some deste painel {daysText} depois de
+              enviada, como no WhatsApp da biblioteca.
+            </span>
           </p>
         ) : null}
 
-        {loaded && messages.length ? (
+        {loaded && !gone && shown.length === 0 ? (
+          <p className="muted chat__state">
+            {messages.length
+              ? "As mensagens desta conversa já sumiram (mensagens temporárias)."
+              : "Ainda não há mensagens nesta conversa. Escreva abaixo para começar."}
+          </p>
+        ) : null}
+
+        {loaded && !gone && shown.length ? (
           <ol className="chat__list" role="log" aria-live="polite" aria-label="Mensagens">
-            {messages.map((message) => {
+            {shown.map((message) => {
               const key = dayKey(message.at);
               const showDay = key !== lastDay;
               lastDay = key;
+              const end = showDay && days ? disappearAt(message.at, days) : null;
               return (
                 <li key={message._id} className="chat__item">
                   {showDay ? (
                     <div className="chat__day">
-                      <span>{dayLabel(message.at)}</span>
+                      <span>
+                        {dayLabel(message.at, now)}
+                        {end ? (
+                          <span className="chat__dayend"> · some {disappearLabel(end, now)}</span>
+                        ) : null}
+                      </span>
                     </div>
                   ) : null}
                   <Message message={message} onApprove={approve} approving={approving} />
@@ -745,7 +856,7 @@ export default function ChatThread({
             onKeyDown={onKeyDown}
             // "readOnly" e nao "disabled": um campo desligado perde o foco do
             // teclado quando o WhatsApp reconecta e ele volta a ligar.
-            readOnly={sending || !connected}
+            readOnly={sending || !connected || gone}
             aria-disabled={!connected}
             placeholder={connected ? "Escreva uma mensagem" : "WhatsApp desconectado"}
             aria-label={"Mensagem para " + title}
@@ -754,7 +865,7 @@ export default function ChatThread({
           <button
             type="submit"
             className="btn btn--whatsapp composer__send"
-            disabled={!draft.trim() || !connected || sending}
+            disabled={!draft.trim() || !connected || sending || gone}
           >
             <IconSend width={19} height={19} aria-hidden="true" />
             <span className="sr-only">{sending ? "Enviando" : "Enviar"}</span>
