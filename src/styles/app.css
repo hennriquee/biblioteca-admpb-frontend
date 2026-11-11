@@ -2712,50 +2712,33 @@ a.stat:active {
   gap: 14px;
 }
 
-/* Barra do topo: logo pequena a esquerda e o menu "Participe" a direita.
-   Os dois tem a mesma altura (--pub-bar-h) e ficam sem destaque; um fio
-   embaixo separa a barra do titulo. */
-.pub {
-  --pub-bar-h: 48px;
-}
-.pub__bar {
+/* Topo do /catalogo: "Nossos livros" a esquerda e o menu "Participe" a
+   direita, na mesma linha (sem logo); o resumo vem embaixo, com a largura
+   toda. Sem espaco, o titulo quebra em duas linhas ("Nossos / livros") com o
+   botao ainda ao lado; so quando nem a palavra mais longa cabe ao lado dele
+   (fonte grande do sistema, tela muito estreita) o Participe desce para a
+   linha de baixo, em vez de o titulo passar por baixo dele. O h1 parte de
+   largura 0 e nunca fica menor que a palavra mais longa (min-content): e
+   isso que decide a quebra. */
+.pub__titlerow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  height: var(--pub-bar-h);
-  box-sizing: content-box;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px 12px;
+}
+.pub__titlerow h1 {
+  flex: 1 1 0;
+  min-width: min-content;
 }
 .pub__admin {
   flex-shrink: 0;
-  height: var(--pub-bar-h);
+  height: 44px;
   min-height: 0;
   padding: 0 16px;
 }
 
-/* A logo ocupa a altura da barra com o DESENHO, nao com a imagem: ela tem
-   cerca de 17% de vazio em cima, 15% embaixo e 7,5% de cada lado, que sao
-   cortados aqui (o botao esconde o que passa). Assim o desenho fica com a
-   mesma altura do botao ao lado. */
-.pub__logobtn {
-  --pub-logo-h: calc(var(--pub-bar-h) / 0.672);
-  display: inline-flex;
-  flex-shrink: 0;
-  height: var(--pub-bar-h);
-  overflow: hidden;
-}
-.pub__logo {
-  display: block;
-  flex-shrink: 0;
-  width: auto;
-  height: var(--pub-logo-h);
-  margin: calc(var(--pub-logo-h) * -0.174) calc(var(--pub-logo-h) * -0.098) 0;
-}
-
-/* Titulo alinhado a esquerda, no mesmo eixo da logo; o resumo traz os numeros
-   em destaque. */
+/* Titulo alinhado a esquerda; o resumo traz os numeros em destaque. */
 .pub__title h1 {
   font-size: clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem);
   line-height: 1.1;
@@ -3119,8 +3102,8 @@ div.returnalert {
 }
 
 /* ---------- Boas-vindas do catalogo ---------- */
-/* Logo da ADMPB, no topo do texto (fora do palco da animacao). Como a logo da
-   barra, so o desenho conta: a imagem tem ~6% de vazio em cima, 15% embaixo e
+/* Logo da ADMPB, no topo do texto (fora do palco da animacao). So o desenho
+   conta: a imagem tem ~6% de vazio em cima, 15% embaixo e
    cerca de 20% de cada lado, cortados pelo quadro. */
 .welcome__brand {
   --welcome-brand-h: 56px;
@@ -3160,14 +3143,6 @@ div.returnalert {
     --welcome-brand-h: 40px;
     justify-content: flex-start;
   }
-}
-
-.pub__logobtn {
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  cursor: pointer;
 }
 
 /* ---------- Entrada do site: "Nao sou um robo" (SiteGate.jsx) ----------
@@ -3773,11 +3748,6 @@ div.returnalert {
   .modal--hero .modal__foot {
     padding-top: 10px;
     padding-bottom: 10px;
-  }
-
-  /* Tela baixa: a barra do topo fica mais fina. */
-  .pub {
-    --pub-bar-h: 40px;
   }
 }
 
@@ -4426,12 +4396,6 @@ span.avatar--empty {
 /* ---------- Menu "Participe" do acervo publico ----------
    O botao do topo do /catalogo abre o menu (components/CatalogMenu.jsx); cada
    opcao abre a sua janela por cima dele. */
-.pub__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
 .pubmenu {
   display: flex;
   flex-direction: column;
@@ -4491,6 +4455,53 @@ span.avatar--empty {
 .pubmenu__out {
   flex-shrink: 0;
   color: var(--ink-soft);
+}
+
+/* Botao verde redondo do WhatsApp, fixo no canto de baixo a direita do
+   /catalogo (pages/Catalog.jsx). Na cor do WhatsApp, com a logo branca.
+   z-index 40: acima da lista, abaixo das janelas (.modal-backdrop 50) e dos
+   avisos (.toasts 60). A pagina ganha espaco embaixo (.pub--fab) para o
+   botao nunca cobrir o fim do rodape. */
+.wafab {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.18),
+    0 8px 20px -6px rgba(0, 0, 0, 0.35);
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.wafab:hover {
+  background: #1ebe5b;
+}
+.wafab:active {
+  transform: scale(0.94);
+}
+.wafab:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+.pub--fab .pub__inner {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 860px) {
+  .wafab {
+    right: calc(24px + env(safe-area-inset-right, 0px));
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    width: 60px;
+    height: 60px;
+  }
 }
 
 /* "Apoie o nosso projeto": QR code do PIX e o codigo para copiar. */

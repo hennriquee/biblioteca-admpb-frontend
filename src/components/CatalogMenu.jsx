@@ -7,12 +7,13 @@ import {
   // IconHeart,
   IconWhatsapp,
 } from "./Icons.jsx";
-import { WHATSAPP_GROUP } from "../utils/support.js";
+import { LIBRARY_CONTACT_URL, WHATSAPP_GROUP } from "../utils/support.js";
 
 /**
- * Menu "Participe" do acervo publico: o botao do topo do /catalogo abre esta
- * janela. Cada opcao abre a sua propria janela POR CIMA desta (fechar volta
- * para o menu), menos o grupo do WhatsApp, que e um link.
+ * Menu "Participe" do acervo publico: o botao ao lado do titulo do /catalogo
+ * abre esta janela. Cada opcao abre a sua propria janela POR CIMA desta
+ * (fechar volta para o menu), menos as duas do WhatsApp ("Precisa de algo a
+ * mais?" e o grupo), que sao links.
  *
  * "Com quem falar?" so aparece se houver equipe cadastrada (hasStaff).
  */
@@ -68,6 +69,29 @@ export default function CatalogMenu({
           </span>
         </button>
         */}
+
+        {/* Conversa direta com a biblioteca (o numero argentino, o mesmo do
+            botao verde flutuante do acervo). */}
+        <a
+          className="pubmenu__item"
+          href={LIBRARY_CONTACT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span className="pubmenu__icon pubmenu__icon--whatsapp">
+            <IconWhatsapp width={20} height={20} />
+          </span>
+          <span className="pubmenu__text">
+            <strong>Precisa de algo a mais?</strong>
+            <small>Fale conosco pelo WhatsApp</small>
+          </span>
+          <IconExternal
+            className="pubmenu__out"
+            width={16}
+            height={16}
+            aria-hidden="true"
+          />
+        </a>
 
         <a
           className="pubmenu__item"

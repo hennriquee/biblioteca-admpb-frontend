@@ -20,3 +20,17 @@ export const PIX_LINK =
 // Convite do grupo de novidades no WhatsApp.
 export const WHATSAPP_GROUP =
   "https://chat.whatsapp.com/FVmlY79t5uzAlc8lEfqkrf?s=cl&p=a&iam=2";
+
+// WhatsApp da biblioteca para falar com a equipe: o numero ARGENTINO
+// (+54 9 11 6461-0665), o mesmo ligado ao painel (Conversas) e ao robo de
+// atendimento, que responde o "Olá!" com o menu. Usado no botao verde
+// flutuante do /catalogo e no "Precisa de algo a mais?" do menu Participe.
+// Nao confundir com LIBRARY_WHATSAPP (utils/whatsapp.js), o numero
+// BRASILEIRO de reserva do "Solicitar empréstimo".
+export const LIBRARY_CONTACT_WHATSAPP = "5491164610665";
+
+export const LIBRARY_CONTACT_URL =
+  "https://wa.me/" +
+  LIBRARY_CONTACT_WHATSAPP +
+  "?text=" +
+  encodeURIComponent("Olá!");

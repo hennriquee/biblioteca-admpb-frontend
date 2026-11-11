@@ -10,7 +10,12 @@ import StaffModal from "../components/StaffModal.jsx";
 import CatalogMenu from "../components/CatalogMenu.jsx";
 // APOIE (desativado por enquanto): import SupportModal from "../components/SupportModal.jsx";
 import SuggestBookModal from "../components/SuggestBookModal.jsx";
-import { IconSearch, IconUsers } from "../components/Icons.jsx";
+import {
+  IconSearch,
+  IconUsers,
+  IconWhatsappLogo,
+} from "../components/Icons.jsx";
+import { LIBRARY_CONTACT_URL } from "../utils/support.js";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
 import { matchesBook } from "../utils/bookFilter.js";
 import { useBookList } from "../hooks/useBookList.js";
@@ -45,7 +50,7 @@ const STALE_AFTER_MS = 60 * 1000;
 
 // As boas-vindas abrem sozinhas uma UNICA vez (a primeira visita deste
 // navegador): dali em diante nunca mais aparecem sozinhas, nem reabrindo o
-// site, nem em outra aba. A logo no topo reabre quando quiser.
+// site, nem em outra aba. (A logo do topo, que reabria, saiu a pedido.)
 const WELCOME_KEY = "biblioteca_admpb_boas_vindas";
 
 function welcomeAlreadySeen() {
@@ -299,27 +304,16 @@ export default function Catalog() {
   }
 
   return (
-    <div className="pub">
+    <div className="pub pub--fab">
       <div className="pub__inner page">
-        {/* Barra do topo: a logo pequena a esquerda (reabre as boas-vindas) e,
-            a direita, o menu "Participe" (com quem falar, sugerir um livro,
-            apoiar e o grupo do WhatsApp), com a mesma altura. Nao ha atalho
-            para o painel aqui, nem para quem esta logado como administrador:
-            o acervo publico e so do publico. */}
-        <div className="pub__bar">
-          <button
-            type="button"
-            className="pub__logobtn"
-            onClick={() => setWelcomeOpen(true)}
-            title="Sobre a biblioteca"
-          >
-            <img
-              className="pub__logo"
-              src="/img/logo-biblioteca.svg"
-              alt="Biblioteca ADMP Brasil: sobre a biblioteca"
-            />
-          </button>
-          <div className="pub__actions">
+        {/* Topo: o titulo e, na mesma linha, a direita, o menu "Participe"
+            (com quem falar, sugerir um livro, falar conosco e o grupo do
+            WhatsApp). Sem logo no topo. Nao ha atalho para o painel aqui, nem
+            para quem esta logado como administrador: o acervo publico e so
+            do publico. */}
+        <header className="pub__title">
+          <div className="pub__titlerow">
+            <h1>Nossos livros</h1>
             <button
               type="button"
               className="btn btn--ghost pub__admin"
@@ -330,10 +324,6 @@ export default function Catalog() {
               Participe
             </button>
           </div>
-        </div>
-
-        <header className="pub__title">
-          <h1>Nossos livros</h1>
           {summary ? <p className="page__sub">{summary}</p> : null}
         </header>
 
@@ -488,6 +478,21 @@ export default function Catalog() {
           </p>
         </footer>
       </div>
+
+      {/* Botao verde redondo, fixo no canto de baixo a direita: abre a
+          conversa com a biblioteca no WhatsApp (o numero argentino), ja com
+          "Olá!" escrito. Fica por baixo das janelas (z-index menor que o do
+          .modal-backdrop). */}
+      <a
+        className="wafab"
+        href={LIBRARY_CONTACT_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Fale com a biblioteca pelo WhatsApp"
+        title="Fale com a biblioteca pelo WhatsApp"
+      >
+        <IconWhatsappLogo width={30} height={30} aria-hidden="true" />
+      </a>
 
       <WelcomeModal open={welcomeOpen} onClose={closeWelcome} />
 
