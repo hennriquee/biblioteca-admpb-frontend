@@ -48,7 +48,8 @@ function chatTitle(chat) {
 function ChatRow({ chat, active }) {
   const title = chatTitle(chat);
   const unread = chat.unread || 0;
-  // (sem os asteriscos do *negrito* do WhatsApp)
+  // (sem os asteriscos do *negrito* do WhatsApp. O nome de quem enviou pelo
+  // painel o servidor ja tira da previa: ver saveMessage, "preview".)
   const preview = chat.lastMessageText
     ? (chat.lastMessageFromMe ? "Você: " : "") +
       chat.lastMessageText.replace(/\*([^\s*](?:[^*\n]*[^\s*])?)\*/g, "$1")
@@ -72,7 +73,9 @@ function ChatRow({ chat, active }) {
           <span className="chatrow__bottom">
             <span className="chatrow__preview">{preview || "Sem mensagens"}</span>
             {chat.attendance?.waiting ? (
-              <span className="chatrow__waiting">Aguardando administrador</span>
+              <span className="chatrow__waiting">
+                {chat.attendance.reason === "request" ? "Pedido de empréstimo" : "Aguardando administrador"}
+              </span>
             ) : chat.attendance?.muted ? (
               <span className="chatrow__waiting">Robô silenciado</span>
             ) : null}

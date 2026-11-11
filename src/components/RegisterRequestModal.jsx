@@ -7,7 +7,7 @@ import PersonPicker from "./PersonPicker.jsx";
 import Avatar from "./Avatar.jsx";
 import { dateInputValue, formatLongDate, todayInputValue } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
-import { formatStoredPhone } from "../utils/whatsapp.js";
+import { formatStoredPhone, samePhone } from "../utils/whatsapp.js";
 import { pokeNotices } from "../utils/adminNotices.js";
 
 /**
@@ -248,7 +248,15 @@ export default function RegisterRequestModal({
             separado para esta pessoa, com retirada prevista em{" "}
             <strong>{formatLongDate(pickupDate)}</strong>. É ela mesma?
           </p>
-          {link ? (
+          {link?.whatsappFrom ? (
+            // O pedido chegou pelo WhatsApp do robo: da para conferir.
+            <p className="whoconfirm__tip">
+              {"O pedido chegou do WhatsApp " + formatStoredPhone(link.whatsappFrom) + ". "}
+              {person.phone && samePhone(person.phone, link.whatsappFrom)
+                ? "É o WhatsApp desta ficha."
+                : "Não é o WhatsApp desta ficha: confira se é mesmo esta pessoa."}
+            </p>
+          ) : link ? (
             <p className="whoconfirm__tip">
               Confira se o WhatsApp que mandou a mensagem é o desta pessoa: no
               acervo, qualquer um pode tocar num nome da lista.

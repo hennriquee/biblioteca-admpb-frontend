@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api/client.js";
 import Avatar from "./Avatar.jsx";
 import { useToast } from "./Toast.jsx";
+import RegisterRequestModal from "./RegisterRequestModal.jsx";
 import { IconChevronLeft, IconSend } from "./Icons.jsx";
 import { dayKey, dayLabel, formatClock } from "../utils/chatTime.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
@@ -75,7 +77,40 @@ const AUTO_LABEL = {
   bot: "Atendimento automático",
   overdue: "Aviso de atraso",
   handoff: "Aviso ao administrador",
+  request: "Aviso de pedido",
 };
+
+// Mensagem com o link de uma solicitacao do acervo publico: o botao para
+// aprovar (abre o "Registrar solicitação" ja preenchido, sem sair da
+// conversa) ou em que pe ela esta. request vem do servidor:
+// { token, state: "pending" | "registered" | "gone", personName }.
+function RequestAction({ request, onApprove, busy }) {
+  if (request.state === "pending") {
+    return (
+      <div className="msg__request">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          onClick={() => onApprove(request.token)}
+          disabled={busy}
+        >
+          {busy ? "Abrindo…" : "Aprovar solicitação"}
+        </button>
+        <small>Confira a pessoa e preencha a data de retirada.</small>
+      </div>
+    );
+  }
+  return (
+    <div className="msg__request">
+      <small className={"msg__reqstate" + (request.state === "gone" ? " msg__reqstate--gone" : "")}>
+        {request.state === "registered"
+          ? "✓ Solicitação registrada" +
+            (request.personName ? " para " + firstName(request.personName) : "")
+          : "Esta solicitação não está mais aberta (virou empréstimo, foi excluída ou o link venceu)."}
+      </small>
+    </div>
+  );
+}
 
 // *negrito* do WhatsApp, como no celular. So vira <strong> (elemento do
 // React, nunca HTML): o resto do texto continua texto puro.
@@ -126,7 +161,7 @@ function Ticks({ status, errorCode }) {
   );
 }
 
-function Message({ message }) {
+function Message({ message, onApprove, approving }) {
   const mine = message.fromMe;
   const label = KIND_LABEL[message.kind];
   return (
@@ -150,6 +185,13 @@ function Message({ message }) {
             ) : null}
             {label ? (
               <small className="msg__hint">Abra no celular para ver.</small>
+            ) : null}
+            {message.request ? (
+              <RequestAction
+                request={message.request}
+                onApprove={onApprove}
+                busy={approving === message.request.token}
+              />
             ) : null}
           </>
         )}
@@ -213,6 +255,52 @@ export default function ChatThread({
 
   const loaded = messages !== null;
   messagesRef.current = messages;
+
+  // ---------- aprovar a solicitacao de uma mensagem ----------
+  // approveLink = o que GET /api/requests/link/:token devolveu (o "Registrar
+  // solicitação" abre com ele); approving = o link sendo aberto agora.
+  const [approveLink, setApproveLink] = useState(null);
+  const [approving, setApproving] = useState("");
+  const approvingRef = useRef("");
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  function markRequest(token, state, personName = "") {
+    setMessages((current) =>
+      current
+        ? current.map((message) =>
+            message.request?.token === token
+              ? { ...message, request: { ...message.request, state, personName } }
+              : message,
+          )
+        : current,
+    );
+  }
+
+  async function approve(token) {
+    if (approvingRef.current) return;
+    approvingRef.current = token;
+    setApproving(token);
+    try {
+      const data = await api("/api/requests/link/" + encodeURIComponent(token));
+      // Saiu da conversa enquanto abria: nao abre nada em outra.
+      if (mountedRef.current) setApproveLink(data);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      notify(error.message, "error");
+      const code = error.payload?.code;
+      if (code === "LINK_USED") markRequest(token, "registered", error.payload?.personName || "");
+      else if (code === "LINK_GONE") markRequest(token, "gone");
+    } finally {
+      approvingRef.current = "";
+      if (mountedRef.current) setApproving("");
+    }
+  }
 
   // Celular (uma coluna): a lista some ao abrir a conversa e o foco do teclado
   // ficaria no nada; vai para a conversa (o leitor de tela a anuncia).
@@ -535,7 +623,7 @@ export default function ChatThread({
                       <span>{dayLabel(message.at)}</span>
                     </div>
                   ) : null}
-                  <Message message={message} />
+                  <Message message={message} onApprove={approve} approving={approving} />
                 </li>
               );
             })}
@@ -570,7 +658,12 @@ export default function ChatThread({
             role="status"
           >
             <span className="attbar__text">
-              {attendance.waiting ? (
+              {attendance.waiting && attendance.reason === "request" ? (
+                <>
+                  <strong>Pedido de empréstimo aguardando um administrador</strong>
+                  <span>O robô está pausado. A solicitação se aprova no botão da mensagem; combine a retirada respondendo por aqui.</span>
+                </>
+              ) : attendance.waiting ? (
                 <>
                   <strong>Pediu para falar com um administrador</strong>
                   <span>O robô está pausado. Responda por aqui.</span>
@@ -673,6 +766,24 @@ export default function ChatThread({
           </small>
         ) : null}
       </form>
+
+      {/* "Aprovar solicitação" de uma mensagem: o mesmo registro do link.
+          (No corpo da pagina: dentro da conversa ficaria preso a rolagem e
+          as camadas dela.) */}
+      {approveLink
+        ? createPortal(
+            <RegisterRequestModal
+              open
+              link={approveLink}
+              onClose={() => setApproveLink(null)}
+              onSaved={(saved) => {
+                markRequest(approveLink.token, "registered", saved.personName || "");
+                setApproveLink(null);
+              }}
+            />,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

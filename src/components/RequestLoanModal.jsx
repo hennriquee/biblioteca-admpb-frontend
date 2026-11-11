@@ -15,6 +15,7 @@ import {
   libraryWhatsappAppUrl,
   libraryWhatsappUrl,
   requestLinkUrl,
+  requestWhatsapp,
 } from "../utils/whatsapp.js";
 
 /**
@@ -503,12 +504,15 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
         pickupDate,
         link: requestLinkUrl(data.token),
       });
-      const url = libraryWhatsappUrl(text);
-      setDone({ url, withLink: true });
+      // O WhatsApp da biblioteca com o robo (ou o brasileiro, de reserva):
+      // quem escolhe e o servidor (ver requestWhatsapp em utils/whatsapp.js).
+      const channel = requestWhatsapp(data);
+      const url = libraryWhatsappUrl(text, channel.number);
+      setDone({ url, withLink: true, via: channel.via });
       // A pessoa saiu do site enquanto esperava: nao abre nada sozinho (ela
       // volta para a "Mensagem pronta", com o botao).
       if (document.visibilityState === "hidden") setHandoff(false);
-      else if (openWhatsapp(url, libraryWhatsappAppUrl(text))) endHandoffSoon();
+      else if (openWhatsapp(url, libraryWhatsappAppUrl(text, channel.number))) endHandoffSoon();
       else setHandoff(false);
     } catch (err) {
       if (attempt !== attemptRef.current) return;
@@ -567,8 +571,10 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       return;
     }
     const text = buildRequestMessage({ book, name: finalName, isNew, pickupDate, link: "" });
+    // Servidor fora do ar: o robo tambem esta, entao vai para o WhatsApp
+    // brasileiro (o modelo antigo), onde a equipe le direto.
     const url = libraryWhatsappUrl(text);
-    setDone({ url, withLink: false });
+    setDone({ url, withLink: false, via: "brasil" });
     setError("");
     if (openWhatsapp(url, libraryWhatsappAppUrl(text))) {
       setHandoff(true);
@@ -636,11 +642,20 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       {book ? (
         done ? (
           <div className="reqdone" role="status">
-            <p>
-              Sua mensagem para a biblioteca está pronta no WhatsApp. É só
-              enviar para combinar a retirada de <strong>{title}</strong> com
-              um dos nossos administradores.
-            </p>
+            {done.via === "robo" ? (
+              <p>
+                Sua mensagem para a biblioteca está pronta no WhatsApp. É só
+                enviar: o atendimento da biblioteca confirma o pedido de{" "}
+                <strong>{title}</strong> e passa para um dos nossos
+                administradores, que entra em contato para combinar a retirada.
+              </p>
+            ) : (
+              <p>
+                Sua mensagem para a biblioteca está pronta no WhatsApp. É só
+                enviar para combinar a retirada de <strong>{title}</strong> com
+                um dos nossos administradores.
+              </p>
+            )}
             <p className="muted">
               {done.withLink
                 ? "Se o WhatsApp não abriu sozinho, toque em “Abrir o WhatsApp”. Não apague o link do fim da mensagem: ele ajuda a equipe a registrar o seu pedido."

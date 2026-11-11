@@ -133,8 +133,23 @@ export function whatsappLink(loan) {
 
 // ---------- Solicitar emprestimo (acervo publico) ----------
 
-// WhatsApp da biblioteca: para onde vai a mensagem de "Solicitar empréstimo".
+// WhatsApp BRASILEIRO da biblioteca: o MODELO ANTIGO do "Solicitar
+// empréstimo", guardado como reserva. Hoje quem escolhe o numero e o servidor
+// (resposta de POST /api/public/requests: "whatsapp" e "via"): normalmente o
+// numero da biblioteca conectado ao painel (+54), onde o robo confirma o
+// pedido e avisa o administrador; este brasileiro quando o servidor manda
+// (REQUESTS_WHATSAPP=brasil no Render, ou o WhatsApp do painel fora do ar) e
+// quando o servidor nem responde (mensagem sem o link).
 export const LIBRARY_WHATSAPP = "5534984241556";
+
+// O numero que o servidor mandou usar, ou o brasileiro de reserva.
+export function requestWhatsapp(data) {
+  const number = String(data?.whatsapp || "");
+  if (/^\d{10,15}$/.test(number)) {
+    return { number, via: data.via === "robo" ? "robo" : "brasil" };
+  }
+  return { number: LIBRARY_WHATSAPP, via: "brasil" };
+}
 
 // "sexta-feira, 30 de outubro de 2026"
 export function formatPickupDay(value) {
@@ -195,19 +210,14 @@ export function buildRequestMessage({
   );
 }
 
-export function libraryWhatsappUrl(text) {
-  return (
-    "https://wa.me/" + LIBRARY_WHATSAPP + "?text=" + encodeURIComponent(text)
-  );
+export function libraryWhatsappUrl(text, number = LIBRARY_WHATSAPP) {
+  return "https://wa.me/" + number + "?text=" + encodeURIComponent(text);
 }
 
 // O mesmo, pelo endereco do proprio aplicativo: no Android abre o WhatsApp
 // direto, sem a aba em branco do wa.me (ver components/RequestLoanModal.jsx).
-export function libraryWhatsappAppUrl(text) {
+export function libraryWhatsappAppUrl(text, number = LIBRARY_WHATSAPP) {
   return (
-    "whatsapp://send?phone=" +
-    LIBRARY_WHATSAPP +
-    "&text=" +
-    encodeURIComponent(text)
+    "whatsapp://send?phone=" + number + "&text=" + encodeURIComponent(text)
   );
 }
