@@ -1,0 +1,782 @@
+/* ===========================================================
+   Conversas: o WhatsApp da biblioteca dentro do painel
+   (pages/Conversations.jsx, components/ChatThread.jsx e
+   components/WhatsappConnect.jsx)
+   =========================================================== */
+
+/* ---------- Estrutura da tela ---------- */
+/* A pagina ocupa a altura que sobra na janela (menos o topo, o "voltar" e a
+   barra de abas), e a lista e as mensagens rolam POR DENTRO. Com o QR code (ou
+   o aviso de desconectado) na tela o cartao e alto: ai a pagina rola normal
+   (.is-free). */
+.chatpage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) -
+      var(--tabbar-h) - 80px
+  );
+  min-height: 340px;
+}
+@media (min-width: 860px) {
+  .chatpage {
+    height: calc(100dvh - 140px);
+    min-height: 420px;
+    gap: 12px;
+  }
+}
+.chatpage.is-free {
+  height: auto;
+  min-height: 0;
+}
+.chatpage.is-free .chatpage__body {
+  flex: none;
+  height: calc(100dvh - 160px);
+  min-height: 380px;
+}
+
+.chatpage__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+@media (min-width: 860px) {
+  .chatpage__body {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+}
+
+/* "position: relative" de proposito: o texto so para leitor de tela (.sr-only)
+   e posicionado em absoluto; sem um pai posicionado ele se mede pela JANELA, e
+   uma linha da lista abaixo da borda da tela esticava a altura da pagina inteira
+   (o celular deitado fazia a pagina rolar). */
+.chatlist,
+.chatmain,
+.chatlist__scroll,
+.chat__scroller {
+  position: relative;
+}
+.chatlist,
+.chatmain {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Celular: a lista OU a conversa. */
+@media (max-width: 859px) {
+  .chatpage.is-thread .chatlist {
+    display: none;
+  }
+  .chatpage:not(.is-thread) .chatmain {
+    display: none;
+  }
+}
+
+/* ---------- Lista de conversas ---------- */
+.chatlist__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 8px;
+}
+.chatlist__head h1 {
+  font-size: 1.3rem;
+}
+.chatlist > .searchbar {
+  margin: 0 12px 10px;
+  flex: none;
+}
+.chatlist__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.chatlist__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chatlist__state {
+  padding: 24px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.chatlist__empty svg {
+  color: var(--ink-faint);
+}
+.chatlist__empty p {
+  margin: 0;
+}
+.chatlist__more {
+  display: flex;
+  margin: 10px auto 14px;
+}
+
+.chatrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+.chatrow:hover {
+  background: var(--surface-sunk);
+}
+.chatrow.is-active {
+  background: var(--clay-wash);
+}
+.chatrow__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chatrow__top,
+.chatrow__bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.chatrow__top strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.chatrow__top time {
+  flex: none;
+  font-size: 0.73rem;
+  color: var(--ink-soft);
+}
+.chatrow__preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.chatrow.is-unread .chatrow__top strong,
+.chatrow.is-unread .chatrow__preview {
+  color: var(--ink);
+  font-weight: 700;
+}
+.chatrow.is-unread .chatrow__top time {
+  color: #1e874b;
+  font-weight: 700;
+}
+.chatrow__badge {
+  flex: none;
+  align-self: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1e874b;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 21px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Conversa aberta ---------- */
+.chatmain__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.chatmain__empty p {
+  margin: 0;
+}
+.chatmain__empty svg {
+  color: var(--ink-faint);
+}
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chathead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.chathead__back {
+  display: inline-flex;
+  flex: none;
+}
+@media (min-width: 860px) {
+  .chathead__back {
+    display: none;
+  }
+}
+.chathead__who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chathead__who strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+}
+.chathead__who small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.chat__viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.chat__scroller {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 8px;
+  background: var(--surface-sunk);
+}
+.chat__state {
+  margin: auto;
+  padding: 20px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.chat__older {
+  align-self: center;
+  flex: none;
+  margin: 2px 0 10px;
+}
+.chat__list {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+}
+.chat__item {
+  list-style: none;
+}
+.chat__day {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 6px;
+}
+.chat__day span {
+  padding: 2px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.73rem;
+}
+.chat__newbelow {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--clay);
+  color: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-float);
+  cursor: pointer;
+}
+
+/* Balao */
+.msg {
+  display: flex;
+  margin-top: 3px;
+}
+.msg--me {
+  justify-content: flex-end;
+}
+.msg__bubble {
+  max-width: min(80%, 540px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px 5px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.msg--me .msg__bubble {
+  background: var(--success-wash);
+  border-color: #c9dfce;
+  border-bottom-right-radius: 4px;
+}
+.msg--them .msg__bubble {
+  border-bottom-left-radius: 4px;
+}
+/* (mais especifico que ".msg--me .msg__bubble", senao o verde ganha) */
+.msg .msg__bubble.msg__bubble--charge {
+  background: var(--gold-wash);
+  border-color: var(--gold);
+}
+.msg__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.93rem;
+  line-height: 1.4;
+}
+.msg__kind {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.msg__hint {
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+}
+.msg__deleted {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+/* Texto corrido (nao "flex"): num item flex o espaco do fim de "Cobrança · "
+   some e a linha saia "Cobrança ·Ana". */
+.msg__meta {
+  align-self: flex-end;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  text-align: right;
+}
+.msg__ticks {
+  margin-left: 4px;
+  letter-spacing: -2px;
+}
+.msg__ticks--read {
+  color: #1a73e8;
+}
+.msg__ticks--err {
+  color: var(--danger);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ---------- Campo de escrever ---------- */
+.composer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.composer__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.composer__field {
+  flex: 1;
+  min-width: 0;
+  max-height: 150px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--paper);
+  /* 16px: abaixo disso o iPhone da zoom na tela ao tocar no campo */
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.35;
+  resize: none;
+  overflow-y: auto;
+}
+.composer__field:focus {
+  border-color: var(--clay);
+  outline: none;
+}
+.composer__field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.composer__send {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+.composer__off {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--danger);
+}
+.composer__count {
+  align-self: flex-end;
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+}
+
+/* Faixa da cobranca de atraso, em cima do campo */
+.chargebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: var(--gold-wash);
+  font-size: 0.84rem;
+}
+.chargebar--blocked {
+  border-color: var(--line);
+  background: var(--surface-sunk);
+}
+.chargebar--done {
+  border-color: #c9dfce;
+  background: var(--success-wash);
+}
+.chargebar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chargebar__text strong {
+  overflow-wrap: anywhere;
+}
+.chargebar__text span {
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.chargebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.chargebar__actions .linkish {
+  padding: 4px 0;
+  text-align: left;
+}
+
+/* ---------- Ligacao com o WhatsApp ---------- */
+.waconn {
+  flex: none;
+  border-radius: var(--radius);
+}
+.waconn--strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.waconn--strip .linkish {
+  margin-left: auto;
+  padding: 2px 0;
+}
+.waconn--strip small {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+}
+.waconn--ok {
+  color: var(--ink);
+}
+.waconn__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1e874b;
+}
+.waconn--warn {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+  color: var(--ink);
+}
+
+.waconn--card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.waconn--danger {
+  border-color: var(--danger-line);
+  background: var(--danger-wash);
+}
+.waconn__icon {
+  flex: none;
+  display: inline-flex;
+  color: #1e874b;
+}
+.waconn__text {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.waconn__text h2 {
+  font-size: 1.05rem;
+}
+.waconn__text p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.waconn--qr {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+.waconn--qr h2 {
+  font-size: 1.15rem;
+}
+.waconn__lead {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.waconn__qrbox {
+  width: min(300px, 100%);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.waconn__steps {
+  margin: 0;
+  padding-left: 22px;
+  text-align: left;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.waconn__safe {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+}
+.wacode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.wacode p {
+  margin: 0;
+}
+.wacode__value {
+  padding: 10px 18px;
+  border: 1px dashed var(--clay-line);
+  border-radius: var(--radius-sm);
+  background: var(--clay-wash);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: clamp(1.5rem, 8vw, 2.2rem);
+  letter-spacing: 0.16em;
+  user-select: all;
+}
+
+/* ---------- Aba "Conversas": bolinha de nao lidas ---------- */
+.tabbar__icon {
+  position: relative;
+  display: inline-flex;
+}
+.tabbar__badge {
+  position: absolute;
+  top: -6px;
+  right: -13px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: #1e874b;
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.newchat__hint {
+  margin: 0 0 10px;
+}
+
+/* Bolinha verde de nao lidas na engrenagem (a "porta" das Conversas no
+   computador, que nao tem a barra de abas) e no item do menu. */
+.gearbtn {
+  position: relative;
+}
+.gearbtn__badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border: 2px solid var(--paper);
+  border-radius: 999px;
+  background: #1e874b;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.drawer__count {
+  margin-left: auto;
+  align-self: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #1e874b;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* O historico da conversa recebe o foco do teclado (setas rolam): precisa de
+   um contorno visivel. O campo bloqueado (WhatsApp desconectado) fica apagado. */
+.chat__scroller:focus-visible,
+.chat:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: -2px;
+}
+.chat:focus:not(:focus-visible) {
+  outline: none;
+}
+.composer__field[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Letra grande no sistema (150-200%) com 320 px: o botao "Nova" quebra de
+   linha em vez de cortar, e os nomes da barra de abas encurtam com "…". */
+.chatlist__head {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.tabbar__link {
+  min-width: 0;
+  padding: 0 2px;
+}
+.tabbar__link > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Celular: com a conversa aberta, a faixa "conectado" sai (fica na lista) para
+   sobrar altura para as mensagens. */
+@media (max-width: 859px) {
+  .chatpage.is-thread .waconn--ok {
+    display: none;
+  }
+}
+
+/* Celular deitado (pouca altura): tudo mais compacto, para sobrar espaco para as
+   mensagens. */
+@media (max-height: 520px) and (max-width: 859px) {
+  .chatpage {
+    min-height: 0;
+  }
+  .chathead {
+    padding: 4px 10px;
+  }
+  .chathead .avatar {
+    display: none;
+  }
+  .chatlist__head {
+    padding: 6px 12px 4px;
+  }
+  .chatlist__head h1 {
+    font-size: 1.1rem;
+  }
+  .chatlist > .searchbar {
+    margin-bottom: 6px;
+  }
+  .chatlist > .searchbar input {
+    padding: 8px 0;
+  }
+  .chatrow {
+    padding: 6px 12px;
+  }
+  .composer {
+    gap: 4px;
+    padding: 4px 10px;
+  }
+  .composer__field {
+    padding: 7px 14px;
+  }
+  .composer__send {
+    width: 40px;
+    height: 40px;
+  }
+  .chargebar {
+    max-height: 34dvh;
+    overflow-y: auto;
+    padding: 6px 10px;
+  }
+}

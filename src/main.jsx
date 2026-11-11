@@ -10,6 +10,7 @@ import { wakeBackend } from "./api/client.js";
 import { registerSW } from "virtual:pwa-register";
 import "./styles/tokens.css";
 import "./styles/app.css";
+import "./styles/chat.css";
 
 // Dispara assim que o script carrega, antes mesmo do React desenhar a tela,
 // para o backend no Render comecar a acordar o mais cedo possivel.

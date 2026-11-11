@@ -1,5 +1,5 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { formatLongDate, loanProgress, parseDate } from "./dates.js";
+import { formatDate, formatLongDate, loanProgress, parseDate } from "./dates.js";
 import { formatBookTitle } from "./bookTitle.js";
 
 // Mostra o numero salvo (so digitos com DDI) de forma legivel:
@@ -24,6 +24,21 @@ export function reminderKind(loan) {
 // servidor: routes/loans.js). O botao so aparece com o livro atrasado.
 export const CHARGE_INTERVAL_DAYS = 30;
 
+// O mesmo numero com e sem o 9 de celular (Brasil e Argentina), como o servidor
+// (backend/src/services/whatsapp/phone.js): so os digitos, sem o 9 que o
+// WhatsApp as vezes tira.
+export function canonicalPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (/^55\d{2}9\d{8}$/.test(digits)) return digits.slice(0, 4) + digits.slice(5);
+  if (/^549\d{10}$/.test(digits)) return "54" + digits.slice(3);
+  return digits;
+}
+
+export function samePhone(a, b) {
+  const first = canonicalPhone(a);
+  return Boolean(first) && first === canonicalPhone(b);
+}
+
 export function isLoanOverdue(loan) {
   return reminderKind(loan) === "late";
 }
@@ -46,6 +61,27 @@ export function nextChargeAt(loan) {
 // Pode cobrar agora: em atraso, com WhatsApp e sem cobranca nos ultimos 30 dias.
 export function canCharge(loan) {
   return isLoanOverdue(loan) && Boolean(loan.personPhone) && !nextChargeAt(loan);
+}
+
+// Por que a cobranca nao pode sair agora (texto para a tela), ou "" se pode.
+export function chargeBlockReason(loan) {
+  if (loan.status !== "ativo") return "Esse empréstimo já foi devolvido.";
+  if (!loan.personPhone) return "Esse empréstimo não tem WhatsApp cadastrado.";
+  if (!isLoanOverdue(loan)) {
+    return "O prazo desse empréstimo ainda não venceu: a cobrança só vale para livro atrasado.";
+  }
+  const next = nextChargeAt(loan);
+  if (next) {
+    return (
+      (loan.overdueSentByName || "Alguém") +
+      " já cobrou em " +
+      formatDate(loan.overdueSentAt) +
+      ". Nova cobrança liberada em " +
+      formatDate(next) +
+      "."
+    );
+  }
+  return "";
 }
 
 export function buildMessage(loan) {

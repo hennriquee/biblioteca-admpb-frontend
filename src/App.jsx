@@ -13,6 +13,7 @@ import NewBooks from './pages/NewBooks.jsx';
 import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
 import Suggestions from './pages/Suggestions.jsx';
+import Conversations from './pages/Conversations.jsx';
 import DevConsole from './pages/DevConsole.jsx';
 
 function Booting() {
@@ -111,6 +112,9 @@ export default function App() {
         <Route path="/livros" element={<Books />} />
         <Route path="/emprestimos" element={<Loans />} />
         <Route path="/emprestimos/novo" element={<NewLoan />} />
+        {/* Conversas do WhatsApp da biblioteca. Uma rota so (com o id opcional):
+            trocar de conversa nao refaz a tela. */}
+        <Route path="/conversas/:chatId?" element={<Conversations />} />
         {/* Configuracoes: cadastro de gente (engrenagem do painel) */}
         <Route path="/configuracoes/conta" element={<Account />} />
         <Route path="/configuracoes/usuarios" element={<People />} />

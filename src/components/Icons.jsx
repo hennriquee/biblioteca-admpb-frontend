@@ -273,3 +273,10 @@ export const IconExternal = (props) => (
     <path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4" />
   </svg>
 );
+
+export const IconSend = (props) => (
+  <svg {...base} {...props}>
+    <path d="M20.5 4 3.5 10.8l6.2 2.5L12.2 19.5z" />
+    <path d="m20.5 4-10.8 9.3" />
+  </svg>
+);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useToast } from "../components/Toast.jsx";
 import Modal from "../components/Modal.jsx";
@@ -11,7 +11,6 @@ import RequestDetailModal, {
   pickupWhen,
 } from "../components/RequestDetailModal.jsx";
 import Confirm from "../components/Confirm.jsx";
-import ChargeModal from "../components/ChargeModal.jsx";
 import ExtendDueModal from "../components/ExtendDueModal.jsx";
 import { formatDate, formatLongDate, loanProgress } from "../utils/dates.js";
 import { formatBookTitle } from "../utils/bookTitle.js";
@@ -294,6 +293,7 @@ export default function Loans() {
   // O filtro vive na URL (?filtro=atrasados): o botao "voltar" funciona e os
   // cartoes da Inicio conseguem abrir esta tela ja filtrada.
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const rawFilter = searchParams.get("filtro");
   const status = STATUS_KEYS.includes(rawFilter) ? rawFilter : "ativo";
   const setStatus = (key) =>
@@ -311,9 +311,8 @@ export default function Loans() {
   const [returning, setReturning] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
-  // Janelas sobre os detalhes: "Cobrar no WhatsApp", "Estender prazo" e a
-  // observacao (guardam o emprestimo aberto).
-  const [chargeLoan, setChargeLoan] = useState(null);
+  // Janelas sobre os detalhes: "Estender prazo" e a observacao (guardam o
+  // emprestimo aberto). (A cobranca abre a secao Conversas.)
   const [extendLoan, setExtendLoan] = useState(null);
   const [noteLoan, setNoteLoan] = useState(null);
   // "Descartar a observação?" (fechou a janela com texto nao salvo).
@@ -870,7 +869,8 @@ export default function Loans() {
             ) : null}
 
             {/* Cobranca: so com o livro atrasado. Uma a cada 30 dias, com
-                quem cobrou por ultimo (ver components/ChargeModal.jsx). */}
+                quem cobrou por ultimo. O botao abre a conversa da pessoa na
+                secao Conversas (pages/Conversations.jsx), com a mensagem pronta. */}
             {selectedLate ? (
               <div className="charge-box">
                 <div className="charge-box__text">
@@ -904,7 +904,7 @@ export default function Loans() {
                   <button
                     type="button"
                     className="btn btn--whatsapp btn--sm charge-box__btn"
-                    onClick={() => setChargeLoan(selected)}
+                    onClick={() => navigate("/conversas?cobrar=" + selected._id)}
                     disabled={!canCharge(selected)}
                   >
                     <IconWhatsapp width={17} height={17} aria-hidden="true" />
@@ -1045,23 +1045,6 @@ export default function Loans() {
           // a mostrar o de agora; devolvido, ela fecha.
           replaceLoan(fresh);
           setExtendLoan(fresh.status === "ativo" ? fresh : null);
-        }}
-      />
-
-      <ChargeModal
-        loan={chargeLoan}
-        onClose={() => setChargeLoan(null)}
-        onCharged={(updated, options) => {
-          // keepOpen: a aba nao abriu; a janela fica com o link do WhatsApp.
-          if (!options?.keepOpen) setChargeLoan(null);
-          replaceLoan(updated);
-        }}
-        onRefused={(message, fresh, noAnswer) => {
-          setChargeLoan(null);
-          notify(message, "error");
-          if (fresh) replaceLoan(fresh);
-          // Sem resposta: a cobranca pode ter sido gravada; a lista vem de novo.
-          if (noAnswer) load({ silent: true });
         }}
       />
     </div>

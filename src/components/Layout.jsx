@@ -6,9 +6,11 @@ import SettingsDrawer from "./SettingsDrawer.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import PickupReminders from "./PickupReminders.jsx";
 import { prefetchBookList } from "../hooks/useBookList.js";
+import { useWhatsappUnread } from "../hooks/useWhatsappStatus.js";
 import { loadPanelBooks } from "../api/panelBooks.js";
 import {
   IconBooks,
+  IconChat,
   IconChevronLeft,
   IconHome,
   IconLoans,
@@ -19,6 +21,7 @@ const links = [
   { to: "/", label: "Início", Icon: IconHome, end: true },
   { to: "/livros", label: "Livros", Icon: IconBooks },
   { to: "/emprestimos", label: "Empréstimos", Icon: IconLoans },
+  { to: "/conversas", label: "Conversas", Icon: IconChat, badge: true },
 ];
 
 // Navegacao no estilo de app: sem barra no topo. No celular a barra de abas
@@ -47,6 +50,8 @@ export default function Layout() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isHome = pathname === "/";
+  // Mensagens do WhatsApp ainda nao lidas (a bolinha da aba "Conversas").
+  const unreadChats = useWhatsappUnread();
 
   // O Acervo (lista e primeiras capas) vai sendo baixado enquanto a pessoa
   // esta em outra tela: tocando em "Livros", ele ja aparece com as capas.
@@ -72,21 +77,40 @@ export default function Layout() {
     <div className="shell">
       <div className="apptop">
         <div className="apptop__bar">
+          {/* A bolinha verde avisa de mensagens do WhatsApp nao lidas: no
+              computador nao ha barra de abas, e esta e a porta para as Conversas. */}
           <button
             type="button"
-            className="icon-button"
+            className="icon-button gearbtn"
             onClick={() => setSettingsOpen(true)}
-            title="Configurações"
+            title={unreadChats > 0 ? "Configurações · mensagens não lidas" : "Configurações"}
             aria-haspopup="dialog"
           >
             <IconSettings width={20} height={20} />
-            <span className="sr-only">Configurações</span>
+            {unreadChats > 0 ? (
+              <span className="gearbtn__badge" aria-hidden="true">
+                {unreadChats > 99 ? "99+" : unreadChats}
+              </span>
+            ) : null}
+            <span className="sr-only">
+              {unreadChats > 0
+                ? "Configurações (" +
+                  (unreadChats === 1 ? "1 mensagem não lida" : unreadChats + " mensagens não lidas") +
+                  " nas Conversas)"
+                : "Configurações"}
+            </span>
           </button>
           <NotificationBell />
         </div>
       </div>
 
-      <main className="content" key={pathname}>
+      {/* A chave refaz a tela a cada endereco novo; nas Conversas, trocar de
+          conversa muda o endereco mas NAO deve refazer a tela (perderia a lista
+          e os rascunhos). */}
+      <main
+        className="content"
+        key={pathname.startsWith("/conversas") ? "/conversas" : pathname}
+      >
         {!isHome ? (
           <div className="pagetop">
             <Link
@@ -105,9 +129,21 @@ export default function Layout() {
       </main>
 
       <nav className="tabbar" aria-label="Páginas">
-        {links.map(({ to, label, Icon, end }) => (
+        {links.map(({ to, label, Icon, end, badge }) => (
           <NavLink key={to} to={to} end={end} className="tabbar__link">
-            <Icon width={21} height={21} />
+            <span className="tabbar__icon">
+              <Icon width={21} height={21} />
+              {badge && unreadChats > 0 ? (
+                <span className="tabbar__badge">
+                  <span aria-hidden="true">{unreadChats > 99 ? "99+" : unreadChats}</span>
+                  <span className="sr-only">
+                    {unreadChats === 1
+                      ? "1 mensagem não lida"
+                      : unreadChats + " mensagens não lidas"}
+                  </span>
+                </span>
+              ) : null}
+            </span>
             <span>{label}</span>
           </NavLink>
         ))}
@@ -117,6 +153,7 @@ export default function Layout() {
       <PickupReminders />
 
       <SettingsDrawer
+        unread={unreadChats}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         user={user}

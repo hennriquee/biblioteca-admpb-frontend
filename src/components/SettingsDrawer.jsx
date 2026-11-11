@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
-import { IconBookPlus, IconExit, IconUser, IconUsers } from "./Icons.jsx";
+import { IconBookPlus, IconChat, IconExit, IconUser, IconUsers } from "./Icons.jsx";
 
 /**
  * Menu de configuracoes que entra pela esquerda (botao de engrenagem do
@@ -11,7 +11,7 @@ import { IconBookPlus, IconExit, IconUser, IconUsers } from "./Icons.jsx";
  * Fecha com Esc, tocando fora ou ao escolher uma opcao. Enquanto esta aberto,
  * a pagina de tras nao rola e o Tab fica dando a volta dentro do menu.
  */
-export default function SettingsDrawer({ open, onClose, user, onLogout }) {
+export default function SettingsDrawer({ open, onClose, user, onLogout, unread = 0 }) {
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -81,6 +81,24 @@ export default function SettingsDrawer({ open, onClose, user, onLogout }) {
         </header>
 
         <nav className="drawer__nav" aria-label="Configurações">
+          <Link to="/conversas" className="drawer__item" onClick={onClose}>
+            <IconChat width={20} height={20} />
+            <span>
+              <strong>Conversas</strong>
+              <small>
+                {unread > 0
+                  ? unread === 1
+                    ? "1 mensagem não lida"
+                    : unread + " mensagens não lidas"
+                  : "WhatsApp da biblioteca"}
+              </small>
+            </span>
+            {unread > 0 ? (
+              <span className="drawer__count" aria-hidden="true">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            ) : null}
+          </Link>
           <Link
             to="/configuracoes/usuarios"
             className="drawer__item"
