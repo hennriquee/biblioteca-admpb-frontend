@@ -4,6 +4,7 @@ import { api } from "../api/client.js";
 import Avatar from "../components/Avatar.jsx";
 import ChargeModal from "../components/ChargeModal.jsx";
 import ChatRowMenu from "../components/ChatRowMenu.jsx";
+import BotAnswersModal from "../components/BotAnswersModal.jsx";
 import ChatThread from "../components/ChatThread.jsx";
 import Confirm from "../components/Confirm.jsx";
 import Modal from "../components/Modal.jsx";
@@ -173,6 +174,17 @@ function ChatRow({ chat, active, menuOpen, onMenu }) {
         </span>
       </Link>
     </li>
+  );
+}
+
+// "12/11 às 14:30" (fim da restrição do WhatsApp para iniciar conversas).
+function restrictionEnd(until) {
+  const date = new Date(until);
+  if (Number.isNaN(date.getTime())) return "o fim da restrição";
+  return (
+    date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+    " às " +
+    date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
   );
 }
 
@@ -639,6 +651,8 @@ export default function Conversations() {
 
   // ---------- nova conversa ----------
   const [newOpen, setNewOpen] = useState(false);
+  // "Respostas do robô": as palavras-chave e respostas do atendimento automático.
+  const [answersOpen, setAnswersOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   async function startWith(person) {
     if (opening) return;
@@ -684,15 +698,34 @@ export default function Conversations() {
             <h1 ref={listHeadingRef} tabIndex={-1}>
               Conversas
             </h1>
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              onClick={() => setNewOpen(true)}
-            >
-              <IconPlus width={16} height={16} aria-hidden="true" />
-              Nova
-            </button>
+            <div className="chatlist__actions">
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setAnswersOpen(true)}
+                title="Ensinar o atendimento automático: palavras-chave e respostas"
+              >
+                Respostas do robô
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => setNewOpen(true)}
+              >
+                <IconPlus width={16} height={16} aria-hidden="true" />
+                Nova
+              </button>
+            </div>
           </div>
+
+          {status?.restriction ? (
+            <div className="warestrict" role="alert">
+              <strong>O WhatsApp restringiu este número para iniciar conversas.</strong>
+              Até {restrictionEnd(status.restriction.until)}, não escreva para quem nunca mandou
+              mensagem (insistir piora a restrição). Responder a quem escreveu continua
+              funcionando; os avisos automáticos estão em pausa.
+            </div>
+          ) : null}
 
           <div className="searchbar">
             <IconSearch width={18} height={18} aria-hidden="true" />
@@ -853,6 +886,8 @@ export default function Conversations() {
           )}
         </section>
       </div>
+
+      <BotAnswersModal open={answersOpen} onClose={() => setAnswersOpen(false)} notify={notify} />
 
       <Modal
         open={newOpen}

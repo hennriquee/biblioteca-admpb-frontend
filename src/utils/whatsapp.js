@@ -88,37 +88,102 @@ export function chargeBlockReason(loan) {
   return "";
 }
 
+// Gerador repetivel a partir de um texto (o mesmo de
+// backend/src/services/whatsapp/humanize.js): o MESMO emprestimo da sempre o
+// mesmo texto (a tela compara o rascunho com ele), emprestimos diferentes dao
+// textos diferentes - o WhatsApp desconfia do mesmo texto copiado para muita
+// gente.
+function seededRng(seed) {
+  let h = 2166136261;
+  for (const ch of String(seed)) {
+    h ^= ch.codePointAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  let state = h >>> 0 || 1;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickWith(rng, list) {
+  return list[Math.min(list.length - 1, Math.floor(rng() * list.length))];
+}
+
+const MESSAGE_OPENINGS = [
+  "Olá, {first}! A paz do Senhor! 🙏",
+  "Oi, {first}! A paz do Senhor! 🙏",
+  "Olá, {first}, tudo bem? A paz! 🙏",
+  "{first}, a paz do Senhor! Tudo bem? 🙏",
+  "Oi, {first}, tudo bem?",
+];
+const LATE_BODIES = [
+  "Aqui é da Biblioteca ADMP Brasil. O livro {book} estava combinado para ser devolvido em {date}.",
+  "Aqui é da Biblioteca ADMP Brasil. A devolução do livro {book} estava marcada para {date}.",
+  "Quem fala é a Biblioteca ADMP Brasil. O prazo do livro {book} terminou em {date}.",
+  "Aqui é da Biblioteca ADMP Brasil. Vimos que o livro {book} era para ter voltado em {date}.",
+];
+const LATE_ASKS = [
+  "Sabemos que a rotina é corrida, mas você consegue devolvê-lo assim que possível?",
+  "Você consegue trazê-lo de volta nos próximos dias?",
+  "Quando puder, consegue fazer a devolução?",
+  "Sabemos que o dia a dia é corrido. Consegue devolver assim que possível?",
+];
+const LATE_REASONS = [
+  "Outras pessoas também gostariam de ler.",
+  "Tem mais gente querendo ler.",
+  "Outros leitores estão esperando por ele.",
+  "",
+];
+const SOON_BODIES = [
+  "Aqui é da Biblioteca ADMP Brasil. Passando para lembrar com carinho que o livro {book} deve ser devolvido em {date}.",
+  "Aqui é da Biblioteca ADMP Brasil. Só um lembrete: a devolução do livro {book} é em {date}.",
+  "Quem fala é a Biblioteca ADMP Brasil. Lembrando que o livro {book} deve voltar em {date}.",
+];
+const MESSAGE_CLOSINGS = [
+  "Se precisar de mais tempo, é só nos avisar. Muito obrigado! 📚",
+  "Se precisar de mais alguns dias, é só falar. Obrigado! 📚",
+  "Qualquer coisa, é só responder por aqui. Muito obrigado! 📚",
+  "Se precisar de mais prazo, nos avise. Deus abençoe! 📚",
+];
+
 export function buildMessage(loan) {
   const first = String(loan.personName || "").split(" ")[0];
   const book = '"' + formatBookTitle(loan.bookTitle) + '"';
   const kind = reminderKind(loan);
+  const rng = seededRng(
+    String(loan._id || loan.personName || "") + "|" + String(loan.dueDate || "") + "|" + kind,
+  );
+  const fill = (text) =>
+    text
+      .replace("{first}", first)
+      .replace("{book}", book)
+      .replace("{date}", formatLongDate(loan.dueDate));
+  const opening = first ? fill(pickWith(rng, MESSAGE_OPENINGS)) : "Olá! A paz do Senhor! 🙏";
 
   if (kind === "late") {
+    const reason = pickWith(rng, LATE_REASONS);
     return (
-      "Olá, " +
-      first +
-      "! A paz do Senhor! 🙏\n\n" +
-      "Aqui é da Biblioteca ADMP Brasil. O livro " +
-      book +
-      " estava combinado para ser devolvido em " +
-      formatLongDate(loan.dueDate) +
-      ".\n\n" +
-      "Sabemos que a rotina é corrida, mas você consegue devolvê-lo assim que possível? " +
-      "Outras pessoas também gostariam de ler. Se precisar de mais tempo, é só nos avisar. " +
-      "Muito obrigado! 📚"
+      opening +
+      "\n\n" +
+      fill(pickWith(rng, LATE_BODIES)) +
+      "\n\n" +
+      pickWith(rng, LATE_ASKS) +
+      (reason ? " " + reason : "") +
+      " " +
+      pickWith(rng, MESSAGE_CLOSINGS)
     );
   }
 
   return (
-    "Olá, " +
-    first +
-    "! A paz do Senhor! 🙏\n\n" +
-    "Aqui é da Biblioteca ADMP Brasil. Passando para lembrar com carinho que o livro " +
-    book +
-    " deve ser devolvido em " +
-    formatLongDate(loan.dueDate) +
-    ".\n\n" +
-    "Se precisar de mais tempo, é só nos avisar. Muito obrigado! 📚"
+    opening +
+    "\n\n" +
+    fill(pickWith(rng, SOON_BODIES)) +
+    "\n\n" +
+    pickWith(rng, MESSAGE_CLOSINGS)
   );
 }
 

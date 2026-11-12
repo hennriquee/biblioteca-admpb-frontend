@@ -980,3 +980,171 @@
     padding: 6px 10px;
   }
 }
+
+/* ---------- "Respostas do robô" (components/BotAnswersModal.jsx) ---------- */
+.chatlist__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.botans {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.botans__lead {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.botans__hint {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  margin-top: -6px;
+}
+.botans__title {
+  font-size: 0.95rem;
+  margin-top: 6px;
+}
+.botans__probe {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.botans__probe .field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.botans__probe .btn {
+  flex: none;
+  min-height: 44px;
+}
+.botans__result {
+  min-height: 1.4em;
+  font-size: 0.88rem;
+  margin-top: -6px;
+  overflow-wrap: anywhere;
+}
+.botans__result .is-miss {
+  color: var(--danger);
+}
+.botans__answer {
+  display: block;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
+.botans__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.botans__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+.botans__item:hover {
+  background: var(--surface-sunk);
+}
+.botans__item:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+.botans__name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.botans__keys,
+.botans__meta {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.botans__unknown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+}
+.botans__question {
+  overflow-wrap: anywhere;
+}
+.botans__count {
+  margin-left: 6px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+.botans__row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.botans__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.botans__check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--clay);
+}
+.botans__state {
+  text-align: center;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 479px) {
+  .botans__probe {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Aviso: a Meta restringiu o número para iniciar conversas. */
+.warestrict {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  background: var(--danger-wash);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  flex: none;
+}
+.warestrict strong {
+  display: block;
+}
+.botans__discard {
+  flex: 1 1 100%;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.modal__foot:has(.botans__discard) {
+  flex-wrap: wrap;
+}
