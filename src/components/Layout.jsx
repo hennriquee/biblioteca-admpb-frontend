@@ -8,6 +8,7 @@ import PickupReminders from "./PickupReminders.jsx";
 import { prefetchBookList } from "../hooks/useBookList.js";
 import { useWhatsappUnread } from "../hooks/useWhatsappStatus.js";
 import { loadPanelBooks } from "../api/panelBooks.js";
+import { forgetThisDevice } from "../utils/adminPush.js";
 import {
   IconBooks,
   IconChat,
@@ -18,7 +19,7 @@ import {
 } from "./Icons.jsx";
 
 const links = [
-  { to: "/", label: "Início", Icon: IconHome, end: true },
+  { to: "/inicio", label: "Início", Icon: IconHome, end: true },
   { to: "/livros", label: "Livros", Icon: IconBooks },
   { to: "/emprestimos", label: "Empréstimos", Icon: IconLoans },
   { to: "/conversas", label: "Conversas", Icon: IconChat, badge: true },
@@ -31,16 +32,17 @@ const links = [
 // always: o "voltar" aparece tambem no celular. E o caso das telas de
 // configuracao, que nao tem aba embaixo para se voltar.
 const PARENTS = {
-  "/livros": { to: "/", label: "Início" },
-  "/emprestimos": { to: "/", label: "Início" },
+  "/livros": { to: "/inicio", label: "Início" },
+  "/emprestimos": { to: "/inicio", label: "Início" },
   "/emprestimos/novo": { to: "/emprestimos", label: "Empréstimos" },
   "/configuracoes/conta": {
-    to: "/",
+    to: "/inicio",
     label: "Início",
     always: true,
   },
-  "/configuracoes/usuarios": { to: "/", label: "Início", always: true },
-  "/configuracoes/sugestoes": { to: "/", label: "Início", always: true },
+  "/configuracoes/usuarios": { to: "/inicio", label: "Início", always: true },
+  "/configuracoes/sugestoes": { to: "/inicio", label: "Início", always: true },
+  "/configuracoes/notificacoes": { to: "/inicio", label: "Início", always: true },
 };
 
 export default function Layout() {
@@ -49,7 +51,7 @@ export default function Layout() {
   const [confirmExit, setConfirmExit] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const isHome = pathname === "/";
+  const isHome = pathname === "/inicio";
   // Mensagens do WhatsApp ainda nao lidas (a bolinha da aba "Conversas").
   const unreadChats = useWhatsappUnread();
 
@@ -63,7 +65,7 @@ export default function Layout() {
     return () => clearTimeout(timer);
   }, [pathname]);
   const parent = PARENTS[pathname.replace(/\/$/, "")] || {
-    to: "/",
+    to: "/inicio",
     label: "Início",
   };
 
@@ -77,30 +79,25 @@ export default function Layout() {
     <div className="shell">
       <div className="apptop">
         <div className="apptop__bar">
-          {/* A bolinha verde avisa de mensagens do WhatsApp nao lidas: no
-              computador nao ha barra de abas, e esta e a porta para as Conversas. */}
+          {/* As Conversas sairam das Configuracoes (12/11/2026): a porta
+              para elas no computador e o sininho, que soma as nao lidas. */}
           <button
             type="button"
             className="icon-button gearbtn"
             onClick={() => setSettingsOpen(true)}
-            title={unreadChats > 0 ? "Configurações · mensagens não lidas" : "Configurações"}
+            title="Configurações"
             aria-haspopup="dialog"
           >
             <IconSettings width={20} height={20} />
+            {/* (antes: bolinha verde com as mensagens nao lidas do WhatsApp)
             {unreadChats > 0 ? (
               <span className="gearbtn__badge" aria-hidden="true">
                 {unreadChats > 99 ? "99+" : unreadChats}
               </span>
-            ) : null}
-            <span className="sr-only">
-              {unreadChats > 0
-                ? "Configurações (" +
-                  (unreadChats === 1 ? "1 mensagem não lida" : unreadChats + " mensagens não lidas") +
-                  " nas Conversas)"
-                : "Configurações"}
-            </span>
+            ) : null} */}
+            <span className="sr-only">Configurações</span>
           </button>
-          <NotificationBell />
+          <NotificationBell unreadChats={unreadChats} />
         </div>
       </div>
 
@@ -117,7 +114,7 @@ export default function Layout() {
               to={parent.to}
               className={
                 "backlink" +
-                (parent.to === "/" && !parent.always ? " backlink--desktop" : "")
+                (parent.to === "/inicio" && !parent.always ? " backlink--desktop" : "")
               }
             >
               <IconChevronLeft width={18} height={18} />
@@ -153,7 +150,6 @@ export default function Layout() {
       <PickupReminders />
 
       <SettingsDrawer
-        unread={unreadChats}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         user={user}
@@ -166,8 +162,11 @@ export default function Layout() {
         message="Você precisará entrar de novo com usuário e senha."
         confirmLabel="Sair"
         onCancel={() => setConfirmExit(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           setConfirmExit(false);
+          // Este aparelho deixa de receber as notificacoes desta conta (o
+          // pedido sai com o token de agora; espera no maximo ~2 s).
+          await forgetThisDevice();
           logout();
         }}
       />

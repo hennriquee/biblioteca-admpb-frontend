@@ -4177,6 +4177,10 @@ span.avatar--empty {
   background: var(--surface);
   box-shadow: var(--shadow-float);
   animation: drawer-in 0.22s ease both;
+  /* Fonte grande ou celular deitado: os itens passam da altura e o menu
+     rola (senao "Sair da biblioteca" ficava fora de alcance). */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @keyframes drawer-in {
   from {
@@ -5390,4 +5394,252 @@ span.avatar--empty {
     flex: 0 0 auto;
     width: 100%;
   }
+}
+
+/* ---------- Tela inicial ("/"): Sou administrador / Ver catalogo ---------- */
+.login__choose {
+  text-align: center;
+}
+.login__choose .login__hint {
+  margin-top: -8px;
+}
+.choose {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+}
+.choose__btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.choose__btn:hover {
+  background: var(--surface-sunk);
+}
+.choose__btn:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+.choose__btn--admin {
+  border-color: var(--clay);
+  background: var(--clay);
+  color: var(--surface);
+}
+.choose__btn--admin:hover {
+  background: var(--clay-strong);
+}
+.choose__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--clay-wash);
+  color: var(--clay);
+}
+.choose__btn--admin .choose__icon {
+  background: color-mix(in srgb, var(--surface) 18%, transparent);
+  color: var(--surface);
+}
+.choose__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.choose__text strong {
+  font-size: 1.05rem;
+}
+.choose__text small {
+  font-size: 0.86rem;
+  opacity: 0.85;
+}
+.login__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-bottom: -6px;
+}
+
+/* ---------- Sininho: pedidos novos do catalogo ---------- */
+.newreqs {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.newreqs__title {
+  margin: 0;
+  font-size: 1rem;
+}
+.newreqs__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.newreq {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.newreq:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.newreq__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.newreq__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.newreq__text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.newreq__text span {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+.newreq__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.notices__prefs {
+  justify-self: center;
+  font-size: 0.88rem;
+}
+
+/* ---------- Configuracoes > Notificacoes ---------- */
+.notifset__card {
+  display: grid;
+  gap: 12px;
+}
+.notifset__card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.notifset__state {
+  margin: 0;
+  color: var(--ink-soft);
+}
+.notifset__state.is-on {
+  color: var(--success);
+  font-weight: 600;
+}
+.notifset__note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.notifset__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notifset__kinds,
+.notifset__devices {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.notifkind {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.notifkind:hover {
+  background: var(--surface-sunk);
+}
+.notifkind__check {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--clay);
+  cursor: pointer;
+}
+.notifkind__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.notifkind__text small {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+.notifset__devices li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.notifset__devices li:first-child {
+  border-top: 0;
+}
+.notifset__devices li > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.notifset__devices small {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+/* Fonte grande do sistema (200%) em tela estreita: os cartoes do sininho
+   encolhem com a janela em vez de cortar a direita, e na tela de
+   Notificacoes o titulo de cada opcao cresce junto com a explicacao. */
+.notices,
+.newreqs,
+.newreqs__list,
+.newreq {
+  grid-template-columns: minmax(0, 1fr);
+}
+.notice {
+  min-width: 0;
+}
+.newreq__actions .btn {
+  max-width: 100%;
+  white-space: normal;
+}
+.notifkind__text strong {
+  font-size: 1rem;
+}
+.notifkind__text small {
+  font-size: 0.86rem;
 }

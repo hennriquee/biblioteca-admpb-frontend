@@ -642,12 +642,14 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       {book ? (
         done ? (
           <div className="reqdone" role="status">
+            {/* "robo" = o WhatsApp conectado ao painel. Desde 12/11/2026 nao
+                ha resposta automatica: quem responde e um administrador. */}
             {done.via === "robo" ? (
               <p>
                 Sua mensagem para a biblioteca está pronta no WhatsApp. É só
-                enviar: o atendimento da biblioteca confirma o pedido de{" "}
-                <strong>{title}</strong> e passa para um dos nossos
-                administradores, que entra em contato para combinar a retirada.
+                enviar: um dos nossos administradores recebe o pedido de{" "}
+                <strong>{title}</strong> e responde por lá para combinar a
+                retirada.
               </p>
             ) : (
               <p>

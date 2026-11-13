@@ -14,7 +14,9 @@ import Account from './pages/Account.jsx';
 import People from './pages/People.jsx';
 import Suggestions from './pages/Suggestions.jsx';
 import Conversations from './pages/Conversations.jsx';
+import NotificationSettings from './pages/NotificationSettings.jsx';
 import DevConsole from './pages/DevConsole.jsx';
+import { getToken } from './api/client.js';
 
 function Booting() {
   return (
@@ -45,8 +47,19 @@ function DevOnly({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <Booting />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'dev') return <Navigate to="/" replace />;
+  if (user.role !== 'dev') return <Navigate to="/inicio" replace />;
   return children;
+}
+
+// TELA INICIAL ("/"): dois botoes - "Sou administrador" (abre o login) e
+// "Ver catálogo" (acervo publico). Quem ja tem sessao vai direto para o
+// painel (/inicio) ou para a manutencao. (O app instalado abre aqui.)
+function Landing() {
+  const { user, loading } = useAuth();
+  // Sessao guardada ainda sendo conferida: espera, em vez de piscar a escolha.
+  if (loading && getToken()) return <Booting />;
+  if (user) return <Navigate to={user.role === 'dev' ? '/manutencao' : '/inicio'} replace />;
+  return <Login start="choose" />;
 }
 
 // Link do fim da mensagem de "Solicitar empréstimo" (/solicitacao/<id>): abre
@@ -76,6 +89,7 @@ export default function App() {
     <>
       {showSplash ? <AppSplash /> : null}
       <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       {/* Unicas telas abertas ao publico: ficam de fora do Protected e do
           Layout do admin. Toda rota nova de admin deve ficar DENTRO do
@@ -108,7 +122,8 @@ export default function App() {
           </Protected>
         }
       >
-        <Route path="/" element={<Home />} />
+        {/* Inicio do painel (era "/", que agora e a tela de entrada). */}
+        <Route path="/inicio" element={<Home />} />
         <Route path="/livros" element={<Books />} />
         <Route path="/emprestimos" element={<Loans />} />
         <Route path="/emprestimos/novo" element={<NewLoan />} />
@@ -119,6 +134,8 @@ export default function App() {
         <Route path="/configuracoes/conta" element={<Account />} />
         <Route path="/configuracoes/usuarios" element={<People />} />
         <Route path="/configuracoes/sugestoes" element={<Suggestions />} />
+        {/* O que cada administrador quer receber como notificacao do app. */}
+        <Route path="/configuracoes/notificacoes" element={<NotificationSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

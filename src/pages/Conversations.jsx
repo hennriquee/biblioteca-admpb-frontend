@@ -4,7 +4,8 @@ import { api } from "../api/client.js";
 import Avatar from "../components/Avatar.jsx";
 import ChargeModal from "../components/ChargeModal.jsx";
 import ChatRowMenu from "../components/ChatRowMenu.jsx";
-import BotAnswersModal from "../components/BotAnswersModal.jsx";
+// (do robo, desligado em 12/11/2026: o arquivo esta todo comentado)
+// import BotAnswersModal from "../components/BotAnswersModal.jsx";
 import ChatThread from "../components/ChatThread.jsx";
 import Confirm from "../components/Confirm.jsx";
 import Modal from "../components/Modal.jsx";
@@ -155,13 +156,15 @@ function ChatRow({ chat, active, menuOpen, onMenu }) {
           </span>
           <span className="chatrow__bottom">
             <span className="chatrow__preview">{preview || "Sem mensagens"}</span>
+            {/* (do robo, desligado em 12/11/2026: "Pedido de empréstimo",
+                "Aguardando administrador" e "Robô silenciado")
             {chat.attendance?.waiting ? (
               <span className="chatrow__waiting">
                 {chat.attendance.reason === "request" ? "Pedido de empréstimo" : "Aguardando administrador"}
               </span>
             ) : chat.attendance?.muted ? (
               <span className="chatrow__waiting">Robô silenciado</span>
-            ) : null}
+            ) : null} */}
             {unread ? (
               <span className="chatrow__badge">
                 <span aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
@@ -651,8 +654,9 @@ export default function Conversations() {
 
   // ---------- nova conversa ----------
   const [newOpen, setNewOpen] = useState(false);
-  // "Respostas do robô": as palavras-chave e respostas do atendimento automático.
-  const [answersOpen, setAnswersOpen] = useState(false);
+  // (do robo, desligado em 12/11/2026) "Respostas do robô": as palavras-chave
+  // e respostas do atendimento automático.
+  // const [answersOpen, setAnswersOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   async function startWith(person) {
     if (opening) return;
@@ -699,6 +703,7 @@ export default function Conversations() {
               Conversas
             </h1>
             <div className="chatlist__actions">
+              {/* (do robo, desligado em 12/11/2026)
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
@@ -706,7 +711,7 @@ export default function Conversations() {
                 title="Ensinar o atendimento automático: palavras-chave e respostas"
               >
                 Respostas do robô
-              </button>
+              </button> */}
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
@@ -723,7 +728,7 @@ export default function Conversations() {
               <strong>O WhatsApp restringiu este número para iniciar conversas.</strong>
               Até {restrictionEnd(status.restriction.until)}, não escreva para quem nunca mandou
               mensagem (insistir piora a restrição). Responder a quem escreveu continua
-              funcionando; os avisos automáticos estão em pausa.
+              funcionando; o aviso automático de atraso está em pausa.
             </div>
           ) : null}
 
@@ -887,7 +892,8 @@ export default function Conversations() {
         </section>
       </div>
 
-      <BotAnswersModal open={answersOpen} onClose={() => setAnswersOpen(false)} notify={notify} />
+      {/* (do robo, desligado em 12/11/2026)
+      <BotAnswersModal open={answersOpen} onClose={() => setAnswersOpen(false)} notify={notify} /> */}
 
       <Modal
         open={newOpen}

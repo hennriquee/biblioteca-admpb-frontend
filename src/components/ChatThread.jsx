@@ -240,7 +240,7 @@ export default function ChatThread({
   onAskDelete,
 }) {
   const { notify } = useToast();
-  const [switching, setSwitching] = useState(false);
+  // const [switching, setSwitching] = useState(false); // (robo desligado)
   // A conversa saiu do painel (outro administrador apagou ou as mensagens
   // sumiram pelo tempo) enquanto estava aberta.
   const [gone, setGone] = useState(false);
@@ -527,29 +527,30 @@ export default function ChatThread({
     }
   }
 
-  // Quem atende: "human" (o administrador assume) ou "bot" (devolve ao robo).
-  async function setAttendance(mode) {
-    if (switching) return;
-    setSwitching(true);
-    const id = chatId;
-    try {
-      const result = await api("/api/whatsapp/chats/" + id + "/attendance", {
-        method: "POST",
-        body: { mode },
-      });
-      onChatChange?.(result.chat);
-      notify(
-        mode === "bot"
-          ? "O atendimento automático voltou a responder nesta conversa."
-          : "Atendimento assumido: o robô não responde nesta conversa.",
-        "success",
-      );
-    } catch (error) {
-      notify(error.message, "error");
-    } finally {
-      setSwitching(false);
-    }
-  }
+// (do robo, desligado em 12/11/2026)
+//   // Quem atende: "human" (o administrador assume) ou "bot" (devolve ao robo).
+//   async function setAttendance(mode) {
+//     if (switching) return;
+//     setSwitching(true);
+//     const id = chatId;
+//     try {
+//       const result = await api("/api/whatsapp/chats/" + id + "/attendance", {
+//         method: "POST",
+//         body: { mode },
+//       });
+//       onChatChange?.(result.chat);
+//       notify(
+//         mode === "bot"
+//           ? "O atendimento automático voltou a responder nesta conversa."
+//           : "Atendimento assumido: o robô não responde nesta conversa.",
+//         "success",
+//       );
+//     } catch (error) {
+//       notify(error.message, "error");
+//     } finally {
+//       setSwitching(false);
+//     }
+//   }
 
   function onKeyDown(event) {
     // No computador, Enter envia e Shift+Enter quebra a linha. No celular o
@@ -568,7 +569,7 @@ export default function ChatThread({
   const name = chat?.person?.fullName || chat?.pushName || "";
   const phone = chat?.phone ? formatStoredPhone(chat.phone) : "";
   const title = name || phone || "Número oculto";
-  const attendance = chat?.attendance || null;
+  // const attendance = chat?.attendance || null; // (robo desligado)
 
   // Mensagens temporarias: o que ja venceu sai da tela (a limpeza do servidor
   // passa de meia em meia hora).
@@ -756,6 +757,7 @@ export default function ChatThread({
           send();
         }}
       >
+        {/* (do robo, desligado em 12/11/2026: a barra "Atendimento automático ativo" / "Assumir atendimento")
         {attendance ? (
           <div
             className={
@@ -809,7 +811,7 @@ export default function ChatThread({
                 : "Assumir atendimento"}
             </button>
           </div>
-        ) : null}
+        ) : null} */}
 
         {charge ? (
           <div

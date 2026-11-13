@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "./Avatar.jsx";
-import { IconBookPlus, IconChat, IconExit, IconUser, IconUsers } from "./Icons.jsx";
+// (IconChat era do item "Conversas", que saiu daqui)
+import { IconBell, IconBookPlus, IconExit, IconUser, IconUsers } from "./Icons.jsx";
 
 /**
  * Menu de configuracoes que entra pela esquerda (botao de engrenagem do
@@ -11,7 +12,7 @@ import { IconBookPlus, IconChat, IconExit, IconUser, IconUsers } from "./Icons.j
  * Fecha com Esc, tocando fora ou ao escolher uma opcao. Enquanto esta aberto,
  * a pagina de tras nao rola e o Tab fica dando a volta dentro do menu.
  */
-export default function SettingsDrawer({ open, onClose, user, onLogout, unread = 0 }) {
+export default function SettingsDrawer({ open, onClose, user, onLogout }) {
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -81,24 +82,26 @@ export default function SettingsDrawer({ open, onClose, user, onLogout, unread =
         </header>
 
         <nav className="drawer__nav" aria-label="Configurações">
-          <Link to="/conversas" className="drawer__item" onClick={onClose}>
-            <IconChat width={20} height={20} />
-            <span>
-              <strong>Conversas</strong>
-              <small>
-                {unread > 0
-                  ? unread === 1
-                    ? "1 mensagem não lida"
-                    : unread + " mensagens não lidas"
-                  : "WhatsApp da biblioteca"}
-              </small>
-            </span>
-            {unread > 0 ? (
-              <span className="drawer__count" aria-hidden="true">
-                {unread > 99 ? "99+" : unread}
-              </span>
-            ) : null}
-          </Link>
+          {/* As CONVERSAS sairam daqui (12/11/2026): agora ficam no sininho
+              (Notificações), junto com as solicitações e os livros sugeridos.
+                        <Link to="/conversas" className="drawer__item" onClick={onClose}>
+                          <IconChat width={20} height={20} />
+                          <span>
+                            <strong>Conversas</strong>
+                            <small>
+                              {unread > 0
+                                ? unread === 1
+                                  ? "1 mensagem não lida"
+                                  : unread + " mensagens não lidas"
+                                : "WhatsApp da biblioteca"}
+                            </small>
+                          </span>
+                          {unread > 0 ? (
+                            <span className="drawer__count" aria-hidden="true">
+                              {unread > 99 ? "99+" : unread}
+                            </span>
+                          ) : null}
+                        </Link> */}
           <Link
             to="/configuracoes/usuarios"
             className="drawer__item"
@@ -119,6 +122,17 @@ export default function SettingsDrawer({ open, onClose, user, onLogout, unread =
             <span>
               <strong>Livros sugeridos</strong>
               <small>Pedidos do catálogo público</small>
+            </span>
+          </Link>
+          <Link
+            to="/configuracoes/notificacoes"
+            className="drawer__item"
+            onClick={onClose}
+          >
+            <IconBell width={20} height={20} />
+            <span>
+              <strong>Notificações</strong>
+              <small>Escolha o que receber no aparelho</small>
             </span>
           </Link>
           <Link
