@@ -201,6 +201,15 @@ export const IconChat = (props) => (
   </svg>
 );
 
+// Uma mensagem: balao com duas linhas de texto. Para "Fale conosco" (menu e
+// botao flutuante do /catalogo); diferente do IconChat, que e o balao vazio.
+export const IconMessage = (props) => (
+  <svg {...base} {...props}>
+    <path d="M5.5 4.5h13A1.5 1.5 0 0 1 20 6v9.5a1.5 1.5 0 0 1-1.5 1.5H11l-4.2 3.2V17H5.5A1.5 1.5 0 0 1 4 15.5V6a1.5 1.5 0 0 1 1.5-1.5z" />
+    <path d="M8 9h8M8 12.5h5" />
+  </svg>
+);
+
 // Mensagens temporarias: um relogio com o circulo aberto (o tempo correndo).
 export const IconTimer = (props) => (
   <svg {...base} {...props}>

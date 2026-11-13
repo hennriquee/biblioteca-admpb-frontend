@@ -5,6 +5,7 @@ import {
   IconExternal,
   // APOIE (desativado por enquanto): descomente junto com o botao mais abaixo.
   // IconHeart,
+  IconMessage,
   IconWhatsapp,
 } from "./Icons.jsx";
 import { LIBRARY_CONTACT_URL, WHATSAPP_GROUP } from "../utils/support.js";
@@ -78,8 +79,8 @@ export default function CatalogMenu({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span className="pubmenu__icon pubmenu__icon--whatsapp">
-            <IconWhatsapp width={20} height={20} />
+          <span className="pubmenu__icon">
+            <IconMessage width={20} height={20} />
           </span>
           <span className="pubmenu__text">
             <strong>Precisa de algo a mais?</strong>

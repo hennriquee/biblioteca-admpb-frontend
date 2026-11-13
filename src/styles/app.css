@@ -4461,8 +4461,8 @@ span.avatar--empty {
   color: var(--ink-soft);
 }
 
-/* Botao verde redondo do WhatsApp, fixo no canto de baixo a direita do
-   /catalogo (pages/Catalog.jsx). Na cor do WhatsApp, com a logo branca.
+/* Botao redondo de mensagem, fixo no canto de baixo a direita do /catalogo
+   (pages/Catalog.jsx). Na cor do tema (--clay), com o balao em branco.
    z-index 40: acima da lista, abaixo das janelas (.modal-backdrop 50) e dos
    avisos (.toasts 60). A pagina ganha espaco embaixo (.pub--fab) para o
    botao nunca cobrir o fim do rodape. */
@@ -4476,8 +4476,8 @@ span.avatar--empty {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #25d366;
-  color: #fff;
+  background: var(--clay);
+  color: var(--surface);
   box-shadow:
     0 2px 6px rgba(0, 0, 0, 0.18),
     0 8px 20px -6px rgba(0, 0, 0, 0.35);
@@ -4487,7 +4487,7 @@ span.avatar--empty {
   -webkit-tap-highlight-color: transparent;
 }
 .wafab:hover {
-  background: #1ebe5b;
+  background: var(--clay-strong);
 }
 .wafab:active {
   transform: scale(0.94);

@@ -13,7 +13,7 @@ import SuggestBookModal from "../components/SuggestBookModal.jsx";
 import {
   IconSearch,
   IconUsers,
-  IconWhatsappLogo,
+  IconMessage,
 } from "../components/Icons.jsx";
 import { LIBRARY_CONTACT_URL } from "../utils/support.js";
 import { applyCatalogIdentity } from "../utils/catalogIdentity.js";
@@ -479,7 +479,7 @@ export default function Catalog() {
         </footer>
       </div>
 
-      {/* Botao verde redondo, fixo no canto de baixo a direita: abre a
+      {/* Botao redondo (cor do tema), fixo no canto de baixo a direita: abre a
           conversa com a biblioteca no WhatsApp (o numero argentino), ja com
           "Olá!" escrito. Fica por baixo das janelas (z-index menor que o do
           .modal-backdrop). */}
@@ -491,7 +491,7 @@ export default function Catalog() {
         aria-label="Fale com a biblioteca pelo WhatsApp"
         title="Fale com a biblioteca pelo WhatsApp"
       >
-        <IconWhatsappLogo width={30} height={30} aria-hidden="true" />
+        <IconMessage width={28} height={28} aria-hidden="true" />
       </a>
 
       <WelcomeModal open={welcomeOpen} onClose={closeWelcome} />
