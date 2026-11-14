@@ -701,6 +701,23 @@
   text-align: left;
 }
 
+/* Uma conversa por vez (components/ChatThread.jsx): a mesma forma da faixa
+   da cobranca; a conta regressiva nao pula de largura. */
+.floorbar strong {
+  font-variant-numeric: tabular-nums;
+}
+/* Com fonte grande (200%) o texto nao pode empurrar o campo para fora da
+   tela: a faixa tem teto e rola por dentro. */
+.floorbar {
+  flex: none;
+  max-height: 30dvh;
+  overflow-y: auto;
+}
+.chargebar + .floorbar,
+.floorbar + .chargebar {
+  margin-top: 6px;
+}
+
 /* ---------- Ligacao com o WhatsApp ---------- */
 .waconn {
   flex: none;
@@ -1147,4 +1164,25 @@
 }
 .modal__foot:has(.botans__discard) {
   flex-wrap: wrap;
+}
+
+/* Celular (em pe ou deitado): as faixas em cima do campo (cobranca, "uma
+   conversa por vez") tem teto e rolam por dentro - com a fonte grande do
+   sistema (150%/200%) elas empurravam o campo de escrever para fora da tela. */
+@media (max-width: 859px) {
+  .chargebar,
+  .floorbar {
+    flex: none;
+    max-height: 22dvh;
+    overflow-y: auto;
+  }
+  /* o texto rola; os botoes ("Encerrar conversa", "Ir para aquela
+     conversa"...) ficam sempre a vista no pe da faixa */
+  .chargebar__actions {
+    position: sticky;
+    bottom: -8px;
+    margin-bottom: -8px;
+    padding-bottom: 8px;
+    background: inherit;
+  }
 }

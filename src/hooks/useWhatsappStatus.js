@@ -11,6 +11,9 @@ import { useRefresh } from "../utils/refresh.js";
  * (com "unread": o total de mensagens nao lidas).
  */
 const BUSY = new Set(["connecting", "qr", "reconnecting", "standby"]);
+// (dormindo = conexao sob demanda fechada; na tela Conversas ela acorda em
+// instantes, entao ali a consulta tambem fica de pressa)
+const BUSY_ACTIVE = new Set([...BUSY, "sleeping"]);
 
 /**
  * Aviso de que algo mudou nas conversas (ex.: uma conversa foi lida): quem
@@ -19,7 +22,13 @@ const BUSY = new Set(["connecting", "qr", "reconnecting", "standby"]);
  */
 export const WHATSAPP_REFRESH_EVENT = "biblioteca:whatsapp-mudou";
 
-export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000 } = {}) {
+/**
+ * active: a tela CONVERSAS (alguem usando o WhatsApp). So ela manda
+ * "?active=1", que mantem o WhatsApp conectado no servidor (conexao sob
+ * demanda: backend/src/services/whatsapp/service.js). A bolinha das outras
+ * telas consulta sem isso e nao acorda a conexao.
+ */
+export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000, active = false } = {}) {
   const [status, setStatus] = useState(undefined);
   const requestRef = useRef(0);
 
@@ -27,7 +36,7 @@ export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000 } = {}) {
     const requestId = ++requestRef.current;
     const token = getToken();
     try {
-      const data = await api("/api/whatsapp/status");
+      const data = await api("/api/whatsapp/status" + (active ? "?active=1" : ""));
       // Resposta atrasada, ou de outra conta: nao vale.
       if (requestId !== requestRef.current || token !== getToken()) return null;
       setStatus(data);
@@ -39,7 +48,7 @@ export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000 } = {}) {
       }
       return null;
     }
-  }, []);
+  }, [active]);
 
   useRefresh(load);
 
@@ -51,7 +60,7 @@ export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000 } = {}) {
 
   const state = status?.state;
   useEffect(() => {
-    const delay = BUSY.has(state) ? busyMs : idleMs;
+    const delay = (active ? BUSY_ACTIVE : BUSY).has(state) ? busyMs : idleMs;
     function tick() {
       if (document.visibilityState === "visible") load();
     }
@@ -61,7 +70,7 @@ export function useWhatsappStatus({ idleMs = 8000, busyMs = 2000 } = {}) {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", tick);
     };
-  }, [load, state, idleMs, busyMs]);
+  }, [load, state, idleMs, busyMs, active]);
 
   return { status, reload: load, setStatus };
 }

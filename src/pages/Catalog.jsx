@@ -480,8 +480,8 @@ export default function Catalog() {
       </div>
 
       {/* Botao redondo (cor do tema), fixo no canto de baixo a direita: abre a
-          conversa com a biblioteca no WhatsApp (o numero argentino), ja com
-          "Olá!" escrito. Fica por baixo das janelas (z-index menor que o do
+          conversa com a biblioteca no WhatsApp (o numero canadense, o mesmo
+          das Conversas do painel), ja com "Olá!" escrito. Fica por baixo das janelas (z-index menor que o do
           .modal-backdrop). */}
       <a
         className="wafab"

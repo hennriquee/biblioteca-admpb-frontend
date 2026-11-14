@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import Avatar from "./Avatar.jsx";
 import { useToast } from "./Toast.jsx";
@@ -13,6 +14,15 @@ import {
   formatClock,
 } from "../utils/chatTime.js";
 import { formatStoredPhone } from "../utils/whatsapp.js";
+import { WHATSAPP_REFRESH_EVENT } from "../hooks/useWhatsappStatus.js";
+
+// "1:05", "0:09"
+function clockText(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m + ":" + String(s).padStart(2, "0");
+}
 
 /**
  * A conversa aberta: cabecalho, mensagens e o campo para escrever.
@@ -27,7 +37,14 @@ import { formatStoredPhone } from "../utils/whatsapp.js";
  *   Se der erro, o texto fica no campo.
  *
  * Props:
- * - chatId, chat (resumo para o cabecalho), connected (WhatsApp conectado)
+ * - chatId, chat (resumo para o cabecalho), connected (WhatsApp conectado),
+ *   waking (nao conectado AINDA: a conexao sob demanda esta abrindo)
+ * - floor: UMA CONVERSA POR VEZ (backend/src/services/whatsapp/floor.js) - a
+ *   conversa em andamento ({ chatId, chatName, byName, active, endsInMs,
+ *   freeInMs, receivedAt }) ou null. Outra conversa em andamento (ou que
+ *   acabou ha pouco): o campo daqui fica TRAVADO, com a contagem; nesta
+ *   conversa: a faixa "Conversa em andamento" com "Encerrar conversa".
+ * - onEndFloor(chatId): "Encerrar conversa"
  * - draft / onDraftChange(idDaConversa, texto): o rascunho vive na pagina, um
  *   por conversa, para nao se perder ao trocar
  * - charge: { mode: "ready"|"blocked"|"done", title, detail, actions } ou null.
@@ -228,6 +245,9 @@ export default function ChatThread({
   chatId,
   chat,
   connected,
+  waking = false,
+  floor = null,
+  onEndFloor,
   draft,
   onDraftChange,
   charge,
@@ -241,6 +261,38 @@ export default function ChatThread({
 }) {
   const { notify } = useToast();
   // const [switching, setSwitching] = useState(false); // (robo desligado)
+
+  // ---------- uma conversa por vez ----------
+  // Os tempos vem relativos (o relogio do aparelho pode estar errado): contam
+  // a partir de quando a situacao chegou (floor.receivedAt).
+  const [floorNow, setFloorNow] = useState(() => Date.now());
+  const floorMine = Boolean(floor && floor.chatId === chatId && floor.active);
+  const floorLeft = floor ? floor.receivedAt + floor.freeInMs - floorNow : 0;
+  const floorEndsLeft = floor ? floor.receivedAt + floor.endsInMs - floorNow : 0;
+  const floorBusy = Boolean(floor && floor.chatId !== chatId && floor.active && floorEndsLeft > 0);
+  const floorWait = Boolean(floor && floor.chatId !== chatId && !floorBusy && floorLeft > 0);
+  const floorLocked = floorBusy || floorWait;
+  const [ending, setEnding] = useState(false);
+  useEffect(() => {
+    if (!floor) return undefined;
+    const timer = setInterval(() => setFloorNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [floor]);
+  // A contagem chegou a zero aqui: pede a situacao nova ao servidor.
+  const floorDue = Boolean(floor && floor.chatId !== chatId && floorLeft <= 0);
+  useEffect(() => {
+    if (floorDue) window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
+  }, [floorDue]);
+
+  async function endConversation() {
+    if (ending || !onEndFloor) return;
+    setEnding(true);
+    try {
+      await onEndFloor(chatId);
+    } finally {
+      setEnding(false);
+    }
+  }
   // A conversa saiu do painel (outro administrador apagou ou as mensagens
   // sumiram pelo tempo) enquanto estava aberta.
   const [gone, setGone] = useState(false);
@@ -499,7 +551,7 @@ export default function ChatThread({
 
   async function send() {
     const text = draft.trim();
-    if (!text || sendingRef.current || !connected || gone) return;
+    if (!text || sendingRef.current || !connected || gone || floorLocked) return;
     sendingRef.current = true;
     setSending(true);
     const id = chatId;
@@ -517,6 +569,11 @@ export default function ChatThread({
       requestAnimationFrame(() => fieldRef.current?.focus());
     } catch (error) {
       notify(error.message, "error");
+      // Uma conversa por vez: outra conversa pegou a vez antes (a tela ainda
+      // nao sabia). Busca a situacao agora para travar o campo; o texto fica.
+      if (String(error.payload?.code || "").startsWith("FLOOR")) {
+        window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
+      }
       // Cobranca que nao valeu (ou que ficou sem resposta): a pagina atualiza o
       // emprestimo e tira o texto pronto do campo.
       if (error.payload?.loan) onChargeRefused?.(error.message, error.payload.loan, id);
@@ -841,9 +898,60 @@ export default function ChatThread({
           </div>
         ) : null}
 
+        {/* UMA CONVERSA POR VEZ (floor.js) */}
+        {floorMine ? (
+          <div className="chargebar chargebar--blocked floorbar" role="region" aria-label="Conversa em andamento">
+            <div className="chargebar__text">
+              <strong>Conversa em andamento</strong>
+              <span>
+                As outras ficam travadas até ela terminar: toque em Encerrar ou ela termina sozinha
+                {floorEndsLeft > 0 ? " em " + clockText(floorEndsLeft) : " em instantes"} sem
+                mensagens.
+              </span>
+            </div>
+            <div className="chargebar__actions">
+              <button type="button" className="linkish" onClick={endConversation} disabled={ending || sending}>
+                {ending ? "Encerrando…" : "Encerrar conversa"}
+              </button>
+            </div>
+          </div>
+        ) : floorLocked ? (
+          <div className="chargebar chargebar--blocked floorbar" role="status" aria-label="Uma conversa por vez">
+            <div className="chargebar__text">
+              {floorBusy ? (
+                <>
+                  <strong>
+                    {"Conversando agora com " + (floor.chatName || "outra pessoa")}
+                    {floor.byName ? " (" + floor.byName + ")" : ""}
+                  </strong>
+                  <span>
+                    Uma conversa por vez. Para escrever aqui, encerre aquela ou espere ela
+                    terminar sozinha
+                    {floorEndsLeft > 0 ? " (até " + clockText(floorEndsLeft) + ")" : ""}.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong>{"Próxima conversa liberada em " + clockText(floorLeft)}</strong>
+                  <span>Um intervalo entre uma pessoa e outra, como alguém de verdade faria.</span>
+                </>
+              )}
+            </div>
+            {floorBusy ? (
+              <div className="chargebar__actions">
+                <Link className="linkish" to={"/conversas/" + floor.chatId}>
+                  Ir para aquela conversa
+                </Link>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {!connected ? (
           <p className="composer__off" role="status">
-            O WhatsApp da biblioteca não está conectado agora: não dá para enviar.
+            {waking
+              ? "Conectando o WhatsApp da biblioteca… em instantes dá para enviar."
+              : "O WhatsApp da biblioteca não está conectado agora: não dá para enviar."}
           </p>
         ) : null}
 
@@ -858,16 +966,26 @@ export default function ChatThread({
             onKeyDown={onKeyDown}
             // "readOnly" e nao "disabled": um campo desligado perde o foco do
             // teclado quando o WhatsApp reconecta e ele volta a ligar.
-            readOnly={sending || !connected || gone}
-            aria-disabled={!connected}
-            placeholder={connected ? "Escreva uma mensagem" : "WhatsApp desconectado"}
+            readOnly={sending || !connected || gone || floorLocked}
+            aria-disabled={!connected || floorLocked}
+            placeholder={
+              !connected
+                ? waking
+                  ? "Conectando…"
+                  : "WhatsApp desconectado"
+                : floorBusy
+                  ? "Outra conversa em andamento"
+                  : floorWait
+                    ? "Aguarde " + clockText(floorLeft)
+                    : "Escreva uma mensagem"
+            }
             aria-label={"Mensagem para " + title}
             enterKeyHint="enter"
           />
           <button
             type="submit"
             className="btn btn--whatsapp composer__send"
-            disabled={!draft.trim() || !connected || sending || gone}
+            disabled={!draft.trim() || !connected || sending || gone || floorLocked}
           >
             <IconSend width={19} height={19} aria-hidden="true" />
             <span className="sr-only">{sending ? "Enviando" : "Enviar"}</span>

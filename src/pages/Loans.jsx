@@ -21,12 +21,11 @@ import {
   IconSearch,
   IconCheck,
   IconTag,
-  IconWhatsapp,
+  IconMessage,
   IconBook,
   IconEdit,
 } from "../components/Icons.jsx";
 import {
-  canCharge,
   formatStoredPhone,
   isLoanOverdue,
   nextChargeAt,
@@ -219,13 +218,13 @@ function LoanCard({ loan, onOpen }) {
             />
           </div>
 
-          {/* Cobranca no WhatsApp: so com o livro atrasado. Cobrado nos
-              ultimos 30 dias: quem cobrou e quando. */}
+          {/* Cobranca: so com o livro atrasado. Cobrado nos ultimos 30
+              dias: quem cobrou e quando. */}
           {late && loan.personPhone ? (
             <p
               className={"loancard__notice" + (chargeLocked ? "" : " is-late")}
             >
-              <IconWhatsapp width={14} height={14} aria-hidden="true" />
+              <IconMessage width={14} height={14} aria-hidden="true" />
               {chargeLocked
                 ? "Cobrado" +
                   (loan.overdueSentByName
@@ -234,8 +233,8 @@ function LoanCard({ loan, onOpen }) {
                   " em " +
                   formatDate(loan.overdueSentAt)
                 : charged
-                  ? "Cobrar de novo no WhatsApp"
-                  : "Cobrar atraso no WhatsApp"}
+                  ? "Cobrar de novo"
+                  : "Cobrar atraso"}
             </p>
           ) : null}
 
@@ -868,9 +867,10 @@ export default function Loans() {
               </div>
             ) : null}
 
-            {/* Cobranca: so com o livro atrasado. Uma a cada 30 dias, com
-                quem cobrou por ultimo. O botao abre a conversa da pessoa na
-                secao Conversas (pages/Conversations.jsx), com a mensagem pronta. */}
+            {/* Cobranca: so com o livro atrasado, com quem cobrou por ultimo.
+                O botao "Cobrar" SO abre a conversa da pessoa nas Conversas
+                (pages/Conversations.jsx): nenhuma mensagem pronta, nada sai
+                sozinho - quem cobra escreve. */}
             {selectedLate ? (
               <div className="charge-box">
                 <div className="charge-box__text">
@@ -882,7 +882,7 @@ export default function Loans() {
                   </strong>
                   <span>
                     {selected.overdueSentAt
-                      ? "Cobrado no WhatsApp" +
+                      ? "Cobrado" +
                         (selected.overdueSentByName
                           ? " por " + selected.overdueSentByName
                           : "") +
@@ -891,7 +891,7 @@ export default function Loans() {
                         "."
                       : "Ninguém cobrou ainda."}
                     {selectedNextCharge
-                      ? " Nova cobrança liberada em " +
+                      ? " Próxima cobrança registrada a partir de " +
                         formatDate(selectedNextCharge) +
                         "."
                       : ""}
@@ -903,12 +903,12 @@ export default function Loans() {
                 {selected.personPhone ? (
                   <button
                     type="button"
-                    className="btn btn--whatsapp btn--sm charge-box__btn"
+                    className="btn btn--primary btn--sm charge-box__btn"
                     onClick={() => navigate("/conversas?cobrar=" + selected._id)}
-                    disabled={!canCharge(selected)}
+                    aria-label={"Cobrar: abrir a conversa com " + selected.personName}
                   >
-                    <IconWhatsapp width={17} height={17} aria-hidden="true" />
-                    Cobrar no WhatsApp
+                    <IconMessage width={17} height={17} aria-hidden="true" />
+                    Cobrar
                   </button>
                 ) : null}
               </div>

@@ -168,14 +168,21 @@ export default function WhatsappConnect({
     );
   }
 
-  if (state === "connecting" || state === "reconnecting" || state === "standby") {
+  // sleeping: a conexao sob demanda estava fechada (ninguem nas Conversas) e
+  // abre sozinha porque esta tela esta aberta - para quem ve, e "conectando".
+  if (
+    state === "connecting" ||
+    state === "reconnecting" ||
+    state === "standby" ||
+    state === "sleeping"
+  ) {
     return (
       <div className="waconn waconn--strip" role="status">
         <span>
           {state === "standby" ? "Aguardando a conexão do WhatsApp" : "Conectando ao WhatsApp"}
           <Dots />
         </span>
-        {status.notice ? <small>{status.notice}</small> : null}
+        {status.notice && state !== "sleeping" ? <small>{status.notice}</small> : null}
       </div>
     );
   }

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import Avatar from "../components/Avatar.jsx";
-import ChargeModal from "../components/ChargeModal.jsx";
 import ChatRowMenu from "../components/ChatRowMenu.jsx";
 // (do robo, desligado em 12/11/2026: o arquivo esta todo comentado)
 // import BotAnswersModal from "../components/BotAnswersModal.jsx";
@@ -20,7 +19,6 @@ import { formatDate, loanProgress } from "../utils/dates.js";
 import { useRefresh } from "../utils/refresh.js";
 import { copyText } from "../utils/clipboard.js";
 import {
-  buildMessage,
   canCharge,
   chargeBlockReason,
   formatStoredPhone,
@@ -30,10 +28,16 @@ import {
 
 /**
  * CONVERSAS: o WhatsApp da biblioteca dentro do painel. E aqui que abre o
- * "Cobrar no WhatsApp" dos emprestimos atrasados (/conversas?cobrar=<id>):
- * a conversa da pessoa abre com a mensagem de cobranca pronta no campo; ao
- * enviar, a cobranca fica registrada no nome de quem enviou (regra de uma a
- * cada 30 dias, conferida no servidor) e so conta se a mensagem sair.
+ * "Cobrar" dos emprestimos atrasados (/conversas?cobrar=<id>): SO abre a
+ * conversa da pessoa, com o campo VAZIO (nenhuma mensagem pronta, nada sai
+ * sozinho). A primeira mensagem que o administrador escrever ali fica
+ * registrada como a cobranca, no nome dele (regra de uma a cada 30 dias,
+ * conferida no servidor; so conta se a mensagem sair). "Não registrar" tira
+ * isso e a conversa segue normal.
+ *
+ * Enquanto esta tela esta aberta (e visivel), o WhatsApp fica conectado no
+ * servidor; fora dela, a conexao fecha sozinha (sob demanda: ver
+ * backend/src/services/whatsapp/service.js).
  *
  * No celular a tela mostra a lista OU a conversa; no computador, as duas lado
  * a lado.
@@ -196,8 +200,29 @@ export default function Conversations() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { notify } = useToast();
-  const { status, reload, setStatus } = useWhatsappStatus();
+  const { status, reload, setStatus } = useWhatsappStatus({ active: true });
   const connected = status?.state === "open";
+  // Conectando (ou acordando a conexao sob demanda): "em instantes", nao "fora".
+  const waking = ["sleeping", "connecting", "reconnecting", "standby"].includes(status?.state);
+  // UMA CONVERSA POR VEZ: a situacao da vez, com a hora em que chegou (os
+  // tempos do servidor sao relativos; a conversa conta a partir dai).
+  const floor = useMemo(
+    () => (status?.floor ? { ...status.floor, receivedAt: Date.now() } : null),
+    [status],
+  );
+  const endFloor = useCallback(
+    async (id) => {
+      try {
+        await api("/api/whatsapp/floor/end", { method: "POST", body: { chatId: id } });
+        notify("Conversa encerrada.", "success");
+      } catch (error) {
+        notify(error.message, "error");
+      } finally {
+        reload();
+      }
+    },
+    [notify, reload],
+  );
 
   // ---------- lista ----------
   // null = carregando
@@ -490,14 +515,13 @@ export default function Conversations() {
     }
   }
 
-  // ---------- cobranca (vem de Emprestimos > Cobrar no WhatsApp) ----------
+  // ---------- cobranca (vem de Emprestimos > Cobrar) ----------
   const cobrarId = params.get("cobrar") || "";
   // { data } | { error } | null
   const [loan, setLoan] = useState(null);
   const [chargeOn, setChargeOn] = useState(true);
   const [chargeDone, setChargeDone] = useState(null);
   const [openError, setOpenError] = useState("");
-  const [phoneCharge, setPhoneCharge] = useState(null);
 
   useEffect(() => {
     setLoan(null);
@@ -545,37 +569,19 @@ export default function Conversations() {
     };
   }, [cobrarId, chatId, navigate]);
 
-  // A mensagem de cobranca ja vem escrita (uma vez, e so se nao ha rascunho).
-  const prefilled = useRef("");
   // A cobranca e de OUTRA pessoa (endereco editado a mao)? Nao e esta conversa.
+  // (Nenhuma mensagem vem pronta: o campo fica como estava - vazio ou com o
+  // rascunho que o administrador ja tinha escrito.)
   const otherPerson = Boolean(
     loan?.data && selected && !samePhone(loan.data.personPhone, selected.phone),
   );
-  useEffect(() => {
-    if (!loan?.data || !chatId || !cobrarId || !selected) return;
-    const key = chatId + ":" + cobrarId;
-    if (prefilled.current === key) return;
-    prefilled.current = key;
-    if (!otherPerson && canCharge(loan.data) && !draftsRef.current[chatId]) {
-      const text = buildMessage(loan.data);
-      draftsRef.current[chatId] = text;
-      setDraft(text);
-    }
-  }, [loan, chatId, cobrarId, selected, otherPerson]);
 
   const chargeReady = Boolean(
     loan?.data && chargeOn && !chargeDone && !otherPerson && canCharge(loan.data),
   );
 
-  // Se o texto da conversa ainda e a mensagem de cobranca pronta, ele sai (para
-  // nao ser enviado como mensagem comum, repetindo a cobranca); se foi editado, fica.
-  function clearReadyText(id, data) {
-    if (data && id && draftsRef.current[id] === buildMessage(data)) changeDraft(id, "");
-  }
-
   function dropCharge() {
     setChargeOn(false);
-    clearReadyText(chatId, loan?.data);
   }
 
   const charge = useMemo(() => {
@@ -610,32 +616,24 @@ export default function Conversations() {
     const book = "“" + formatBookTitle(data.bookTitle) + "”";
     if (canCharge(data)) {
       const days = Math.abs(loanProgress(data.startDate, data.dueDate).daysLeft || 0);
-      const next = new Date();
-      next.setDate(next.getDate() + 30);
       return {
         mode: "ready",
         title: "Cobrança de atraso · " + book,
         detail:
           days +
           (days === 1 ? " dia" : " dias") +
-          " de atraso. Ao enviar, a cobrança fica registrada no seu nome e a próxima só poderá sair a partir de " +
-          formatDate(next) +
-          ".",
-        actions: [
-          ...(connected
-            ? []
-            : [{ label: "Cobrar pelo WhatsApp do celular", onClick: () => setPhoneCharge(data) }]),
-          { label: "Só conversar, sem cobrança", onClick: dropCharge },
-        ],
+          " de atraso. A próxima mensagem que você enviar aqui fica registrada como a cobrança, no seu nome.",
+        actions: [{ label: "Não registrar como cobrança", onClick: dropCharge }],
       };
     }
     return {
       mode: "blocked",
-      title: "Cobrança de " + book + " não disponível",
-      detail: chargeBlockReason(data),
+      title: "Cobrança de " + book,
+      detail: chargeBlockReason(data) + " Dá para conversar normalmente.",
+      actions: [{ label: "Fechar", onClick: dropCharge }],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cobrarId, loan, chargeOn, chargeDone, connected, chatId, otherPerson]);
+  }, [cobrarId, loan, chargeOn, chargeDone, chatId, otherPerson]);
 
   // Celular (uma coluna): ao voltar para a lista, o foco volta para a conversa
   // que estava aberta (senao fica no nada e o leitor de tela se perde).
@@ -728,7 +726,7 @@ export default function Conversations() {
               <strong>O WhatsApp restringiu este número para iniciar conversas.</strong>
               Até {restrictionEnd(status.restriction.until)}, não escreva para quem nunca mandou
               mensagem (insistir piora a restrição). Responder a quem escreveu continua
-              funcionando; o aviso automático de atraso está em pausa.
+              funcionando.
             </div>
           ) : null}
 
@@ -819,6 +817,9 @@ export default function Conversations() {
               chatId={chatId}
               chat={selected}
               connected={connected}
+              waking={waking}
+              floor={floor}
+              onEndFloor={endFloor}
               draft={draft}
               onDraftChange={changeDraft}
               charge={charge}
@@ -827,11 +828,11 @@ export default function Conversations() {
                 setChargeDone(updated);
                 setLoan({ data: updated });
               }}
-              onChargeRefused={(message, fresh, id) => {
+              onChargeRefused={(message, fresh) => {
                 // A cobranca nao valeu (alguem cobrou antes, foi devolvido, ou o
-                // envio ficou sem resposta): o texto pronto sai do campo, senao
-                // um segundo toque o enviaria como mensagem comum e repetiria a cobranca.
-                clearReadyText(id, loan?.data);
+                // envio ficou sem resposta): o emprestimo atualizado troca a
+                // faixa. O texto fica no campo (foi a pessoa que escreveu); um
+                // novo toque envia como mensagem comum.
                 if (fresh) setLoan({ data: fresh });
               }}
               onRead={handleRead}
@@ -937,21 +938,6 @@ export default function Conversations() {
         tone="danger"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
-      />
-
-      <ChargeModal
-        loan={phoneCharge}
-        onClose={() => setPhoneCharge(null)}
-        onCharged={(updated, options) => {
-          if (!options?.keepOpen) setPhoneCharge(null);
-          setChargeDone(updated);
-          setLoan({ data: updated });
-        }}
-        onRefused={(message, fresh) => {
-          setPhoneCharge(null);
-          notify(message, "error");
-          if (fresh) setLoan({ data: fresh });
-        }}
       />
     </div>
   );
