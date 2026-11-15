@@ -1,6 +1,7 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { formatDate, loanProgress, parseDate } from "./dates.js";
 import { formatBookTitle } from "./bookTitle.js";
+import { LIBRARY_CONTACT_WHATSAPP } from "./support.js";
 
 // Mostra o numero salvo (so digitos com DDI) de forma legivel:
 // 5534997885466 -> +55 34 99788 5466
@@ -94,22 +95,21 @@ export function chargeBlockReason(loan) {
 
 // ---------- Solicitar emprestimo (acervo publico) ----------
 
-// WhatsApp BRASILEIRO da biblioteca: o MODELO ANTIGO do "Solicitar
-// empréstimo", guardado como reserva. Hoje quem escolhe o numero e o servidor
-// (resposta de POST /api/public/requests: "whatsapp" e "via"): normalmente o
-// numero da biblioteca conectado ao painel (+54), onde o robo confirma o
-// pedido e avisa o administrador; este brasileiro quando o servidor manda
-// (REQUESTS_WHATSAPP=brasil no Render, ou o WhatsApp do painel fora do ar) e
-// quando o servidor nem responde (mensagem sem o link).
-export const LIBRARY_WHATSAPP = "5534984241556";
+// Para onde vai a mensagem do "Solicitar empréstimo": o WhatsApp da
+// biblioteca, o mesmo do painel (Conversas) e do botao flutuante do catalogo
+// (+1 365 796 3315: LIBRARY_CONTACT_WHATSAPP em utils/support.js). Desde
+// 14/11/2026 e SEMPRE ele - tambem quando o servidor nem responde (mensagem
+// sem o link). Antes, com o painel fora do ar, ia para o brasileiro.
+export const LIBRARY_WHATSAPP = LIBRARY_CONTACT_WHATSAPP;
 
-// O numero que o servidor mandou usar, ou o brasileiro de reserva.
+// O numero que o servidor mandou usar (o da biblioteca; o brasileiro so com a
+// chave de emergencia REQUESTS_WHATSAPP=brasil no Render), ou o da biblioteca.
 export function requestWhatsapp(data) {
   const number = String(data?.whatsapp || "");
   if (/^\d{10,15}$/.test(number)) {
-    return { number, via: data.via === "robo" ? "robo" : "brasil" };
+    return { number, via: data.via === "brasil" ? "brasil" : "robo" };
   }
-  return { number: LIBRARY_WHATSAPP, via: "brasil" };
+  return { number: LIBRARY_WHATSAPP, via: "robo" };
 }
 
 // "sexta-feira, 30 de outubro de 2026"

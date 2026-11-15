@@ -25,9 +25,9 @@ export const WHATSAPP_GROUP =
 // (+1 365 796 3315, desde 13/11/2026; antes era o argentino +54 9 11
 // 6461-0665), o mesmo ligado ao painel (Conversas). Ninguem responde
 // sozinho: quem responde e um administrador, pelo painel. Usado no botao
-// flutuante do /catalogo e no "Precisa de algo a mais?" do menu Participe.
-// Nao confundir com LIBRARY_WHATSAPP (utils/whatsapp.js), o numero
-// BRASILEIRO de reserva do "Solicitar empréstimo".
+// flutuante do /catalogo, no "Precisa de algo a mais?" do menu Participe e,
+// desde 14/11/2026, sempre no "Solicitar empréstimo" (LIBRARY_WHATSAPP em
+// utils/whatsapp.js).
 export const LIBRARY_CONTACT_WHATSAPP = "13657963315";
 
 export const LIBRARY_CONTACT_URL =

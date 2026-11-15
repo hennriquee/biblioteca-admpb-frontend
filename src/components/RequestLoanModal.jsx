@@ -504,8 +504,8 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
         pickupDate,
         link: requestLinkUrl(data.token),
       });
-      // O WhatsApp da biblioteca com o robo (ou o brasileiro, de reserva):
-      // quem escolhe e o servidor (ver requestWhatsapp em utils/whatsapp.js).
+      // O WhatsApp da biblioteca (o do painel). O numero vem do servidor
+      // (ver requestWhatsapp em utils/whatsapp.js).
       const channel = requestWhatsapp(data);
       const url = libraryWhatsappUrl(text, channel.number);
       setDone({ url, withLink: true, via: channel.via });
@@ -571,10 +571,10 @@ export default function RequestLoanModal({ book, open, onClose, onStale }) {
       return;
     }
     const text = buildRequestMessage({ book, name: finalName, isNew, pickupDate, link: "" });
-    // Servidor fora do ar: o robo tambem esta, entao vai para o WhatsApp
-    // brasileiro (o modelo antigo), onde a equipe le direto.
+    // Servidor fora do ar: vai para o WhatsApp da biblioteca do mesmo jeito
+    // (o celular da biblioteca recebe; o painel ve quando conectar).
     const url = libraryWhatsappUrl(text);
-    setDone({ url, withLink: false, via: "brasil" });
+    setDone({ url, withLink: false, via: "robo" });
     setError("");
     if (openWhatsapp(url, libraryWhatsappAppUrl(text))) {
       setHandoff(true);
