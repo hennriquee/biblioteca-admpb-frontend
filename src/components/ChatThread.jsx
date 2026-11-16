@@ -16,6 +16,19 @@ import {
 import { formatStoredPhone } from "../utils/whatsapp.js";
 import { WHATSAPP_REFRESH_EVENT } from "../hooks/useWhatsappStatus.js";
 
+// Quanto a tela espera a resposta de um envio antes de dar "Sem confirmação"
+// (o servidor desiste em bem menos: fila + "digitando…" + 25 s do WhatsApp).
+const SEND_WAIT_MS = 90 * 1000;
+
+// Identidade de cada mensagem enviada (ver send): repetir a mesma nunca envia
+// duas vezes.
+function newClientId() {
+  const bytes = new Uint8Array(16);
+  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // "1:05", "0:09"
 function clockText(ms) {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -33,8 +46,9 @@ function clockText(ms) {
  *   aparelho).
  * - Abrir a conversa (e receber mensagem com ela aberta) marca como lida.
  * - Tudo que chega de fora e mostrado como TEXTO puro (nunca HTML).
- * - Enviar: a mensagem so aparece depois que o servidor confirma que saiu.
- *   Se der erro, o texto fica no campo.
+ * - Enviar: uma mensagem de cada vez. Ela sai do campo e fica como
+ *   "Enviando…" ate o servidor confirmar; a proxima so envia depois (ver
+ *   send). Recusada de vez, o texto volta para o campo.
  *
  * Props:
  * - chatId, chat (resumo para o cabecalho), connected (WhatsApp conectado),
@@ -250,6 +264,8 @@ export default function ChatThread({
   onEndFloor,
   draft,
   onDraftChange,
+  outgoing = null,
+  onOutgoing,
   charge,
   chargeLoanId,
   onChargeSent,
@@ -549,39 +565,148 @@ export default function ChatThread({
     field.style.height = Math.min(field.scrollHeight, 150) + "px";
   }, [draft, chatId]);
 
-  async function send() {
-    const text = draft.trim();
-    if (!text || sendingRef.current || !connected || gone || floorLocked) return;
+  // ---------- enviar (uma mensagem de cada vez) ----------
+  // A mensagem sai do campo na hora e aparece como "Enviando…" no fim da
+  // conversa (outgoing, guardado pela pagina). Da para ir escrevendo a
+  // proxima, mas ela SO envia depois que a anterior for confirmada: um envio
+  // lento nunca vira duas mensagens. Cada mensagem leva um clientId: tentar de
+  // novo a mesma nunca a envia duas vezes (o servidor confere: ver sendOnce em
+  // routes/whatsapp.js).
+  // - saiu: some o "Enviando…" e entra a mensagem de verdade;
+  // - recusada de vez (sem conexao com o WhatsApp, limite, outra conversa em
+  //   andamento): o texto volta para o campo;
+  // - sem confirmacao (sem resposta a tempo, internet caiu): fica "Sem
+  //   confirmação" ate a mensagem aparecer na conversa (ai vale como
+  //   enviada) ou a pessoa tocar em "Tentar de novo" / "Descartar".
+  const busyOut = Boolean(outgoing);
+
+  async function send(retry = null) {
+    if (sendingRef.current || gone || !connected || !onOutgoing) return;
+    let item = retry;
+    if (!item) {
+      const text = draft.trim();
+      if (!text || busyOut || floorLocked) return;
+      const mine = (messages || []).filter((message) => message.fromMe);
+      item = {
+        clientId: newClientId(),
+        text,
+        chargeLoanId: chargeLoanId || "",
+        // As minhas mensagens que ja estavam na tela: a confirmacao automatica
+        // so aceita uma mais nova que a ultima delas.
+        afterAt: mine.length ? mine[mine.length - 1].at : "",
+      };
+    }
+    item = { ...item, state: "sending" };
     sendingRef.current = true;
     setSending(true);
     const id = chatId;
+    onOutgoing(id, item, retry ? retry.clientId : null);
+    if (!retry) onDraftChange(id, "");
+    stickRef.current = true;
     try {
       const result = await api("/api/whatsapp/chats/" + id + "/messages", {
         method: "POST",
-        body: { text, ...(chargeLoanId ? { chargeLoanId } : {}) },
+        body: {
+          text: item.text,
+          clientId: item.clientId,
+          ...(item.chargeLoanId ? { chargeLoanId: item.chargeLoanId } : {}),
+        },
+        // Sem resposta neste tempo: "sem confirmação" (pode ter saido).
+        signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(SEND_WAIT_MS) : undefined,
       });
       // (Se a pessoa trocou de conversa no meio, esta tela ja foi desmontada: a
-      // mensagem saiu mesmo assim, e o rascunho e limpo SO da conversa que enviou.)
+      // mensagem saiu mesmo assim, e o "Enviando…" sai SO da conversa que enviou.)
       setMessages((current) => mergeMessages(current, [result.message]));
-      onDraftChange(id, "");
+      onOutgoing(id, null, item.clientId);
       if (result.chat) onChatChange?.(result.chat);
       if (result.loan) onChargeSent?.(result.loan);
       requestAnimationFrame(() => fieldRef.current?.focus());
     } catch (error) {
-      notify(error.message, "error");
-      // Uma conversa por vez: outra conversa pegou a vez antes (a tela ainda
-      // nao sabia). Busca a situacao agora para travar o campo; o texto fica.
-      if (String(error.payload?.code || "").startsWith("FLOOR")) {
-        window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
+      const code = String(error.payload?.code || "");
+      const unsure =
+        error.status === 0 ||
+        code === "SEND_TIMEOUT" ||
+        code === "SEND_UNCONFIRMED" ||
+        Boolean(error.payload?.maybeSent) ||
+        (error.status >= 500 && !code);
+      // (false: a mensagem ja apareceu na conversa - saiu, nada a avisar)
+      // (o proprio balao "Sem confirmação" explica; aviso so na repeticao cedo)
+      if (unsure) {
+        if (onOutgoing(id, { ...item, state: "unconfirmed" }, item.clientId) && code === "SEND_UNCONFIRMED") {
+          notify(error.message, "error");
+        }
+      } else {
+        // Nao saiu: o texto volta para o campo (antes do que ja foi escrito
+        // depois, se for o caso).
+        if (onOutgoing(id, null, item.clientId)) {
+          onDraftChange(id, (current) => (current.trim() ? item.text + "\n" + current : item.text));
+        }
+        notify(error.message, "error");
+        // Uma conversa por vez: outra conversa pegou a vez antes (a tela ainda
+        // nao sabia). Busca a situacao agora para travar o campo.
+        if (code.startsWith("FLOOR")) window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
       }
       // Cobranca que nao valeu (ou que ficou sem resposta): a pagina atualiza o
       // emprestimo e tira o texto pronto do campo.
       if (error.payload?.loan) onChargeRefused?.(error.message, error.payload.loan, id);
-      else if (error.status === 409 && chargeLoanId) onChargeRefused?.(error.message, null, id);
+      else if (error.status === 409 && item.chargeLoanId && !unsure) {
+        onChargeRefused?.(error.message, null, id);
+      }
     } finally {
       sendingRef.current = false;
       setSending(false);
     }
+  }
+
+  // Se a mensagem ja apareceu na conversa (o WhatsApp avisa das enviadas, as
+  // vezes antes da resposta do envio), ela saiu: o "Enviando…"/"Sem
+  // confirmação" some sozinho (e nunca aparece junto com ela).
+  const outgoingId = outgoing?.clientId || "";
+  const unconfirmed = outgoing?.state === "unconfirmed";
+  const outgoingArrived = Boolean(
+    outgoing &&
+      messages?.some(
+        (message) =>
+          message.fromMe &&
+          !message.deleted &&
+          new Date(message.at).getTime() >
+            (outgoing.afterAt ? new Date(outgoing.afterAt).getTime() : 0) &&
+          String(message.text || "").endsWith(outgoing.text),
+      ),
+  );
+  useEffect(() => {
+    if (outgoingArrived) onOutgoing?.(chatId, null, outgoingId);
+  }, [outgoingArrived, outgoingId, chatId, onOutgoing]);
+
+  // A mensagem entrou como "Enviando…": a conversa desce ate ela.
+  const outgoingRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!outgoingId || !stickRef.current) return;
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  }, [outgoingId, unconfirmed]);
+
+  // A area das mensagens encolheu (entrou a faixa "Conversa em andamento", o
+  // aviso de espera, o teclado do celular): quem estava no fim continua no
+  // fim - senao o fim da ultima mensagem (e os botoes do "Sem confirmação")
+  // ficava escondido embaixo.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || typeof ResizeObserver === "undefined") return undefined;
+    let height = scroller.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const next = scroller.clientHeight;
+      if (next < height && stickRef.current) scroller.scrollTop = scroller.scrollHeight;
+      height = next;
+    });
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [loaded]);
+
+  function discardOutgoing() {
+    if (!outgoing || sendingRef.current) return;
+    onOutgoing?.(chatId, null, outgoing.clientId);
+    requestAnimationFrame(() => fieldRef.current?.focus());
   }
 
 // (do robo, desligado em 12/11/2026)
@@ -798,6 +923,38 @@ export default function ChatThread({
             })}
           </ol>
         ) : null}
+
+        {/* A mensagem que esta saindo (ou que ficou sem confirmacao). */}
+        {loaded && !gone && outgoing && !outgoingArrived ? (
+          <div className="msg msg--me msg--outgoing" ref={outgoingRef}>
+            <div className={"msg__bubble" + (unconfirmed ? " msg__bubble--unsure" : "")}>
+              <span className="msg__text">{outgoing.text}</span>
+              {unconfirmed ? (
+                <span className="msg__unsure" role="status">
+                  Sem confirmação do WhatsApp. Confira se chegou antes de enviar de novo.
+                  <span className="msg__unsureactions">
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => send(outgoing)}
+                      disabled={sending || !connected}
+                    >
+                      Tentar de novo
+                    </button>
+                    <button type="button" className="linkish" onClick={discardOutgoing} disabled={sending}>
+                      Descartar
+                    </button>
+                  </span>
+                </span>
+              ) : (
+                <span className="msg__meta" role="status">
+                  Enviando…
+                  <IconTimer width={12} height={12} aria-hidden="true" />
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {newBelow > 0 ? (
@@ -904,9 +1061,8 @@ export default function ChatThread({
             <div className="chargebar__text">
               <strong>Conversa em andamento</strong>
               <span>
-                As outras ficam travadas até ela terminar: toque em Encerrar ou ela termina sozinha
-                {floorEndsLeft > 0 ? " em " + clockText(floorEndsLeft) : " em instantes"} sem
-                mensagens.
+                Por segurança, uma conversa por vez. Encerre ao terminar (sem mensagens, encerra
+                sozinha {floorEndsLeft > 0 ? "em " + clockText(floorEndsLeft) : "em instantes"}).
               </span>
             </div>
             <div className="chargebar__actions">
@@ -925,15 +1081,14 @@ export default function ChatThread({
                     {floor.byName ? " (" + floor.byName + ")" : ""}
                   </strong>
                   <span>
-                    Uma conversa por vez. Para escrever aqui, encerre aquela ou espere ela
-                    terminar sozinha
-                    {floorEndsLeft > 0 ? " (até " + clockText(floorEndsLeft) + ")" : ""}.
+                    Por segurança, uma conversa por vez. Encerre aquela para escrever aqui
+                    {floorEndsLeft > 0 ? " (encerra sozinha em " + clockText(floorEndsLeft) + ")" : ""}.
                   </span>
                 </>
               ) : (
                 <>
                   <strong>{"Próxima conversa liberada em " + clockText(floorLeft)}</strong>
-                  <span>Um intervalo entre uma pessoa e outra, como alguém de verdade faria.</span>
+                  <span>Intervalo de segurança entre conversas.</span>
                 </>
               )}
             </div>
@@ -966,7 +1121,9 @@ export default function ChatThread({
             onKeyDown={onKeyDown}
             // "readOnly" e nao "disabled": um campo desligado perde o foco do
             // teclado quando o WhatsApp reconecta e ele volta a ligar.
-            readOnly={sending || !connected || gone || floorLocked}
+            // (Durante um envio da para ir escrevendo a proxima: o que trava e
+            // o botao Enviar.)
+            readOnly={!connected || gone || floorLocked}
             aria-disabled={!connected || floorLocked}
             placeholder={
               !connected
@@ -985,12 +1142,18 @@ export default function ChatThread({
           <button
             type="submit"
             className="btn btn--whatsapp composer__send"
-            disabled={!draft.trim() || !connected || sending || gone || floorLocked}
+            disabled={!draft.trim() || !connected || busyOut || gone || floorLocked}
           >
             <IconSend width={19} height={19} aria-hidden="true" />
             <span className="sr-only">{sending ? "Enviando" : "Enviar"}</span>
           </button>
         </div>
+        {/* (sem confirmacao, o proprio balao explica) */}
+        {busyOut && !unconfirmed && draft.trim() ? (
+          <small className="composer__wait" role="status">
+            Aguarde a mensagem anterior ser enviada.
+          </small>
+        ) : null}
         {draft.length > MAX_TEXT - 500 ? (
           <small className="composer__count" aria-live="polite">
             {draft.length} / {MAX_TEXT}

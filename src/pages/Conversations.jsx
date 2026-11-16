@@ -376,10 +376,33 @@ export default function Conversations() {
   chatIdRef.current = chatId;
   // O rascunho e guardado POR conversa: uma resposta atrasada (um envio lento
   // da conversa A) nao apaga o que ja esta sendo escrito na B.
+  // (text pode ser uma funcao: recebe o rascunho atual DAQUELA conversa)
   const changeDraft = useCallback((id, text) => {
     if (!id) return;
-    draftsRef.current[id] = text;
-    if (chatIdRef.current === id) setDraft(text);
+    const next = typeof text === "function" ? text(draftsRef.current[id] ?? "") : text;
+    draftsRef.current[id] = next;
+    if (chatIdRef.current === id) setDraft(next);
+  }, []);
+
+  // ENVIO EM ANDAMENTO, um por conversa (ver send em ChatThread): a mensagem
+  // que saiu do campo e ainda nao foi confirmada. Enquanto ela existe, a
+  // conversa nao envia outra (nada de mensagem duplicada). Fica aqui, e nao na
+  // conversa, para valer mesmo trocando de conversa no meio do envio.
+  // onlyIf: so troca se o envio guardado ainda e aquele (clientId). Devolve
+  // se trocou (false: ja tinha saido, por exemplo confirmado pelo eco).
+  const [outbox, setOutbox] = useState({});
+  const outboxRef = useRef({});
+  const changeOutgoing = useCallback((id, item, onlyIf = null) => {
+    if (!id) return false;
+    const current = outboxRef.current;
+    if (onlyIf && current[id]?.clientId !== onlyIf) return false;
+    if (!item && !current[id]) return false;
+    const next = { ...current };
+    if (item) next[id] = item;
+    else delete next[id];
+    outboxRef.current = next;
+    setOutbox(next);
+    return true;
   }, []);
 
   // A conversa foi lida: zera a bolinha dela na lista e a total.
@@ -466,6 +489,7 @@ export default function Conversations() {
     (id) => {
       deletedRef.current.add(id);
       delete draftsRef.current[id];
+      changeOutgoing(id, null);
       setChats((current) => (current ? current.filter((c) => c._id !== id) : current));
       setFetchedChat((current) => (current?._id === id ? null : current));
       window.dispatchEvent(new Event(WHATSAPP_REFRESH_EVENT));
@@ -478,7 +502,7 @@ export default function Conversations() {
       focusAfterDeleteRef.current = id;
       setFocusTick((n) => n + 1);
     },
-    [navigate],
+    [navigate, changeOutgoing],
   );
   const focusAfterDeleteRef = useRef("");
   const [focusTick, setFocusTick] = useState(0);
@@ -724,9 +748,8 @@ export default function Conversations() {
           {status?.restriction ? (
             <div className="warestrict" role="alert">
               <strong>O WhatsApp restringiu este número para iniciar conversas.</strong>
-              Até {restrictionEnd(status.restriction.until)}, não escreva para quem nunca mandou
-              mensagem (insistir piora a restrição). Responder a quem escreveu continua
-              funcionando.
+              Por segurança, até {restrictionEnd(status.restriction.until)} não escreva a quem
+              nunca mandou mensagem. Responder a quem escreveu continua liberado.
             </div>
           ) : null}
 
@@ -822,6 +845,8 @@ export default function Conversations() {
               onEndFloor={endFloor}
               draft={draft}
               onDraftChange={changeDraft}
+              outgoing={outbox[chatId] || null}
+              onOutgoing={changeOutgoing}
               charge={charge}
               chargeLoanId={chargeReady ? loan.data._id : ""}
               onChargeSent={(updated) => {

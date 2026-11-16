@@ -528,6 +528,39 @@
   color: var(--ink-soft);
   font-size: 0.88rem;
 }
+/* A mensagem saindo ("Enviando…") ou sem confirmacao (ver send em ChatThread) */
+.msg--outgoing .msg__bubble {
+  opacity: 0.75;
+}
+.msg--outgoing .msg__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.msg .msg__bubble.msg__bubble--unsure {
+  opacity: 1;
+  background: var(--surface);
+  border-color: var(--danger-line);
+}
+.msg__unsure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.msg__unsureactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.composer__wait {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
 /* Texto corrido (nao "flex"): num item flex o espaco do fim de "Cobrança · "
    some e a linha saia "Cobrança ·Ana". */
 .msg__meta {

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { publicApi } from "../api/client.js";
 import PublicBookModal, { PublicBookRow } from "../components/PublicBook.jsx";
@@ -196,6 +203,14 @@ export default function Catalog() {
     };
     // Roda so ao abrir a pagina.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // O catalogo sempre abre no TOPO (com o "Nossos livros" a vista). Sem isto,
+  // quem vem da tela de entrada ("/", onde no celular e preciso rolar ate o
+  // "Ver catálogo") chegava com a pagina rolada para baixo: a troca de tela do
+  // app nao mexe na rolagem da janela.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {

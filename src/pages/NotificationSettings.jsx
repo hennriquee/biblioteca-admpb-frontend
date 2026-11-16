@@ -30,7 +30,8 @@ const KINDS = [
   {
     id: "requests",
     title: "Novas solicitações de empréstimo",
-    detail: "Quando alguém pede um livro pelo catálogo. A notificação traz o botão “Registrar solicitação”.",
+    detail:
+      "Quando chega ao WhatsApp da biblioteca a mensagem de alguém pedindo um livro pelo catálogo. A notificação traz o botão “Registrar solicitação”.",
   },
   {
     id: "loans",
